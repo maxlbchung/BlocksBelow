@@ -36,22 +36,11 @@ public class PlayerController : MonoBehaviour
         {
             if (Input.GetKey(KeyCode.A))
             {
-                float posX = transform.position.x;
-
-                while(posX > transform.position.x + 1)
-                {
-                    posX -= 0.1f;
-                    transform.position = new Vector2(posX, transform.position.y);
-                    yield return null;
-                }
-
-                yield return new WaitForSeconds(strafeTime);
+                transform.position += Vector3.left * Time.deltaTime * 5f;
             }
             else if (Input.GetKey(KeyCode.D))
             {
-                float posX = transform.position.x;
-
-                yield return new WaitForSeconds(strafeTime);
+                transform.position += Vector3.right * Time.deltaTime * 5f;
             }
 
             yield return null;
