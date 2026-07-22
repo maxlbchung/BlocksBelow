@@ -1,13 +1,20 @@
 using UnityEngine;
 
+[RequireComponent(typeof(BoxCollider2D))]
 public class DoorBelow : MonoBehaviour
 {
     [SerializeField, Min(0)] private int numberOfBlocksToOpen;
     [SerializeField] private int blocksBelow;
 
+    private BoxCollider2D doorCollider;
     private bool doorOpened;
 
     public int BlocksBelow => blocksBelow;
+
+    private void Awake()
+    {
+        doorCollider = GetComponent<BoxCollider2D>();
+    }
 
     private void Update()
     {
@@ -37,11 +44,11 @@ public class DoorBelow : MonoBehaviour
 
     private void OpenDoor()
     {
-        Debug.Log("OPEN DOOR!");
+        doorCollider.enabled = false;
     }
 
     private void CloseDoor()
     {
-        Debug.Log("CLOSE DOOR!");
+        doorCollider.enabled = true;
     }
 }

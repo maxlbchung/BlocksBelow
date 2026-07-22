@@ -48,6 +48,6 @@ public class BreakDown : MonoBehaviour
 
     private void Break()
     {
-        Debug.Log("BREAK!");
+        Destroy(gameObject);
     }
 }
