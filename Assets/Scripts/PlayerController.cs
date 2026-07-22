@@ -1,4 +1,6 @@
+using NUnit.Framework;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -14,6 +16,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private int right = 0;
     [SerializeField] private int left = 0;
 
+    [Header("Input Actions")]
+    [SerializeField] private InputActionReference selectAction;
+    [SerializeField] private InputActionReference consumeAction;
+
+    private List<Block> selectedBlocks = new List<Block>();
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -24,6 +32,8 @@ public class PlayerController : MonoBehaviour
 
         StartCoroutine(Strafe());
     }
+
+    
 
     private void Update()
     {
@@ -39,6 +49,8 @@ public class PlayerController : MonoBehaviour
         {
             //absorb blocks below
         }
+
+        HandleSelecting();
     }
 
     private IEnumerator Strafe()
@@ -152,6 +164,61 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    public GameObject FindBoxBelow()
+    {
+        Debug.Log("Finding box below player");
+        GameObject[] objectsBelow = RaycastFindAll(Vector2.down).ToArray();
+        foreach (GameObject obj in objectsBelow)
+        {
+            if (obj.TryGetComponent<Block>(out Block block) && !selectedBlocks.Contains(block))
+            {
+                Debug.Log("Found block below player: " + block.name);
+                block.selectBlock();
+                selectedBlocks.Add(block);
+                return block.gameObject;
+            }
+        }
+
+        return null;
+
+    }
+
+    public void HandleSelecting()
+    {
+        if (selectAction.action.WasPressedThisFrame())
+        {
+            FindBoxBelow();
+        }
+
+        if (consumeAction.action.WasPressedThisFrame())
+        {
+            Debug.Log("Consuming selected blocks");
+            foreach (Block block in selectedBlocks)
+            {
+                block.DestroyBlock();
+
+                switch (block.blockPower)
+                {
+                    case Block.Power.Jump:
+                    {
+                        jumps++;
+                        break;
+                    }
+                    case Block.Power.Right:
+                    {
+                        right++;
+                        break;
+                    }
+                     case Block.Power.Left:
+                    {
+                        left++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
 
     public GameObject Raycast(Vector2 direction, float distance = Mathf.Infinity)
     {
@@ -176,6 +243,33 @@ public class PlayerController : MonoBehaviour
         }
 
         return null;
+    }
+
+    public List<GameObject> RaycastFindAll(Vector2 direction, float distance = Mathf.Infinity)
+    {
+        if (direction.sqrMagnitude == 0f || distance < 0f)
+        {
+            return null;
+        }
+
+        RaycastHit2D[] hits = Physics2D.RaycastAll(
+            transform.position,
+            direction.normalized,
+            distance
+        );
+
+        List<GameObject> returns = new List<GameObject>();
+
+        foreach (RaycastHit2D hit in hits)
+        {
+            // A ray starting inside this object can detect its own colliders.
+            if (hit.collider != null && !hit.collider.transform.IsChildOf(transform))
+            {
+                returns.Add(hit.collider.gameObject);
+            }
+        }
+
+        return returns;
     }
 
 }

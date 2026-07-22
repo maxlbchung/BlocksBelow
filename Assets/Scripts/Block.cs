@@ -3,6 +3,7 @@ using UnityEngine.Rendering;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
+[RequireComponent(typeof(BoxCollider2D))]
 
 public class Block : MonoBehaviour
 {
@@ -25,7 +26,7 @@ public class Block : MonoBehaviour
         Left
     }
 
-    [SerializeField] Power blockPower;
+    public Power blockPower;
 
     public void selectBlock()
     {
