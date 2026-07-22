@@ -1,6 +1,6 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
@@ -24,7 +24,8 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Space))
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
         {
             rb.linearVelocity += new Vector2(0, 5f);
         }
@@ -34,11 +35,13 @@ public class PlayerController : MonoBehaviour
     {
         while (true)
         {
-            if (Input.GetKey(KeyCode.A))
+            Keyboard keyboard = Keyboard.current;
+
+            if (keyboard != null && keyboard.aKey.isPressed)
             {
                 transform.position += Vector3.left * Time.deltaTime * 5f;
             }
-            else if (Input.GetKey(KeyCode.D))
+            else if (keyboard != null && keyboard.dKey.isPressed)
             {
                 transform.position += Vector3.right * Time.deltaTime * 5f;
             }
