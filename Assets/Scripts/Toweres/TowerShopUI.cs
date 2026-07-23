@@ -7,12 +7,24 @@ using UnityEngine.UI;
 
 public class TowerShopUI : MonoBehaviour
 {
+    public enum TowerScript
+    {
+        BasicTower,
+        ShotgunTower,
+        SawBladeTower,
+        FanTower,
+        MoneyTower,
+        CageTower,
+        Scaffolding,
+        TeslaTower
+    }
+
     [Serializable]
     public class TowerOffer
     {
         public string displayName = "Tower";
-        public GameObject prefab;
-        public Sprite shopIcon;
+        public TowerScript script;
+        public Sprite sprite;
         [Min(0)] public int price = 10;
     }
 
@@ -20,6 +32,13 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField, Min(0)] private int startingMoney = 100;
     [SerializeField] private List<TowerOffer> towers = new List<TowerOffer>();
     [SerializeField] private SquarePlacement placement;
+
+    [Header("Runtime Prefabs")]
+    [SerializeField] private Projectile basicProjectilePrefab;
+    [SerializeField] private Projectile shotgunProjectilePrefab;
+    [SerializeField] private GameObject sawBladePrefab;
+    [SerializeField] private Sprite brokenCageSprite;
+    [SerializeField, Min(0.1f)] private float cageCaptureRadius = 1.25f;
 
     [Header("Appearance")]
     [SerializeField] private Color panelColor = new Color(0.08f, 0.1f, 0.14f, 0.92f);
@@ -92,21 +111,70 @@ public class TowerShopUI : MonoBehaviour
         }
 
         TowerOffer offer = towers[index];
-        if (offer.prefab == null || !CanAfford(offer.price))
+        if (offer.sprite == null || !CanAfford(offer.price))
         {
             return;
         }
 
         selectedIndex = index;
-        Sprite preview = offer.shopIcon;
-        if (preview == null)
+        placement.SetSelectedTower(offer);
+        RefreshUI();
+    }
+
+    public GameObject CreateTower(TowerOffer offer, Vector2 position, float gridCellSize)
+    {
+        if (offer == null || offer.sprite == null)
         {
-            SpriteRenderer renderer = offer.prefab.GetComponentInChildren<SpriteRenderer>();
-            preview = renderer != null ? renderer.sprite : null;
+            return null;
         }
 
-        placement.SetSelectedTower(offer.prefab, preview, offer.price);
-        RefreshUI();
+        GameObject tower = new GameObject(offer.displayName);
+        tower.transform.position = position;
+        tower.tag = offer.script == TowerScript.CageTower ? "cage" : "tower";
+
+        SpriteRenderer renderer = tower.AddComponent<SpriteRenderer>();
+        renderer.sprite = offer.sprite;
+        renderer.sortingLayerName = "Towers";
+        renderer.sortingOrder = 1;
+
+        BoxCollider2D collider = tower.AddComponent<BoxCollider2D>();
+        collider.size = Vector2.one;
+        collider.isTrigger = offer.script == TowerScript.Scaffolding;
+
+        switch (offer.script)
+        {
+            case TowerScript.BasicTower:
+                tower.AddComponent<BasicTower>().Configure(basicProjectilePrefab);
+                break;
+            case TowerScript.ShotgunTower:
+                tower.AddComponent<ShotgunTower>().Configure(shotgunProjectilePrefab);
+                break;
+            case TowerScript.SawBladeTower:
+                tower.AddComponent<SawBladeTower>().Configure(sawBladePrefab);
+                break;
+            case TowerScript.FanTower:
+                tower.AddComponent<FanTower>();
+                break;
+            case TowerScript.MoneyTower:
+                tower.AddComponent<MoneyTower>();
+                break;
+            case TowerScript.CageTower:
+                tower.AddComponent<CageTower>().Configure(brokenCageSprite, cageCaptureRadius);
+                break;
+            case TowerScript.Scaffolding:
+                // Scaffolding intentionally has no behavior component.
+                break;
+            case TowerScript.TeslaTower:
+                tower.AddComponent<TeslaTower>();
+                break;
+        }
+
+        if (offer.script != TowerScript.CageTower)
+        {
+            tower.AddComponent<TowerCageStack>().Initialize(gridCellSize);
+        }
+
+        return tower;
     }
 
     private void BuildShopUI()
@@ -173,16 +241,9 @@ public class TowerShopUI : MonoBehaviour
         row.childControlHeight = true;
         row.childControlWidth = false;
 
-        Sprite iconSprite = offer.shopIcon;
-        if (iconSprite == null && offer.prefab != null)
-        {
-            SpriteRenderer renderer = offer.prefab.GetComponentInChildren<SpriteRenderer>();
-            iconSprite = renderer != null ? renderer.sprite : null;
-        }
-
         GameObject iconObject = CreateUIObject("Icon", buttonObject.transform);
         Image icon = iconObject.AddComponent<Image>();
-        icon.sprite = iconSprite;
+        icon.sprite = offer.sprite;
         icon.preserveAspect = true;
         LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
         iconLayout.preferredWidth = 48f;
@@ -207,7 +268,7 @@ public class TowerShopUI : MonoBehaviour
         {
             Button button = towerButtons[i];
             TowerOffer offer = towers[i];
-            button.interactable = offer.prefab != null && CanAfford(offer.price);
+            button.interactable = offer.sprite != null && CanAfford(offer.price);
             button.GetComponent<Image>().color = i == selectedIndex ? selectedColor : buttonColor;
         }
     }

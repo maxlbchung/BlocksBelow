@@ -7,6 +7,7 @@ TagManager:
   - block
   - tower
   - Enemy
+  - cage
   layers:
   - Default
   - TransparentFX
@@ -43,6 +44,12 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: Towers
+    uniqueID: 1473641201
+    locked: 0
+  - name: Enemy
+    uniqueID: 3074918255
     locked: 0
   m_RenderingLayers:
   - Default

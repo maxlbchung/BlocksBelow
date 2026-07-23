@@ -7,6 +7,11 @@ public class BasicTower : MonoBehaviour
 
     private float nextShotTime;
 
+    public void Configure(Projectile newProjectilePrefab)
+    {
+        projectilePrefab = newProjectilePrefab;
+    }
+
     private void Update()
     {
         if (Time.time < nextShotTime)

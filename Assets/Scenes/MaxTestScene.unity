@@ -392,19 +392,44 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cd21c34430a6b1844aa4c6842a5a8c7d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TowerShopUI
   startingMoney: 100
   towers:
-  - displayName: bas
-    prefab: {fileID: 4774996552615246608, guid: b479fac82e108094bbabf9664f00fa1a, type: 3}
-    shopIcon: {fileID: 0}
-    price: 1
-  - displayName: shot
-    prefab: {fileID: 4774996552615246608, guid: 3a4e52f712fbddd4896f21d955cbe55a, type: 3}
-    shopIcon: {fileID: 0}
-    price: 1
+  - displayName: MetalGrinder
+    script: 4
+    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    price: 100
+  - displayName: Basic
+    script: 0
+    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    price: 50
+  - displayName: Shotgun
+    script: 1
+    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    price: 75
+  - displayName: Sawblade
+    script: 2
+    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    price: 100
+  - displayName: Fan
+    script: 3
+    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    price: 200
+  - displayName: Cage
+    script: 5
+    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    price: 25
+  - displayName: Scaffolding
+    script: 6
+    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    price: 25
   placement: {fileID: 0}
+  basicProjectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
+  shotgunProjectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
+  sawBladePrefab: {fileID: 6163622273882598567, guid: 2a7857f5961cfcc4f927c40ae9a8b8f6, type: 3}
+  brokenCageSprite: {fileID: 0}
+  cageCaptureRadius: 1.25
   panelColor: {r: 0.08, g: 0.1, b: 0.14, a: 0.92}
   buttonColor: {r: 0.2, g: 0.24, b: 0.3, a: 1}
   selectedColor: {r: 0.25, g: 0.55, b: 0.3, a: 1}
@@ -420,7 +445,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6f67e3d5a1dab0a40b8cef64f015ca50, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SquarePlacement
-  squarePrefab: {fileID: 0}
   cellSize: 1
   gridOrigin: {x: 0, y: 0}
   towerShop: {fileID: 0}
