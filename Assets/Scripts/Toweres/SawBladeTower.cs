@@ -10,6 +10,7 @@ public class SawBladeTower : MonoBehaviour
     [Header("Saw Tethers")]
     [SerializeField, Min(0.001f)] private float lineWidth = 0.05f;
     [SerializeField] private Color lineColor = Color.gray;
+    [SerializeField] private AudioClip hitSfx;
 
     private Transform sawOrbit;
     private TowerCageStack cageStack;
@@ -17,9 +18,10 @@ public class SawBladeTower : MonoBehaviour
     private readonly List<Transform> saws = new List<Transform>();
     private readonly List<LineRenderer> sawLines = new List<LineRenderer>();
 
-    public void Configure(GameObject newSawPrefab)
+    public void Configure(GameObject newSawPrefab, AudioClip newHitSfx = null)
     {
         sawPrefab = newSawPrefab;
+        hitSfx = newHitSfx;
     }
 
     private void Start()
@@ -96,6 +98,11 @@ public class SawBladeTower : MonoBehaviour
             saw.name = $"Saw {i + 1}";
             saw.transform.localPosition = localPosition;
             saw.transform.localRotation = Quaternion.identity;
+            SawBlade blade = saw.GetComponent<SawBlade>();
+            if (blade != null)
+            {
+                blade.ConfigureSfx(hitSfx);
+            }
 
             saws.Add(saw.transform);
             sawLines.Add(CreateSawLine(i + 1));

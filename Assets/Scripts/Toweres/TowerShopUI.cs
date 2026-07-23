@@ -38,7 +38,6 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField] private Projectile shotgunProjectilePrefab;
     [SerializeField] private GameObject sawBladePrefab;
     [SerializeField] private Sprite brokenCageSprite;
-    [SerializeField] private GameObject tunnelColliders;
     [SerializeField, Min(0.1f)] private float cageCaptureRadius = 1.25f;
 
     [Header("Appearance")]
@@ -46,16 +45,15 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField] private Color buttonColor = new Color(0.2f, 0.24f, 0.3f, 1f);
     [SerializeField] private Color selectedColor = new Color(0.25f, 0.55f, 0.3f, 1f);
 
-    [Header("Tower Sprites")]
-    [SerializeField] private Sprite basicTowerSprite;
-    [SerializeField] private Sprite shotgunTowerSprite;
-    [SerializeField] private Sprite brokenTowerSprite;
-    [SerializeField] private Sprite sawBladeTowerSprite;
-    [SerializeField] private Sprite fanTowerSprite;
-    [SerializeField] private Sprite moneyTowerSprite;
-    [SerializeField] private Sprite cageTowerSprite;
-    [SerializeField] private Sprite scaffoldingSprite;
-
+    [Header("Tower SFX")]
+    [SerializeField, AudioClipDropdown] private AudioClip placementSfx;
+    [SerializeField, AudioClipDropdown] private AudioClip basicShootSfx;
+    [SerializeField, AudioClipDropdown] private AudioClip shotgunShootSfx;
+    [SerializeField, AudioClipDropdown] private AudioClip sawHitSfx;
+    [SerializeField, AudioClipDropdown] private AudioClip moneySfx;
+    [SerializeField, AudioClipDropdown] private AudioClip cageCaptureSfx;
+    [SerializeField, AudioClipDropdown] private AudioClip cageBreakSfx;
+    [SerializeField, AudioClipDropdown] private AudioClip teslaSfx;
 
 
     private readonly List<Button> towerButtons = new List<Button>();
@@ -144,7 +142,11 @@ public class TowerShopUI : MonoBehaviour
         GameObject tower = new GameObject(offer.displayName);
         tower.transform.position = position;
         tower.tag = offer.script == TowerScript.CageTower ? "cage" : "tower";
-        tower.AddComponent<Ground>();
+        int wallLayer = LayerMask.NameToLayer("Wall");
+        if (wallLayer >= 0)
+        {
+            tower.layer = wallLayer;
+        }
 
         SpriteRenderer renderer = tower.AddComponent<SpriteRenderer>();
         renderer.sprite = offer.sprite;
@@ -158,36 +160,39 @@ public class TowerShopUI : MonoBehaviour
         switch (offer.script)
         {
             case TowerScript.BasicTower:
-                tower.AddComponent<BasicTower>().Configure(basicProjectilePrefab);
+                tower.AddComponent<BasicTower>().Configure(basicProjectilePrefab, basicShootSfx);
                 break;
             case TowerScript.ShotgunTower:
-                tower.AddComponent<ShotgunTower>().Configure(shotgunProjectilePrefab);
+                tower.AddComponent<ShotgunTower>().Configure(shotgunProjectilePrefab, shotgunShootSfx);
                 break;
             case TowerScript.SawBladeTower:
-                tower.AddComponent<SawBladeTower>().Configure(sawBladePrefab);
+                tower.AddComponent<SawBladeTower>().Configure(sawBladePrefab, sawHitSfx);
                 break;
             case TowerScript.FanTower:
                 tower.AddComponent<FanTower>();
                 break;
             case TowerScript.MoneyTower:
-                tower.AddComponent<MoneyTower>();
+                tower.AddComponent<MoneyTower>().Configure(moneySfx);
                 break;
             case TowerScript.CageTower:
-                tower.AddComponent<CageTower>().Configure(brokenCageSprite, cageCaptureRadius);
+                tower.AddComponent<CageTower>().Configure(
+                    brokenCageSprite,
+                    cageCaptureRadius,
+                    cageCaptureSfx,
+                    cageBreakSfx);
                 break;
             case TowerScript.Scaffolding:
                 // Scaffolding intentionally has no behavior component.
                 SpriteRenderer sr = tower.GetComponent<SpriteRenderer>();
-                sr.sprite = scaffoldingSprite;
                 Color color = sr.color;
                 color.a = 0.5f;
 
                 sr.color = color;
 
-                Instantiate(tunnelColliders, tower.transform);
+                CreateScaffoldingPlatforms(tower.transform, gridCellSize, wallLayer);
                 break;
             case TowerScript.TeslaTower:
-                tower.AddComponent<TeslaTower>();
+                tower.AddComponent<TeslaTower>().Configure(teslaSfx);
                 break;
         }
 
@@ -196,7 +201,71 @@ public class TowerShopUI : MonoBehaviour
             tower.AddComponent<TowerCageStack>().Initialize(gridCellSize);
         }
 
+        SetLayerRecursively(tower, wallLayer);
+        PlaySfx(placementSfx);
         return tower;
+    }
+
+    private static void PlaySfx(AudioClip clip)
+    {
+        if (clip != null)
+        {
+            AudioController.Play(clip);
+        }
+    }
+
+    private static void CreateScaffoldingPlatforms(
+        Transform parent,
+        float size,
+        int layer)
+    {
+        float halfSize = size * 0.5f;
+        CreateOneWayEdge(parent, "Top Platform", halfSize, halfSize, layer);
+        CreateOneWayEdge(parent, "Bottom Platform", -halfSize, halfSize, layer);
+    }
+
+    private static void CreateOneWayEdge(
+        Transform parent,
+        string objectName,
+        float localY,
+        float halfWidth,
+        int layer)
+    {
+        GameObject platform = new GameObject(objectName);
+        platform.transform.SetParent(parent, false);
+        platform.transform.localPosition = new Vector3(0f, localY, 0f);
+
+        if (layer >= 0)
+        {
+            platform.layer = layer;
+        }
+
+        EdgeCollider2D edge = platform.AddComponent<EdgeCollider2D>();
+        edge.points = new[]
+        {
+            new Vector2(-halfWidth, 0f),
+            new Vector2(halfWidth, 0f)
+        };
+        edge.usedByEffector = true;
+
+        PlatformEffector2D effector = platform.AddComponent<PlatformEffector2D>();
+        effector.useOneWay = true;
+        effector.useSideFriction = false;
+        effector.surfaceArc = 180f;
+    }
+
+    private static void SetLayerRecursively(GameObject target, int layer)
+    {
+        if (target == null || layer < 0)
+        {
+            return;
+        }
+
+        target.layer = layer;
+        foreach (Transform child in target.transform)
+        {
+            SetLayerRecursively(child.gameObject, layer);
+        }
     }
 
     private void BuildShopUI()

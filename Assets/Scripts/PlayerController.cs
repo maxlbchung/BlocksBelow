@@ -1,4 +1,4 @@
-using UnityEngine;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -8,6 +8,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float moveSpeed = 8f;
     [SerializeField] private float acceleration = 15f;
     [SerializeField] private float deceleration = 12f;
+    [SerializeField, Min(0f)] private float knockbackControlLockTime = 0.3f;
 
     [Header("Jumping")]
     [SerializeField] private float jumpForce = 12f;
@@ -34,13 +35,17 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float platformCheckRadius = 2f;
 
     private Rigidbody2D rb;
+    private Collider2D playerCollider;
     private bool isGrounded;
     private float currentHorizontalVelocity;
+    private float knockbackTimer;
     private Collider2D[] nearbyColliders = new Collider2D[32];
+    private readonly List<PlatformEffector2D> droppingThroughPlatforms = new();
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        playerCollider = GetComponent<Collider2D>();
         airJumpsRemaining = maxAirJumps;
         coyoteCounter = 0f;
         jumpBufferCounter = 0f;
@@ -57,9 +62,38 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (knockbackTimer > 0f)
+        {
+            knockbackTimer -= Time.fixedDeltaTime;
+            ApplyGravity();
+
+            if (knockbackTimer <= 0f)
+            {
+                currentHorizontalVelocity = rb.linearVelocity.x;
+            }
+
+            return;
+        }
+
         HandleMovement();
         HandleJumping();
         ApplyGravity();
+    }
+
+    public void ApplyKnockback(Vector2 impulse)
+    {
+        if (rb == null)
+        {
+            rb = GetComponent<Rigidbody2D>();
+        }
+
+        if (rb == null)
+        {
+            return;
+        }
+
+        rb.AddForce(impulse, ForceMode2D.Impulse);
+        knockbackTimer = Mathf.Max(knockbackTimer, knockbackControlLockTime);
     }
 
     private void HandleInput()
@@ -114,10 +148,38 @@ public class PlayerController : MonoBehaviour
 
     private void UpdateGroundedState()
     {
-        // Implement raycasting or collider-based ground check
-        // This example uses a simple raycast downward
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, groundCheckLength, ~ignoreLayers);
-        isGrounded = hit.collider != null && hit.collider.gameObject.GetComponent<Ground>() != null;
+        int wallLayer = LayerMask.NameToLayer("Wall");
+        isGrounded = false;
+        bool isDroppingThrough = Keyboard.current != null
+            && Keyboard.current.sKey.isPressed;
+
+        RaycastHit2D[] hits = Physics2D.RaycastAll(
+            transform.position,
+            Vector2.down,
+            groundCheckLength,
+            ~ignoreLayers);
+
+        foreach (RaycastHit2D hit in hits)
+        {
+            if (hit.collider == null || hit.collider.isTrigger)
+            {
+                continue;
+            }
+
+            PlatformEffector2D platform = hit.collider.GetComponent<PlatformEffector2D>();
+            if (platform != null
+                && (isDroppingThrough || droppingThroughPlatforms.Contains(platform)))
+            {
+                continue;
+            }
+
+            if (hit.collider.GetComponentInParent<Ground>() != null
+                || hit.collider.gameObject.layer == wallLayer)
+            {
+                isGrounded = true;
+                break;
+            }
+        }
 
         if (!isGrounded && wasGrounded)
         {
@@ -180,30 +242,54 @@ public class PlayerController : MonoBehaviour
         bool isHoldingS = keyboard != null && keyboard.sKey.isPressed;
 
         // Find all nearby colliders with PlatformEffector2D
-        ContactFilter2D filter = new ContactFilter2D { layerMask = LayerMask.GetMask("Default"), useLayerMask = true };
+        ContactFilter2D filter = new ContactFilter2D
+        {
+            layerMask = LayerMask.GetMask("Default", "Wall"),
+            useLayerMask = true
+        };
 
         int colliderCount = Physics2D.OverlapCircle(transform.position, platformCheckRadius, filter, nearbyColliders);
 
-        for (int i = 0; i < colliderCount; i++)
+        if (isHoldingS)
         {
-            Collider2D collider = nearbyColliders[i];
-            if (collider == null)
-                continue;
-
-            PlatformEffector2D effector = collider.GetComponent<PlatformEffector2D>();
-            if (effector == null)
-                continue;
-
-            bool playerIsInside = collider.bounds.Contains(transform.position);
-
-            // Flip the platform effector when S is held or player is inside
-            if (isHoldingS || playerIsInside)
+            for (int i = 0; i < colliderCount; i++)
             {
-                effector.surfaceArc = 0f; // Flip to allow downward pass-through
+                Collider2D collider = nearbyColliders[i];
+                if (collider == null)
+                    continue;
+
+                PlatformEffector2D effector = collider.GetComponent<PlatformEffector2D>();
+                if (effector == null)
+                    continue;
+
+                effector.surfaceArc = 0f;
+                if (!droppingThroughPlatforms.Contains(effector))
+                {
+                    droppingThroughPlatforms.Add(effector);
+                }
             }
-            else
+        }
+
+        // Do not restore a platform merely because S was released. Keep it
+        // passable until the player's whole collider is below the edge.
+        for (int i = droppingThroughPlatforms.Count - 1; i >= 0; i--)
+        {
+            PlatformEffector2D effector = droppingThroughPlatforms[i];
+            if (effector == null)
             {
-                effector.surfaceArc = 180f; // Normal upward-only
+                droppingThroughPlatforms.RemoveAt(i);
+                continue;
+            }
+
+            Collider2D platformCollider = effector.GetComponent<Collider2D>();
+            bool fullyBelow = playerCollider == null
+                || platformCollider == null
+                || playerCollider.bounds.max.y < platformCollider.bounds.min.y - 0.01f;
+
+            if (fullyBelow)
+            {
+                effector.surfaceArc = 180f;
+                droppingThroughPlatforms.RemoveAt(i);
             }
         }
 
