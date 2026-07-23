@@ -4,19 +4,31 @@ public class ShotgunTower : MonoBehaviour
 {
     [SerializeField] private Projectile projectilePrefab;
     [SerializeField, Min(0.01f)] private float fireRate = 1f;
-    [SerializeField, Min(1)] private int bulletsPerShot = 3;
+    [SerializeField, Min(0)] private int bulletsPerShot;
     [SerializeField, Range(0f, 180f)] private float spread = 30f;
     [SerializeField] private float damage = 1f;
 
     private float nextShotTime;
+    private TowerCageStack cageStack;
 
     public void Configure(Projectile newProjectilePrefab)
     {
         projectilePrefab = newProjectilePrefab;
     }
 
+    private void Start()
+    {
+        cageStack = GetComponent<TowerCageStack>();
+    }
+
     private void Update()
     {
+        bulletsPerShot = cageStack != null ? cageStack.PowerLevel : 0;
+        if (bulletsPerShot <= 0)
+        {
+            return;
+        }
+
         if (Time.time < nextShotTime)
         {
             return;
@@ -34,7 +46,7 @@ public class ShotgunTower : MonoBehaviour
             return;
         }
 
-        int shotCount = Mathf.Max(1, bulletsPerShot);
+        int shotCount = bulletsPerShot;
 
         for (int i = 0; i < shotCount; i++)
         {

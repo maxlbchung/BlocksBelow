@@ -3,17 +3,24 @@ using UnityEngine;
 
 public class FanTower : MonoBehaviour
 {
-    [SerializeField, Min(0f)] private float pushForce = 10f;
+    [SerializeField, Min(0f)] private float pushForce;
     [SerializeField, Min(0.1f)] private float windRange = 5f;
     [SerializeField, Min(0.1f)] private float windWidth = 2f;
     [SerializeField] private Color windColor = new Color(0.94f, 0.98f, 1f, 0.3f);
 
     private Material windMaterial;
+    private TowerCageStack cageStack;
     private const int FunnelSegments = 16;
 
     private void Start()
     {
+        cageStack = GetComponent<TowerCageStack>();
         CreateWindArea();
+    }
+
+    private void Update()
+    {
+        pushForce = cageStack != null ? cageStack.PowerLevel : 0f;
     }
 
     public void ApplyWind(Collider2D other)

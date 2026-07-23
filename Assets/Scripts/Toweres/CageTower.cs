@@ -15,6 +15,7 @@ public class CageTower : MonoBehaviour
     [SerializeField] private CageState state = CageState.Empty;
 
     private readonly List<MonoBehaviour> disabledEnemyScripts = new List<MonoBehaviour>();
+    private readonly List<Collider2D> disabledEnemyColliders = new List<Collider2D>();
     private SpriteRenderer cageRenderer;
     private Sprite intactSprite;
     private GameObject capturedEnemy;
@@ -64,6 +65,7 @@ public class CageTower : MonoBehaviour
         capturedEnemy = enemy;
         state = CageState.Full;
         disabledEnemyScripts.Clear();
+        disabledEnemyColliders.Clear();
 
         foreach (MonoBehaviour behaviour in enemy.GetComponentsInChildren<MonoBehaviour>())
         {
@@ -71,6 +73,15 @@ public class CageTower : MonoBehaviour
             {
                 behaviour.enabled = false;
                 disabledEnemyScripts.Add(behaviour);
+            }
+        }
+
+        foreach (Collider2D enemyCollider in enemy.GetComponentsInChildren<Collider2D>())
+        {
+            if (enemyCollider.enabled)
+            {
+                enemyCollider.enabled = false;
+                disabledEnemyColliders.Add(enemyCollider);
             }
         }
 
@@ -117,6 +128,14 @@ public class CageTower : MonoBehaviour
                 + transform.right * (captureRadius + 0.6f);
         }
 
+        foreach (Collider2D enemyCollider in disabledEnemyColliders)
+        {
+            if (enemyCollider != null)
+            {
+                enemyCollider.enabled = true;
+            }
+        }
+
         foreach (MonoBehaviour behaviour in disabledEnemyScripts)
         {
             if (behaviour != null)
@@ -126,6 +145,7 @@ public class CageTower : MonoBehaviour
         }
 
         SetEnemySorting(enemy, "Enemy");
+        disabledEnemyColliders.Clear();
         disabledEnemyScripts.Clear();
         capturedEnemy = null;
         capturedBody = null;

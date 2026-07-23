@@ -154,7 +154,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ShotgunTower
   projectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
   fireRate: 1
-  bulletsPerShot: 3
+  bulletsPerShot: 0
   spread: 30
   damage: 1
 --- !u!114 &8666130571928388747

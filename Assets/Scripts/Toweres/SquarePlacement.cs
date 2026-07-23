@@ -166,11 +166,16 @@ public class SquarePlacement : MonoBehaviour
 
     private bool CanPlaceAt(Vector2 cellPosition)
     {
+        bool isSupportPiece = selectedTower != null
+            && (selectedTower.script == TowerShopUI.TowerScript.CageTower
+                || selectedTower.script == TowerShopUI.TowerScript.Scaffolding);
+
         return selectedTower != null
             && towerShop != null
             && towerShop.CanAfford(selectedTower.price)
             && !IsCellOccupied(cellPosition)
-            && HasAdjacentSquare(cellPosition);
+            && HasAdjacentSquare(cellPosition)
+            && (isSupportPiece || HasCageDirectlyBelow(cellPosition));
     }
 
     private Vector2 SnapToGrid(Vector2 worldPosition)
@@ -188,7 +193,29 @@ public class SquarePlacement : MonoBehaviour
 
         foreach (Collider2D hit in hits)
         {
-            if (IsTowerOrCage(hit))
+            if (IsTowerOrCageCenteredAt(hit, cellPosition) || IsPlayer(hit))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool HasCageDirectlyBelow(Vector2 cellPosition)
+    {
+        Vector2 belowCenter = cellPosition + Vector2.down * cellSize;
+        float probeSize = Mathf.Max(cellSize * 0.1f, adjacencyTolerance * 2f);
+        Collider2D[] hits = Physics2D.OverlapBoxAll(
+            belowCenter,
+            Vector2.one * probeSize,
+            0f
+        );
+
+        foreach (Collider2D hit in hits)
+        {
+            CageTower cage = !hit.isTrigger ? hit.GetComponentInParent<CageTower>() : null;
+            if (cage != null && IsCenteredOnCell(cage.transform.position, belowCenter))
             {
                 return true;
             }
@@ -220,7 +247,9 @@ public class SquarePlacement : MonoBehaviour
 
             foreach (Collider2D hit in hits)
             {
-                if (hit == placementBase || IsTowerOrCage(hit) || hit.gameObject.GetComponent<Ground>())
+                if (hit == placementBase
+                    || IsLevelGround(hit)
+                    || IsTowerOrCageCenteredAt(hit, neighborCenter))
                 {
                     return true;
                 }
@@ -230,20 +259,59 @@ public class SquarePlacement : MonoBehaviour
         return false;
     }
 
-    private static bool IsTowerOrCage(Collider2D hit)
+    private bool IsTowerOrCageCenteredAt(Collider2D hit, Vector2 cellCenter)
     {
-        // Ability/detection triggers (such as a cage's capture radius or a fan's
-        // push area) are not part of the tower's occupied grid cell.
-        if (hit.isTrigger)
+        Transform current = hit.transform;
+        while (current != null)
+        {
+            if (current.CompareTag("tower") || current.CompareTag("cage"))
+            {
+                return IsCenteredOnCell(current.position, cellCenter);
+            }
+
+            current = current.parent;
+        }
+
+        return false;
+    }
+
+    private static bool IsLevelGround(Collider2D hit)
+    {
+        if (hit.GetComponentInParent<Ground>() == null)
         {
             return false;
         }
 
         Transform current = hit.transform;
+        while (current != null)
+        {
+            // Runtime towers also have Ground so the player can stand on them;
+            // those must still use the exact grid-center adjacency check.
+            if (current.CompareTag("tower") || current.CompareTag("cage"))
+            {
+                return false;
+            }
+
+            current = current.parent;
+        }
+
+        return true;
+    }
+
+    private bool IsCenteredOnCell(Vector2 objectPosition, Vector2 cellCenter)
+    {
+        float centerTolerance = Mathf.Max(0.001f, adjacencyTolerance);
+        return (objectPosition - cellCenter).sqrMagnitude
+            <= centerTolerance * centerTolerance;
+    }
+
+    private static bool IsPlayer(Collider2D hit)
+    {
+        Transform current = hit.transform;
 
         while (current != null)
         {
-            if (current.CompareTag("tower") || current.CompareTag("cage"))
+            if (current.CompareTag("Player"))
             {
                 return true;
             }

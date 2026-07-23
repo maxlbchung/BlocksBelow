@@ -4,7 +4,7 @@ using System.Collections.Generic;
 public class SawBladeTower : MonoBehaviour
 {
     [SerializeField] private GameObject sawPrefab;
-    [SerializeField, Min(0)] private int numberOfSaws = 1;
+    [SerializeField, Min(0)] private int numberOfSaws;
     [SerializeField, Min(0f)] private float orbitRadius = 3f;
     [SerializeField] private float orbitSpeed = 90f;
     [Header("Saw Tethers")]
@@ -12,6 +12,8 @@ public class SawBladeTower : MonoBehaviour
     [SerializeField] private Color lineColor = Color.gray;
 
     private Transform sawOrbit;
+    private TowerCageStack cageStack;
+    private int activeSawCount = -1;
     private readonly List<Transform> saws = new List<Transform>();
     private readonly List<LineRenderer> sawLines = new List<LineRenderer>();
 
@@ -22,15 +24,48 @@ public class SawBladeTower : MonoBehaviour
 
     private void Start()
     {
-        CreateSaws();
+        cageStack = GetComponent<TowerCageStack>();
+        RefreshSaws();
     }
 
     private void Update()
     {
+        numberOfSaws = cageStack != null ? cageStack.PowerLevel : 0;
+        if (numberOfSaws != activeSawCount)
+        {
+            RefreshSaws();
+        }
+
         if (sawOrbit != null)
         {
             sawOrbit.Rotate(0f, 0f, orbitSpeed * Time.deltaTime);
             UpdateSawLines();
+        }
+    }
+
+    private void RefreshSaws()
+    {
+        if (sawOrbit != null)
+        {
+            Destroy(sawOrbit.gameObject);
+            sawOrbit = null;
+        }
+
+        foreach (LineRenderer line in sawLines)
+        {
+            if (line != null)
+            {
+                Destroy(line.gameObject);
+            }
+        }
+
+        saws.Clear();
+        sawLines.Clear();
+        activeSawCount = Mathf.Max(0, numberOfSaws);
+
+        if (activeSawCount > 0)
+        {
+            CreateSaws();
         }
     }
 
@@ -42,7 +77,7 @@ public class SawBladeTower : MonoBehaviour
             return;
         }
 
-        int sawCount = Mathf.Max(0, numberOfSaws);
+        int sawCount = activeSawCount;
         if (sawCount == 0)
         {
             return;

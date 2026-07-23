@@ -141,4 +141,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 944ff5660e752a942a8f720edd3cf923, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SawBlade
-  pushForce: 5
+  pushForce: 12

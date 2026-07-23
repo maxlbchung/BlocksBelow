@@ -3,17 +3,19 @@ using UnityEngine;
 
 public class TowerCageStack : MonoBehaviour
 {
-    [SerializeField, Min(1)] private int towerValue = 1;
+    [SerializeField, Min(0)] private int towerValue;
     [SerializeField] private List<CageTower> cagesBelow = new List<CageTower>();
 
     private float cellSize = 1f;
 
     public int TowerValue => towerValue;
+    public int PowerLevel => towerValue;
     public IReadOnlyList<CageTower> CagesBelow => cagesBelow;
 
     public void Initialize(float gridCellSize)
     {
         cellSize = Mathf.Max(0.01f, gridCellSize);
+        Physics2D.SyncTransforms();
         FindContinuousCagesBelow();
         RefreshTowerValue();
     }
@@ -37,6 +39,11 @@ public class TowerCageStack : MonoBehaviour
 
             foreach (Collider2D hit in hits)
             {
+                if (hit.isTrigger)
+                {
+                    continue;
+                }
+
                 cage = hit.GetComponent<CageTower>();
                 if (cage != null)
                 {
@@ -65,6 +72,6 @@ public class TowerCageStack : MonoBehaviour
             }
         }
 
-        towerValue = 1 + fullCageCount;
+        towerValue = fullCageCount;
     }
 }

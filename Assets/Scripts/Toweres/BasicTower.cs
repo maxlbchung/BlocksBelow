@@ -3,25 +3,37 @@ using UnityEngine;
 public class BasicTower : MonoBehaviour
 {
     [SerializeField] private Projectile projectilePrefab;
-    [SerializeField, Min(0.01f)] private float fireRate = 1f;
+    [SerializeField, Min(0f)] private float fireRate;
     [SerializeField] private float damage = 1f;
 
     private float nextShotTime;
+    private TowerCageStack cageStack;
 
     public void Configure(Projectile newProjectilePrefab)
     {
         projectilePrefab = newProjectilePrefab;
     }
 
+    private void Start()
+    {
+        cageStack = GetComponent<TowerCageStack>();
+    }
+
     private void Update()
     {
+        fireRate = cageStack != null ? cageStack.PowerLevel : 0f;
+        if (fireRate <= 0f)
+        {
+            return;
+        }
+
         if (Time.time < nextShotTime)
         {
             return;
         }
 
         Shoot();
-        nextShotTime = Time.time + 1f / Mathf.Max(0.01f, fireRate);
+        nextShotTime = Time.time + 1f / fireRate;
     }
 
     private void Shoot()
