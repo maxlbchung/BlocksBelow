@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 3000397879216909440}
   - component: {fileID: 8186934828032893683}
   - component: {fileID: 2690119343280814668}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -106,10 +106,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5b0105c2986d894b9aad495862227f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  strafeTime: 0.5
-  jumps: 55
-  right: 55
-  left: 55
+  moveSpeed: 8
+  acceleration: 15
+  deceleration: 12
+  jumpForce: 12
+  maxJumpHeight: 5
+  fallAcceleration: 20
+  maxFallSpeed: 20
+  ignoreLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  maxAirJumps: 0
+  coyoteTime: 0.1
+  jumpBufferTime: 0.1
+  groundCheckLength: 1
 --- !u!50 &8186934828032893683
 Rigidbody2D:
   serializedVersion: 5
