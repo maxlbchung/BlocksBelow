@@ -38,12 +38,25 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField] private Projectile shotgunProjectilePrefab;
     [SerializeField] private GameObject sawBladePrefab;
     [SerializeField] private Sprite brokenCageSprite;
+    [SerializeField] private GameObject tunnelColliders;
     [SerializeField, Min(0.1f)] private float cageCaptureRadius = 1.25f;
 
     [Header("Appearance")]
     [SerializeField] private Color panelColor = new Color(0.08f, 0.1f, 0.14f, 0.92f);
     [SerializeField] private Color buttonColor = new Color(0.2f, 0.24f, 0.3f, 1f);
     [SerializeField] private Color selectedColor = new Color(0.25f, 0.55f, 0.3f, 1f);
+
+    [Header("Tower Sprites")]
+    [SerializeField] private Sprite basicTowerSprite;
+    [SerializeField] private Sprite shotgunTowerSprite;
+    [SerializeField] private Sprite brokenTowerSprite;
+    [SerializeField] private Sprite sawBladeTowerSprite;
+    [SerializeField] private Sprite fanTowerSprite;
+    [SerializeField] private Sprite moneyTowerSprite;
+    [SerializeField] private Sprite cageTowerSprite;
+    [SerializeField] private Sprite scaffoldingSprite;
+
+
 
     private readonly List<Button> towerButtons = new List<Button>();
     private Text moneyText;
@@ -164,6 +177,14 @@ public class TowerShopUI : MonoBehaviour
                 break;
             case TowerScript.Scaffolding:
                 // Scaffolding intentionally has no behavior component.
+                SpriteRenderer sr = tower.GetComponent<SpriteRenderer>();
+                sr.sprite = scaffoldingSprite;
+                Color color = sr.color;
+                color.a = 0.5f;
+
+                sr.color = color;
+
+                Instantiate(tunnelColliders, tower.transform);
                 break;
             case TowerScript.TeslaTower:
                 tower.AddComponent<TeslaTower>();

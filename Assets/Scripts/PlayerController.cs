@@ -30,9 +30,13 @@ public class PlayerController : MonoBehaviour
     private float jumpBufferCounter;
     [SerializeField] private float groundCheckLength = 1.0f;
 
+    [Header("Passable Platforms")]
+    [SerializeField] private float platformCheckRadius = 2f;
+
     private Rigidbody2D rb;
     private bool isGrounded;
     private float currentHorizontalVelocity;
+    private Collider2D[] nearbyColliders = new Collider2D[32];
 
     void Start()
     {
@@ -48,6 +52,7 @@ public class PlayerController : MonoBehaviour
         UpdateCoyoteTime();
         UpdateJumpBuffer();
         UpdateGroundedState();
+        UpdatePlatformEffectors();
     }
 
     void FixedUpdate()
@@ -167,5 +172,45 @@ public class PlayerController : MonoBehaviour
     {
         Gizmos.color = Color.green;
         Gizmos.DrawLine(transform.position, transform.position + Vector3.down * 0.6f);
+    }
+
+    private void UpdatePlatformEffectors()
+    {
+        Keyboard keyboard = Keyboard.current;
+        bool isHoldingS = keyboard != null && keyboard.sKey.isPressed;
+
+        // Find all nearby colliders with PlatformEffector2D
+        ContactFilter2D filter = new ContactFilter2D { layerMask = LayerMask.GetMask("Default"), useLayerMask = true };
+
+        int colliderCount = Physics2D.OverlapCircle(transform.position, platformCheckRadius, filter, nearbyColliders);
+
+        for (int i = 0; i < colliderCount; i++)
+        {
+            Collider2D collider = nearbyColliders[i];
+            if (collider == null)
+                continue;
+
+            PlatformEffector2D effector = collider.GetComponent<PlatformEffector2D>();
+            if (effector == null)
+                continue;
+
+            bool playerIsInside = collider.bounds.Contains(transform.position);
+
+            // Flip the platform effector when S is held or player is inside
+            if (isHoldingS || playerIsInside)
+            {
+                effector.surfaceArc = 0f; // Flip to allow downward pass-through
+            }
+            else
+            {
+                effector.surfaceArc = 180f; // Normal upward-only
+            }
+        }
+
+        // Clear remaining array
+        for (int i = colliderCount; i < nearbyColliders.Length; i++)
+        {
+            nearbyColliders[i] = null;
+        }
     }
 }
