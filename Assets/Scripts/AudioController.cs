@@ -1,7 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Audio;
+
+public sealed class AudioClipDropdownAttribute : PropertyAttribute
+{
+}
 
 public class AudioController : MonoBehaviour
 {
@@ -17,6 +22,10 @@ public class AudioController : MonoBehaviour
     {
         public string clipName;
         public AudioClip clip;
+        [Range(0f, 1f)] public float volume = 1f;
+        [Range(0.01f, 3f)] public float pitch = 1f;
+        [Tooltip("Random pitch variation above or below the base pitch.")]
+        [Range(0f, 1f)] public float pitchShift;
     }
 
     [Header("Audio Library")]
@@ -84,17 +93,17 @@ public class AudioController : MonoBehaviour
             return;
         }
 
-        AudioClip clip = instance.FindClip(clipName);
+        AudioEntry entry = instance.FindEntry(clipName, instance.audioClips);
 
-        if (clip == null)
+        if (entry == null || entry.clip == null)
         {
             Debug.LogWarning($"Audio clip '{clipName}' was not found in the AudioController.", instance);
             return;
         }
 
-        float variance = Mathf.Abs(pitchVariance);
+        float variance = Mathf.Abs(entry.pitchShift + pitchVariance);
         float finalPitch = Mathf.Clamp(
-            pitch + UnityEngine.Random.Range(-variance, variance),
+            entry.pitch * pitch + UnityEngine.Random.Range(-variance, variance),
             0.01f,
             3f
         );
@@ -103,8 +112,38 @@ public class AudioController : MonoBehaviour
         audioObject.transform.SetParent(instance.transform);
 
         AudioSource source = audioObject.AddComponent<AudioSource>();
+        source.clip = entry.clip;
+        source.volume = Mathf.Clamp01(entry.volume * volume);
+        source.pitch = finalPitch;
+        source.spatialBlend = 0f;
+        source.outputAudioMixerGroup = instance.sfxMixerGroup;
+        source.Play();
+
+        Destroy(audioObject, entry.clip.length / finalPitch + 0.1f);
+    }
+
+    public static void Play(AudioClip clip, float volume = 1f, float pitch = 1f)
+    {
+        if (instance == null || clip == null)
+        {
+            return;
+        }
+
+        AudioEntry entry = instance.audioClips.Find(item => item != null && item.clip == clip);
+        float entryVolume = entry != null ? entry.volume : 1f;
+        float entryPitch = entry != null ? entry.pitch : 1f;
+        float pitchShift = entry != null ? entry.pitchShift : 0f;
+        float finalPitch = Mathf.Clamp(
+            entryPitch * pitch + UnityEngine.Random.Range(-pitchShift, pitchShift),
+            0.01f,
+            3f);
+
+        GameObject audioObject = new($"Audio - {clip.name}");
+        audioObject.transform.SetParent(instance.transform);
+
+        AudioSource source = audioObject.AddComponent<AudioSource>();
         source.clip = clip;
-        source.volume = Mathf.Clamp01(volume);
+        source.volume = Mathf.Clamp01(entryVolume * volume);
         source.pitch = finalPitch;
         source.spatialBlend = 0f;
         source.outputAudioMixerGroup = instance.sfxMixerGroup;
@@ -184,16 +223,13 @@ public class AudioController : MonoBehaviour
 
     private AudioClip FindClip(string clipName, List<AudioEntry> entries)
     {
-        foreach (AudioEntry entry in entries)
-        {
-            if (entry != null
-                && string.Equals(entry.clipName, clipName, StringComparison.OrdinalIgnoreCase))
-            {
-                return entry.clip;
-            }
-        }
+        return FindEntry(clipName, entries)?.clip;
+    }
 
-        return null;
+    private AudioEntry FindEntry(string clipName, List<AudioEntry> entries)
+    {
+        return entries.Find(entry => entry != null
+            && string.Equals(entry.clipName, clipName, StringComparison.OrdinalIgnoreCase));
     }
 
     private void ApplyMixerVolume(string parameterName, float normalizedVolume)
@@ -237,4 +273,78 @@ public class AudioController : MonoBehaviour
         );
         return null;
     }
+
+#if UNITY_EDITOR
+    [ContextMenu("Scan Assets/Audio Into Library")]
+    public void ScanAudioLibrary()
+    {
+        const string audioRoot = "Assets/Audio";
+
+        Dictionary<AudioClip, AudioEntry> existingEntries = audioClips
+            .Concat(musicTracks)
+            .Where(entry => entry != null && entry.clip != null)
+            .GroupBy(entry => entry.clip)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        var discoveredClips = UnityEditor.AssetDatabase
+            .FindAssets("t:AudioClip", new[] { audioRoot })
+            .Select(UnityEditor.AssetDatabase.GUIDToAssetPath)
+            .Select(path => new
+            {
+                Path = path,
+                Clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path)
+            })
+            .Where(item => item.Clip != null)
+            .OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        UnityEditor.Undo.RecordObject(this, "Scan Audio Library");
+
+        audioClips = BuildAudioEntries(
+            discoveredClips
+                .Where(item => !IsInMusicFolder(item.Path))
+                .Select(item => item.Clip),
+            existingEntries);
+
+        musicTracks = BuildAudioEntries(
+            discoveredClips
+                .Where(item => IsInMusicFolder(item.Path))
+                .Select(item => item.Clip),
+            existingEntries);
+
+        UnityEditor.EditorUtility.SetDirty(this);
+    }
+
+    private static List<AudioEntry> BuildAudioEntries(
+        IEnumerable<AudioClip> clips,
+        IReadOnlyDictionary<AudioClip, AudioEntry> existingEntries)
+    {
+        return clips.Select(clip =>
+        {
+            if (existingEntries.TryGetValue(clip, out AudioEntry existing))
+            {
+                if (string.IsNullOrWhiteSpace(existing.clipName))
+                {
+                    existing.clipName = clip.name;
+                }
+
+                return existing;
+            }
+
+            return new AudioEntry
+            {
+                clipName = clip.name,
+                clip = clip
+            };
+        }).ToList();
+    }
+
+    private static bool IsInMusicFolder(string assetPath)
+    {
+        string normalizedPath = assetPath.Replace('\\', '/');
+        return normalizedPath.IndexOf(
+            "/Music/",
+            StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+#endif
 }

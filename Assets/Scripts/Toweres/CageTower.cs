@@ -13,6 +13,8 @@ public class CageTower : MonoBehaviour
     [SerializeField] private Sprite brokenSprite;
     [SerializeField, Min(0.1f)] private float captureRadius = 1.25f;
     [SerializeField] private CageState state = CageState.Empty;
+    [SerializeField] private AudioClip captureSfx;
+    [SerializeField] private AudioClip breakSfx;
 
     private readonly List<MonoBehaviour> disabledEnemyScripts = new List<MonoBehaviour>();
     private readonly List<Collider2D> disabledEnemyColliders = new List<Collider2D>();
@@ -28,10 +30,16 @@ public class CageTower : MonoBehaviour
     public CageState State => state;
     public bool IsBroken => state == CageState.Broken;
 
-    public void Configure(Sprite newBrokenSprite, float newCaptureRadius)
+    public void Configure(
+        Sprite newBrokenSprite,
+        float newCaptureRadius,
+        AudioClip newCaptureSfx = null,
+        AudioClip newBreakSfx = null)
     {
         brokenSprite = newBrokenSprite;
         captureRadius = Mathf.Max(0.1f, newCaptureRadius);
+        captureSfx = newCaptureSfx;
+        breakSfx = newBreakSfx;
 
         cageRenderer = GetComponent<SpriteRenderer>();
         intactSprite = cageRenderer != null ? cageRenderer.sprite : null;
@@ -103,6 +111,7 @@ public class CageTower : MonoBehaviour
         }
 
         SetEnemySorting(enemy, "Towers");
+        PlaySfx(captureSfx);
     }
 
     public void ReleaseEnemy()
@@ -150,6 +159,7 @@ public class CageTower : MonoBehaviour
         capturedEnemy = null;
         capturedBody = null;
         SetBroken(true);
+        PlaySfx(breakSfx);
     }
 
     public void FixCage()
@@ -196,6 +206,14 @@ public class CageTower : MonoBehaviour
         {
             renderer.sortingLayerName = sortingLayer;
             renderer.sortingOrder = 0;
+        }
+    }
+
+    private static void PlaySfx(AudioClip clip)
+    {
+        if (clip != null)
+        {
+            AudioController.Play(clip);
         }
     }
 }

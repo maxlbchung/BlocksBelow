@@ -17,10 +17,16 @@ public class TeslaTower : MonoBehaviour
     [SerializeField, Min(0.001f)] private float lineWidth = 0.06f;
     [SerializeField] private Color lightningColor = new Color(0.2f, 0.85f, 1f, 1f);
     [SerializeField] private float damage = 1f;
+    [SerializeField] private AudioClip zapSfx;
 
     private float nextZapTime;
 
     public int ChainCount => chainCount;
+
+    public void Configure(AudioClip newZapSfx)
+    {
+        zapSfx = newZapSfx;
+    }
 
     private void Start()
     {
@@ -53,6 +59,10 @@ public class TeslaTower : MonoBehaviour
         }
 
         List<Transform> hitEnemies = new List<Transform> { firstEnemy };
+        if (zapSfx != null)
+        {
+            AudioController.Play(zapSfx);
+        }
         StartCoroutine(DrawLightning(transform, firstEnemy));
 
         Transform currentEnemy = firstEnemy;

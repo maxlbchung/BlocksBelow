@@ -345,7 +345,6 @@ GameObject:
   - component: {fileID: 1377077531}
   - component: {fileID: 1377077530}
   - component: {fileID: 1377077532}
-  - component: {fileID: 1377077533}
   m_Layer: 3
   m_Name: floor
   m_TagString: Ground
@@ -473,18 +472,6 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
---- !u!114 &1377077533
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1377077529}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 514b7e6cafd070b4eb4934ebb0348c24, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Ground
 --- !u!1 &1428253423
 GameObject:
   m_ObjectHideFlags: 0
@@ -570,6 +557,14 @@ MonoBehaviour:
   panelColor: {r: 0.08, g: 0.1, b: 0.14, a: 0.92}
   buttonColor: {r: 0.2, g: 0.24, b: 0.3, a: 1}
   selectedColor: {r: 0.25, g: 0.55, b: 0.3, a: 1}
+  placementSfx: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
+  basicShootSfx: {fileID: 8300000, guid: c4bd30de22dc6b04e917a497093819e9, type: 3}
+  shotgunShootSfx: {fileID: 8300000, guid: ba8ba2a767922f143baee7fbb577a988, type: 3}
+  sawHitSfx: {fileID: 0}
+  moneySfx: {fileID: 0}
+  cageCaptureSfx: {fileID: 0}
+  cageBreakSfx: {fileID: 0}
+  teslaSfx: {fileID: 0}
 --- !u!114 &1428253426
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -4,9 +4,15 @@ public class MoneyTower : MonoBehaviour
 {
     [SerializeField, Min(0)] private int coinsPerSecond;
     [SerializeField] private TowerShopUI towerShop;
+    [SerializeField] private AudioClip paymentSfx;
 
     private float nextPaymentTime;
     private TowerCageStack cageStack;
+
+    public void Configure(AudioClip newPaymentSfx)
+    {
+        paymentSfx = newPaymentSfx;
+    }
 
     private void Start()
     {
@@ -28,6 +34,10 @@ public class MoneyTower : MonoBehaviour
         }
 
         towerShop.AddMoney(coinsPerSecond);
+        if (coinsPerSecond > 0 && paymentSfx != null)
+        {
+            AudioController.Play(paymentSfx);
+        }
         nextPaymentTime = Time.time + 1f;
     }
 }

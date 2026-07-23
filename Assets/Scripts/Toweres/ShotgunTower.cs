@@ -7,13 +7,15 @@ public class ShotgunTower : MonoBehaviour
     [SerializeField, Min(0)] private int bulletsPerShot;
     [SerializeField, Range(0f, 180f)] private float spread = 30f;
     [SerializeField] private float damage = 1f;
+    [SerializeField] private AudioClip shootSfx;
 
     private float nextShotTime;
     private TowerCageStack cageStack;
 
-    public void Configure(Projectile newProjectilePrefab)
+    public void Configure(Projectile newProjectilePrefab, AudioClip newShootSfx = null)
     {
         projectilePrefab = newProjectilePrefab;
+        shootSfx = newShootSfx;
     }
 
     private void Start()
@@ -59,5 +61,8 @@ public class ShotgunTower : MonoBehaviour
             projectile.SetDirection(direction);
             projectile.damage = damage;
         }
+
+        if (shootSfx != null)
+            AudioController.Play(shootSfx);
     }
 }

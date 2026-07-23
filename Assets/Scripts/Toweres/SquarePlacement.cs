@@ -226,6 +226,12 @@ public class SquarePlacement : MonoBehaviour
 
     private bool HasAdjacentSquare(Vector2 cellPosition)
     {
+        int wallLayer = LayerMask.NameToLayer("Wall");
+        if (wallLayer < 0)
+        {
+            return false;
+        }
+
         Vector2[] cardinalDirections =
         {
             Vector2.up,
@@ -247,9 +253,7 @@ public class SquarePlacement : MonoBehaviour
 
             foreach (Collider2D hit in hits)
             {
-                if (hit == placementBase
-                    || IsLevelGround(hit)
-                    || IsTowerOrCageCenteredAt(hit, neighborCenter))
+                if (hit.gameObject.layer == wallLayer)
                 {
                     return true;
                 }
@@ -273,29 +277,6 @@ public class SquarePlacement : MonoBehaviour
         }
 
         return false;
-    }
-
-    private static bool IsLevelGround(Collider2D hit)
-    {
-        if (hit.GetComponentInParent<Ground>() == null)
-        {
-            return false;
-        }
-
-        Transform current = hit.transform;
-        while (current != null)
-        {
-            // Runtime towers also have Ground so the player can stand on them;
-            // those must still use the exact grid-center adjacency check.
-            if (current.CompareTag("tower") || current.CompareTag("cage"))
-            {
-                return false;
-            }
-
-            current = current.parent;
-        }
-
-        return true;
     }
 
     private bool IsCenteredOnCell(Vector2 objectPosition, Vector2 cellCenter)

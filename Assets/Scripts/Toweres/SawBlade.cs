@@ -4,6 +4,12 @@ public class SawBlade : MonoBehaviour
 {
     [SerializeField, Min(0f)] private float pushForce = 12f;
     [SerializeField] private float damage = 1f;
+    [SerializeField] private AudioClip hitSfx;
+
+    public void ConfigureSfx(AudioClip newHitSfx)
+    {
+        hitSfx = newHitSfx;
+    }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
@@ -36,7 +42,15 @@ public class SawBlade : MonoBehaviour
             pushDirection = -transform.right;
         }
 
-        enemyBody.AddForce(pushDirection * pushForce, ForceMode2D.Impulse);
+        PlayerController player = other.GetComponentInParent<PlayerController>();
+        if (player != null)
+        {
+            player.ApplyKnockback(pushDirection * pushForce);
+        }
+        else
+        {
+            enemyBody.AddForce(pushDirection * pushForce, ForceMode2D.Impulse);
+        }
 
         if (other.CompareTag("Enemy"))
         {
@@ -50,6 +64,9 @@ public class SawBlade : MonoBehaviour
 
     public void SawBladeHit()
     {
-        Debug.Log("saw blade hit", this);
+        if (hitSfx != null)
+        {
+            AudioController.Play(hitSfx);
+        }
     }
 }
