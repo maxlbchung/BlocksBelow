@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Places Block prefabs on a square grid at the mouse cursor.
-/// A block can only be placed in an empty cell beside an existing Block.
+/// Places tower prefabs on a square grid at the mouse cursor.
+/// A tower can only be placed in an empty cell beside a Collider2D tagged "tower".
 /// </summary>
 public class SquarePlacement : MonoBehaviour
 {
@@ -21,8 +21,6 @@ public class SquarePlacement : MonoBehaviour
     [Header("Collision")]
     [Tooltip("Layers that prevent a square from being placed in a cell.")]
     [SerializeField] private LayerMask blockingLayers = ~0;
-    [Tooltip("Layers containing existing squares. Their objects must also have a Block component.")]
-    [SerializeField] private LayerMask squareLayers = ~0;
 
     private Camera mainCamera;
     private GameObject ghostObject;
@@ -199,13 +197,12 @@ public class SquarePlacement : MonoBehaviour
             Collider2D[] hits = Physics2D.OverlapBoxAll(
                 neighborPosition,
                 checkSize,
-                0f,
-                squareLayers
+                0f
             );
 
             foreach (Collider2D hit in hits)
             {
-                if (hit.GetComponentInParent<Block>() != null)
+                if (hit.CompareTag("tower"))
                 {
                     return true;
                 }
