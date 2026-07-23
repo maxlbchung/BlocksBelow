@@ -327,4 +327,10 @@ public class SquarePlacement : MonoBehaviour
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireCube(gridOrigin, Vector3.one * cellSize);
     }
+
+    private void OnDisable()
+    {
+        if (ghostObject != null)
+            Destroy(ghostObject);
+    }
 }

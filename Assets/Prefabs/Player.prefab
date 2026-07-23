@@ -115,11 +115,12 @@ MonoBehaviour:
   maxFallSpeed: 20
   ignoreLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 64
   maxAirJumps: 0
   coyoteTime: 0.1
   jumpBufferTime: 0.1
   groundCheckLength: 1
+  platformCheckRadius: 2
 --- !u!50 &8186934828032893683
 Rigidbody2D:
   serializedVersion: 5

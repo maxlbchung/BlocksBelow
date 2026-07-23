@@ -9,6 +9,7 @@ TagManager:
   - Enemy
   - cage
   - Ground
+  - Passable
   layers:
   - Default
   - TransparentFX

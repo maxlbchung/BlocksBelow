@@ -65,6 +65,8 @@ public class TowerShopUI : MonoBehaviour
 
     public int Money => money;
 
+    GameObject canvasObject;
+
     private void Awake()
     {
         money = startingMoney;
@@ -203,7 +205,7 @@ public class TowerShopUI : MonoBehaviour
     {
         EnsureEventSystem();
 
-        GameObject canvasObject = new GameObject("Tower Shop Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        canvasObject = new GameObject("Tower Shop Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         canvasObject.transform.SetParent(transform, false);
 
         Canvas canvas = canvasObject.GetComponent<Canvas>();
@@ -321,5 +323,17 @@ public class TowerShopUI : MonoBehaviour
         }
 
         new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+    }
+
+    private void OnDisable()
+    {
+        if (canvasObject != null)
+            canvasObject.SetActive(false);
+    }
+
+    private void OnEnable()
+    {
+        if (canvasObject != null)
+            canvasObject.SetActive(true);
     }
 }
