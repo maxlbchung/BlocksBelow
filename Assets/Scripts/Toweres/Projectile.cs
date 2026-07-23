@@ -43,7 +43,7 @@ public class Projectile : MonoBehaviour
     {
         if(other.CompareTag("Enemy"))
         {
-            other.GetComponent<Enemy>().health--;
+            other.GetComponent<Enemy>().health -= damage;
         }
         
     }
