@@ -394,7 +394,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd21c34430a6b1844aa4c6842a5a8c7d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TowerShopUI
-  startingMoney: 100
+  startingMoney: 1000
   towers:
   - displayName: MetalGrinder
     script: 4
@@ -451,9 +451,6 @@ MonoBehaviour:
   ghostSprite: {fileID: 0}
   validGhostColor: {r: 1, g: 1, b: 1, a: 0.5}
   invalidGhostColor: {r: 1, g: 0, b: 0, a: 0.5}
-  blockingLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
   placementBase: {fileID: 1377077532}
   adjacencyTolerance: 0.05
 --- !u!1660057539 &9223372036854775807

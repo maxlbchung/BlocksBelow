@@ -232,6 +232,13 @@ public class SquarePlacement : MonoBehaviour
 
     private static bool IsTowerOrCage(Collider2D hit)
     {
+        // Ability/detection triggers (such as a cage's capture radius or a fan's
+        // push area) are not part of the tower's occupied grid cell.
+        if (hit.isTrigger)
+        {
+            return false;
+        }
+
         Transform current = hit.transform;
 
         while (current != null)
