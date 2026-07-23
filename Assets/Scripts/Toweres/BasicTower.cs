@@ -4,6 +4,7 @@ public class BasicTower : MonoBehaviour
 {
     [SerializeField] private Projectile projectilePrefab;
     [SerializeField, Min(0.01f)] private float fireRate = 1f;
+    [SerializeField] private float damage = 1f;
 
     private float nextShotTime;
 
@@ -33,5 +34,6 @@ public class BasicTower : MonoBehaviour
 
         Projectile projectile = Instantiate(projectilePrefab, transform.position, Quaternion.identity);
         projectile.SetDirection(Vector2.left);
+        projectile.damage = damage;
     }
 }

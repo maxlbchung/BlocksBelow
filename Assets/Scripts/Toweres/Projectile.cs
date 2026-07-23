@@ -8,6 +8,8 @@ public class Projectile : MonoBehaviour
     private Rigidbody2D body;
     private Vector2 direction = Vector2.left;
 
+    public float damage;
+
     private void Awake()
     {
         body = GetComponent<Rigidbody2D>();
@@ -41,7 +43,7 @@ public class Projectile : MonoBehaviour
     {
         if(other.CompareTag("Enemy"))
         {
-            Destroy(gameObject);
+            other.GetComponent<Enemy>().health--;
         }
         
     }

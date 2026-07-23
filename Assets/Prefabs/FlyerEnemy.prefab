@@ -133,7 +133,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a28b365eba441844895e3a150890304, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlyerEnemy
-  health: 0
+  health: 1
   repulsionForce: 1.5
   repulsionRadius: 3
   exponentialFalloff: 2

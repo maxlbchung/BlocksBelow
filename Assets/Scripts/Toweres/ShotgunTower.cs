@@ -6,6 +6,7 @@ public class ShotgunTower : MonoBehaviour
     [SerializeField, Min(0.01f)] private float fireRate = 1f;
     [SerializeField, Min(1)] private int bulletsPerShot = 3;
     [SerializeField, Range(0f, 180f)] private float spread = 30f;
+    [SerializeField] private float damage = 1f;
 
     private float nextShotTime;
 
@@ -44,6 +45,7 @@ public class ShotgunTower : MonoBehaviour
             Vector2 direction = Quaternion.Euler(0f, 0f, angle) * Vector2.left;
             Projectile projectile = Instantiate(projectilePrefab, transform.position, Quaternion.identity);
             projectile.SetDirection(direction);
+            projectile.damage = damage;
         }
     }
 }

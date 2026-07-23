@@ -18,6 +18,11 @@ public class Enemy : Entity
     protected virtual void FixedUpdate()
     {
         ApplyEnemyRepulsion();
+
+        if (health < 0)
+        {
+            Destroy(gameObject);
+        }
     }
 
     private void ApplyEnemyRepulsion()

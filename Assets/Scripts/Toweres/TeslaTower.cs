@@ -16,6 +16,7 @@ public class TeslaTower : MonoBehaviour
     [SerializeField, Min(0f)] private float jitterAmount = 0.12f;
     [SerializeField, Min(0.001f)] private float lineWidth = 0.06f;
     [SerializeField] private Color lightningColor = new Color(0.2f, 0.85f, 1f, 1f);
+    [SerializeField] private float damage = 1f;
 
     private float nextZapTime;
 
@@ -57,6 +58,7 @@ public class TeslaTower : MonoBehaviour
         Transform currentEnemy = firstEnemy;
         for (int i = 0; i < chainCount; i++)
         {
+            currentEnemy.gameObject.GetComponent<Enemy>().health -= damage; // Apply damage to the current enemy
             Transform nextEnemy = FindClosestEnemy(currentEnemy.position, chainRadius, hitEnemies);
             if (nextEnemy == null)
             {

@@ -3,6 +3,7 @@ using UnityEngine;
 public class SawBlade : MonoBehaviour
 {
     [SerializeField, Min(0f)] private float pushForce = 5f;
+    [SerializeField] private float damage = 1f;
 
     private void OnTriggerEnter2D(Collider2D other)
     {
@@ -36,6 +37,8 @@ public class SawBlade : MonoBehaviour
         }
 
         enemyBody.AddForce(pushDirection * pushForce, ForceMode2D.Impulse);
+
+        other.gameObject.GetComponent<Enemy>().health -= damage;
     }
 
     public void SawBladeHit()
