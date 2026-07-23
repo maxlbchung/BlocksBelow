@@ -131,6 +131,7 @@ public class TowerShopUI : MonoBehaviour
         GameObject tower = new GameObject(offer.displayName);
         tower.transform.position = position;
         tower.tag = offer.script == TowerScript.CageTower ? "cage" : "tower";
+        tower.AddComponent<Ground>();
 
         SpriteRenderer renderer = tower.AddComponent<SpriteRenderer>();
         renderer.sprite = offer.sprite;

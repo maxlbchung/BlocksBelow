@@ -112,7 +112,7 @@ public class PlayerController : MonoBehaviour
         // Implement raycasting or collider-based ground check
         // This example uses a simple raycast downward
         RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, groundCheckLength, ~ignoreLayers);
-        isGrounded = hit.collider != null && hit.collider.CompareTag("Ground");
+        isGrounded = hit.collider != null && hit.collider.gameObject.GetComponent<Ground>() != null;
 
         if (!isGrounded && wasGrounded)
         {

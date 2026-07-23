@@ -220,7 +220,7 @@ public class SquarePlacement : MonoBehaviour
 
             foreach (Collider2D hit in hits)
             {
-                if (hit == placementBase || IsTowerOrCage(hit))
+                if (hit == placementBase || IsTowerOrCage(hit) || hit.gameObject.GetComponent<Ground>())
                 {
                     return true;
                 }
