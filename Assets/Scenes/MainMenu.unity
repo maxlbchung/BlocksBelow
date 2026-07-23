@@ -5256,14 +5256,14 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 115837882}
         m_TargetAssemblyTypeName: MainMenuNavigation, Assembly-CSharp
-        m_MethodName: ShowLevelSelection
-        m_Mode: 0
+        m_MethodName: LoadLevel
+        m_Mode: 5
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
-          m_StringArgument: 
+          m_StringArgument: MainGame
           m_BoolArgument: 0
         m_CallState: 2
 --- !u!114 &2075723120
