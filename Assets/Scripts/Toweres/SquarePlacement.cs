@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 /// <summary>
@@ -11,6 +12,7 @@ public class SquarePlacement : MonoBehaviour
     [SerializeField] private GameObject squarePrefab;
     [SerializeField, Min(0.01f)] private float cellSize = 1f;
     [SerializeField] private Vector2 gridOrigin;
+    [SerializeField] private TowerShopUI towerShop;
 
     [Header("Ghost")]
     [Tooltip("Leave empty to use the square prefab's sprite.")]
@@ -21,14 +23,22 @@ public class SquarePlacement : MonoBehaviour
     [Header("Collision")]
     [Tooltip("Layers that prevent a square from being placed in a cell.")]
     [SerializeField] private LayerMask blockingLayers = ~0;
+    [Tooltip("The starting base. It may be a BoxCollider2D of any width and does not need the tower tag.")]
+    [SerializeField] private Collider2D placementBase;
+    [SerializeField, Min(0.001f)] private float adjacencyTolerance = 0.05f;
 
     private Camera mainCamera;
     private GameObject ghostObject;
     private SpriteRenderer ghostRenderer;
+    private int selectedTowerPrice;
 
     private void Awake()
     {
         mainCamera = Camera.main;
+        if (towerShop == null)
+        {
+            towerShop = FindFirstObjectByType<TowerShopUI>();
+        }
         CreateGhost();
     }
 
@@ -44,7 +54,8 @@ public class SquarePlacement : MonoBehaviour
         Vector2 cursorPosition = mouse.position.ReadValue();
         UpdateGhost(cursorPosition);
 
-        if (mouse.leftButton.wasPressedThisFrame)
+        if (mouse.leftButton.wasPressedThisFrame
+            && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
         {
             TryPlaceAtCursor(cursorPosition);
         }
@@ -54,6 +65,7 @@ public class SquarePlacement : MonoBehaviour
     {
         ghostObject = new GameObject("Square Placement Ghost");
         ghostObject.transform.SetParent(transform);
+        ghostObject.SetActive(false);
 
         ghostRenderer = ghostObject.AddComponent<SpriteRenderer>();
         ghostRenderer.color = invalidGhostColor;
@@ -130,6 +142,19 @@ public class SquarePlacement : MonoBehaviour
             : prefabRenderer != null ? prefabRenderer.sprite : null;
     }
 
+    /// <summary>Selects the prefab and price used for future placements.</summary>
+    public void SetSelectedTower(GameObject towerPrefab, Sprite previewSprite, int price)
+    {
+        squarePrefab = towerPrefab;
+        selectedTowerPrice = Mathf.Max(0, price);
+        SetGhostSprite(previewSprite);
+    }
+
+    public void SetTowerShop(TowerShopUI shop)
+    {
+        towerShop = shop;
+    }
+
     private void TryPlaceAtCursor(Vector2 screenPosition)
     {
         if (squarePrefab == null)
@@ -156,12 +181,21 @@ public class SquarePlacement : MonoBehaviour
             return;
         }
 
+        if (towerShop != null && !towerShop.TrySpend(selectedTowerPrice))
+        {
+            return;
+        }
+
         Instantiate(squarePrefab, cellPosition, Quaternion.identity);
     }
 
     private bool CanPlaceAt(Vector2 cellPosition)
     {
-        return !IsCellOccupied(cellPosition) && HasAdjacentSquare(cellPosition);
+        bool canAfford = towerShop == null || towerShop.CanAfford(selectedTowerPrice);
+        return squarePrefab != null
+            && canAfford
+            && !IsCellOccupied(cellPosition)
+            && HasAdjacentSquare(cellPosition);
     }
 
     private Vector2 SnapToGrid(Vector2 worldPosition)
@@ -180,32 +214,16 @@ public class SquarePlacement : MonoBehaviour
 
     private bool HasAdjacentSquare(Vector2 cellPosition)
     {
-        Vector2[] directions =
+        // Expanding beyond the proposed tower's edges detects contact anywhere
+        // along a wide base, rather than only at four neighboring cell centers.
+        Vector2 checkSize = Vector2.one * (cellSize + adjacencyTolerance * 2f);
+        Collider2D[] hits = Physics2D.OverlapBoxAll(cellPosition, checkSize, 0f);
+
+        foreach (Collider2D hit in hits)
         {
-            Vector2.up,
-            Vector2.down,
-            Vector2.left,
-            Vector2.right
-        };
-
-        // A small check at each neighboring cell's center avoids treating diagonal blocks as adjacent.
-        Vector2 checkSize = Vector2.one * (cellSize * 0.2f);
-
-        foreach (Vector2 direction in directions)
-        {
-            Vector2 neighborPosition = cellPosition + direction * cellSize;
-            Collider2D[] hits = Physics2D.OverlapBoxAll(
-                neighborPosition,
-                checkSize,
-                0f
-            );
-
-            foreach (Collider2D hit in hits)
+            if (hit == placementBase || hit.CompareTag("tower"))
             {
-                if (hit.CompareTag("tower"))
-                {
-                    return true;
-                }
+                return true;
             }
         }
 
