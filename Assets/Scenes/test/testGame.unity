@@ -181,31 +181,31 @@ MonoBehaviour:
   towers:
   - displayName: MetalGrinder
     script: 4
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    sprite: {fileID: -5897110159133509205, guid: 7cd10c01d0f42934f8755a341ad0ad97, type: 3}
     price: 100
   - displayName: Basic
     script: 0
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    sprite: {fileID: -5897110159133509205, guid: 7cd10c01d0f42934f8755a341ad0ad97, type: 3}
     price: 50
   - displayName: Shotgun
     script: 1
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    sprite: {fileID: -5897110159133509205, guid: 7cd10c01d0f42934f8755a341ad0ad97, type: 3}
     price: 75
   - displayName: Sawblade
     script: 2
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    sprite: {fileID: -5897110159133509205, guid: 7cd10c01d0f42934f8755a341ad0ad97, type: 3}
     price: 100
   - displayName: Fan
     script: 3
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    sprite: {fileID: -5897110159133509205, guid: 7cd10c01d0f42934f8755a341ad0ad97, type: 3}
     price: 200
   - displayName: Cage
     script: 5
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    sprite: {fileID: 6675669677758570782, guid: 93da9deb12fdbc4419fa4822f9b15681, type: 3}
     price: 25
   - displayName: Scaffolding
     script: 6
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    sprite: {fileID: -3228527351860832095, guid: 1616a815a45439f41bbbc1a66bd9b04d, type: 3}
     price: 25
   placement: {fileID: 0}
   basicProjectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}

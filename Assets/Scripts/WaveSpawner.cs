@@ -73,6 +73,14 @@ public class WaveSpawner : MonoBehaviour
     [Header("Runtime")]
     public GameState gameState = GameState.Wave;
 
+    private static WaveSpawner instance;
+
+    /// <summary>
+    /// True while enemies are being fought. Towers hold their fire outside of it.
+    /// Scenes without a WaveSpawner (e.g. stress tests) count as always active.
+    /// </summary>
+    public static bool IsWaveActive => instance == null || instance.gameState == GameState.Wave;
+
     private readonly List<Enemy> livingEnemies = new List<Enemy>(512);
     private readonly List<GameObject> spawnPool = new List<GameObject>(512);
     private readonly List<EnemySpawnData> validEnemies = new List<EnemySpawnData>(16);
@@ -120,6 +128,11 @@ public class WaveSpawner : MonoBehaviour
         }
 
         livingEnemies.Add(enemy);
+    }
+
+    private void Awake()
+    {
+        instance = this;
     }
 
     private void Start()
@@ -440,6 +453,11 @@ public class WaveSpawner : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (instance == this)
+        {
+            instance = null;
+        }
+
         if (startGameButton != null)
         {
             startGameButton.onClick.RemoveListener(StartNextWave);

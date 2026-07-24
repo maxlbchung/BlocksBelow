@@ -41,15 +41,15 @@ public class TeslaTower : MonoBehaviour
 
     private void Start()
     {
-        Zap();
         nextZapTime = Time.time + zapInterval;
     }
 
     private void Update()
     {
+        // Bolts keep fading even outside a wave; only new zaps are gated.
         UpdateBolts(Time.deltaTime);
 
-        if (Time.time < nextZapTime)
+        if (!WaveSpawner.IsWaveActive || Time.time < nextZapTime)
         {
             return;
         }
