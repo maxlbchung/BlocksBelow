@@ -87,7 +87,7 @@ public class TeslaTower : MonoBehaviour
         Enemy currentEnemy = firstEnemy;
         for (int i = 0; i < chainCount; i++)
         {
-            currentEnemy.health -= damage;
+            currentEnemy.TryTakeDamage(damage);
             Enemy nextEnemy = simulation.FindClosestEnemy(
                 currentEnemy.Position,
                 chainRadius,

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public sealed class CageBreakerEnemy : Enemy
 {
@@ -19,11 +18,12 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField, Range(0f, 1f)] private float sneakingOpacity = 0.25f;
     [SerializeField, Min(0.1f)] private float spawnRadius = 12f;
     [SerializeField, Min(0f)] private float breakingDistance = 1.25f;
+    [SerializeField] private bool takesDamageInSneakingState;
 
     [Header("Breaking")]
     [SerializeField, Min(0f)] private float breakCountdown = 5f;
     [SerializeField, Min(0f)] private float explosionRadius = 3f;
-    [SerializeField, Min(0.01f)] private float holdToKillDuration = 2f;
+    [SerializeField] private bool takesDamageInBreakingState = true;
     [SerializeField] private Vector2 countdownOffset = new Vector2(0f, 1.2f);
     [SerializeField, Min(1f)] private float countdownFontSize = 10f;
     [SerializeField] private TextMeshPro countdownText;
@@ -31,14 +31,15 @@ public sealed class CageBreakerEnemy : Enemy
     private readonly List<CageTower> cagesInExplosion = new List<CageTower>(16);
     private SpriteRenderer[] spriteRenderers;
     private CageTower targetCage;
-    private Camera mainCamera;
     private BreakerState state;
     private float countdownRemaining;
-    private float heldTime;
-    private bool holdStartedOnBreaker;
 
     public BreakerState State => state;
     public CageTower TargetCage => targetCage;
+    public override bool CanTakeDamage =>
+        state == BreakerState.Sneaking
+            ? takesDamageInSneakingState
+            : takesDamageInBreakingState;
 
     internal override bool UsesSeparation => false;
 
@@ -52,7 +53,6 @@ public sealed class CageBreakerEnemy : Enemy
     protected override void OnEnable()
     {
         base.OnEnable();
-        mainCamera = Camera.main;
 
         if (!TryClaimTarget())
         {
@@ -73,12 +73,6 @@ public sealed class CageBreakerEnemy : Enemy
     private void Update()
     {
         if (state != BreakerState.Breaking)
-        {
-            return;
-        }
-
-        UpdateHoldToKill();
-        if (!isActiveAndEnabled)
         {
             return;
         }
@@ -123,8 +117,6 @@ public sealed class CageBreakerEnemy : Enemy
         ReleaseTarget();
         state = BreakerState.Sneaking;
         countdownRemaining = 0f;
-        heldTime = 0f;
-        holdStartedOnBreaker = false;
         SetSpriteOpacity(1f);
 
         if (countdownText != null)
@@ -200,8 +192,6 @@ public sealed class CageBreakerEnemy : Enemy
     {
         state = BreakerState.Sneaking;
         countdownRemaining = 0f;
-        heldTime = 0f;
-        holdStartedOnBreaker = false;
         SetSpriteOpacity(sneakingOpacity);
         countdownText.gameObject.SetActive(false);
     }
@@ -215,52 +205,15 @@ public sealed class CageBreakerEnemy : Enemy
 
         state = BreakerState.Breaking;
         countdownRemaining = Mathf.Max(0f, breakCountdown);
-        heldTime = 0f;
-        holdStartedOnBreaker = false;
         rb.linearVelocity = Vector2.zero;
         SetSpriteOpacity(1f);
         countdownText.gameObject.SetActive(true);
         UpdateCountdownText();
     }
 
-    private void UpdateHoldToKill()
+    private void OnTriggerEnter2D(Collider2D other)
     {
-        Mouse mouse = Mouse.current;
-        if (mouse == null)
-        {
-            ResetHold();
-            return;
-        }
-
-        if (mainCamera == null)
-        {
-            mainCamera = Camera.main;
-        }
-
-        bool pointerIsOverBreaker = false;
-        if (mainCamera != null && enemyCollider != null)
-        {
-            Vector2 worldPosition =
-                mainCamera.ScreenToWorldPoint(mouse.position.ReadValue());
-            pointerIsOverBreaker = enemyCollider.OverlapPoint(worldPosition);
-        }
-
-        if (mouse.leftButton.wasPressedThisFrame)
-        {
-            holdStartedOnBreaker = pointerIsOverBreaker;
-            heldTime = 0f;
-        }
-
-        if (!mouse.leftButton.isPressed
-            || !holdStartedOnBreaker
-            || !pointerIsOverBreaker)
-        {
-            ResetHold();
-            return;
-        }
-
-        heldTime += Time.deltaTime;
-        if (heldTime >= Mathf.Max(0.01f, holdToKillDuration))
+        if (IsPlayerCollider(other))
         {
             ReleaseOrDestroy();
         }
@@ -347,10 +300,23 @@ public sealed class CageBreakerEnemy : Enemy
         }
     }
 
-    private void ResetHold()
+    private static bool IsPlayerCollider(Collider2D other)
     {
-        holdStartedOnBreaker = false;
-        heldTime = 0f;
+        Transform current = other.attachedRigidbody != null
+            ? other.attachedRigidbody.transform
+            : other.transform;
+
+        while (current != null)
+        {
+            if (current.CompareTag("Player"))
+            {
+                return true;
+            }
+
+            current = current.parent;
+        }
+
+        return false;
     }
 
     private void ReleaseTarget()

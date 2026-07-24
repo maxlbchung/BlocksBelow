@@ -29,6 +29,7 @@ public class Enemy : Entity, IPoolable
         isActiveAndEnabled && rb != null && rb.simulated;
     public Rigidbody2D Body => rb;
     public Collider2D EnemyCollider => enemyCollider;
+    public virtual bool CanTakeDamage => true;
 
     [Header("Cage")]
     public bool isCagable = false;
@@ -102,6 +103,17 @@ public class Enemy : Entity, IPoolable
 
     public virtual void PreparePools(int prewarmCount, int maxPoolSize, bool strict)
     {
+    }
+
+    public bool TryTakeDamage(float damage)
+    {
+        if (!CanTakeDamage)
+        {
+            return false;
+        }
+
+        health -= damage;
+        return true;
     }
 
     public void OnPoolAcquire()

@@ -171,7 +171,7 @@ MonoBehaviour:
     tokens: 4
     targetEnemyCount: 4
     birdCount: 1
-    breakerCount: 0
+    breakerCount: 1
     targetTime: 9
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -1237,6 +1237,10 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 3000397879216909440, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
+      propertyPath: animator
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 3000397879216909440, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: groundCheckLength
       value: 0.41
       objectReference: {fileID: 0}
@@ -1304,7 +1308,8 @@ PrefabInstance:
       propertyPath: m_Color.r
       value: 1
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 6323660534319782887, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []

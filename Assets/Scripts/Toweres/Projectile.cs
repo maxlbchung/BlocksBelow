@@ -110,11 +110,12 @@ public class Projectile : MonoBehaviour, IPoolable
             return;
         }
 
-        enemy.health -= damage;
-        // Pooled projectiles must be released rather than directly destroyed.
-        // Releasing immediately also prevents this shot from damaging another
-        // overlapping enemy before the next physics step.
-        Release();
+        if (enemy.TryTakeDamage(damage))
+        {
+            // Pooled projectiles must be released rather than directly destroyed.
+            // An invulnerable enemy returns false so the shot continues through it.
+            Release();
+        }
     }
 
     private void Release()
