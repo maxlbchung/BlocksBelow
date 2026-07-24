@@ -389,58 +389,41 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd21c34430a6b1844aa4c6842a5a8c7d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TowerShopUI
-  startingMoney: 0
+  startingMoney: 100
   towers:
   - displayName: MetalGrinder
-    script: 4
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    prefab: {fileID: 8755736338420080416, guid: 94d6126dbfd7c0941a9e2fdc9bc27c6e, type: 3}
     price: 100
   - displayName: Basic
-    script: 0
-    sprite: {fileID: 21300000, guid: 66f86cc65f3889c4288f90349a3c08e5, type: 3}
+    prefab: {fileID: 6895232330752811065, guid: 93489eb75e09dd24db7c21c7b4c97a4a, type: 3}
     price: 50
   - displayName: Shotgun
-    script: 1
-    sprite: {fileID: 21300000, guid: 47365aa6a1a75d9499271f7b3ce65671, type: 3}
+    prefab: {fileID: 4207048639629459165, guid: 113d84a8722d4104fa90cf1e65367424, type: 3}
     price: 75
   - displayName: Sawblade
-    script: 2
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    prefab: {fileID: 689768124312060714, guid: 57bb0c77f467e394ca86e4bc504b76fe, type: 3}
     price: 100
   - displayName: Fan
-    script: 3
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    prefab: {fileID: 5158665762915999829, guid: 1fd7ea4f4e2419a4c9239231c0912635, type: 3}
     price: 200
   - displayName: Cage
-    script: 5
-    sprite: {fileID: 6675669677758570782, guid: 93da9deb12fdbc4419fa4822f9b15681, type: 3}
+    prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
     price: 25
   - displayName: Scaffolding
-    script: 6
-    sprite: {fileID: 21300000, guid: fbb9ce21251ebc34f972012f892da870, type: 3}
+    prefab: {fileID: 8012409773836190367, guid: 9d1dad1ac33d16f4e9012becf684be94, type: 3}
     price: 25
   placement: {fileID: 0}
   potionHealAmount: 5
   potionPrice: 25
   player: {fileID: 0}
-  basicProjectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
-  shotgunProjectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
-  sawBladePrefab: {fileID: 6163622273882598567, guid: 2a7857f5961cfcc4f927c40ae9a8b8f6, type: 3}
-  brokenCageSprite: {fileID: 0}
-  cageCaptureRadius: 1.25
+  cageRepairPrice: 10
   panelColor: {r: 0.08, g: 0.1, b: 0.14, a: 0.92}
   buttonColor: {r: 0.2, g: 0.24, b: 0.3, a: 1}
   selectedColor: {r: 0.25, g: 0.55, b: 0.3, a: 1}
   startRoundColor: {r: 0.16, g: 0.45, b: 0.22, a: 1}
   coinPayoutColor: {r: 1, g: 0.84, b: 0.25, a: 1}
-  placementSfx: {fileID: 0}
-  basicShootSfx: {fileID: 0}
-  shotgunShootSfx: {fileID: 0}
-  sawHitSfx: {fileID: 0}
-  moneySfx: {fileID: 0}
-  cageCaptureSfx: {fileID: 0}
-  cageBreakSfx: {fileID: 0}
-  teslaSfx: {fileID: 0}
+  placementSfx: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
+  cageRepairSfx: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
 --- !u!114 &265706327
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -459,6 +442,7 @@ MonoBehaviour:
   ghostSprite: {fileID: 0}
   validGhostColor: {r: 1, g: 1, b: 1, a: 0.5}
   invalidGhostColor: {r: 1, g: 0, b: 0, a: 0.5}
+  repairHighlightColor: {r: 0.3, g: 0.9, b: 0.45, a: 0.45}
   placementBase: {fileID: 0}
   adjacencyTolerance: 0.05
   prePlacedTowersPosition:
@@ -467,16 +451,13 @@ MonoBehaviour:
   - {fileID: 839863293}
   prePlacedTowers:
   - displayName: Scaffolding
-    script: 6
-    sprite: {fileID: 21300000, guid: fbb9ce21251ebc34f972012f892da870, type: 3}
+    prefab: {fileID: 0}
     price: 0
   - displayName: Cage
-    script: 5
-    sprite: {fileID: 6675669677758570782, guid: 93da9deb12fdbc4419fa4822f9b15681, type: 3}
+    prefab: {fileID: 0}
     price: 0
   - displayName: MoneyFarm
-    script: 4
-    sprite: {fileID: 7054023613858662776, guid: 4dd865faf85361745a8950a821a17e05, type: 3}
+    prefab: {fileID: 0}
     price: 0
 --- !u!4 &265706328
 Transform:

@@ -1068,7 +1068,7 @@ MonoBehaviour:
     pitchShift: 0
   musicTracks: []
   audioMixer: {fileID: 24100000, guid: c06ee77f558d7e7458083183ac3fe289, type: 2}
-  sfxVolume: 0.139
+  sfxVolume: 0.621
   musicVolume: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
