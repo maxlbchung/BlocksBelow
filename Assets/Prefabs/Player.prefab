@@ -115,7 +115,7 @@ MonoBehaviour:
   maxJumpHeight: 5
   jumpReleaseVelocityMultiplier: 0.5
   fallAcceleration: 20
-  maxFallSpeed: 3
+  maxFallSpeed: 15
   includeLayers:
     serializedVersion: 2
     m_Bits: 8
