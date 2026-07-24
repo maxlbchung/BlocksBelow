@@ -165,6 +165,21 @@ public class CageTower : MonoBehaviour
         PlaySfx(breakSfx);
     }
 
+    public void BreakCage()
+    {
+        if (capturedEnemy != null)
+        {
+            ReleaseEnemy();
+            return;
+        }
+
+        if (!IsBroken)
+        {
+            SetBroken(true);
+            PlaySfx(breakSfx);
+        }
+    }
+
     public void FixCage()
     {
         if (capturedEnemy != null)

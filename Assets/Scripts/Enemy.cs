@@ -23,6 +23,7 @@ public class Enemy : Entity, IPoolable
     internal float RepulsionForce => repulsionForce;
     internal float RepulsionRadius => repulsionRadius;
     internal float RepulsionFalloff => exponentialFalloff;
+    internal virtual bool UsesSeparation => true;
     internal Vector2 Position => rb != null ? rb.position : (Vector2)transform.position;
     internal bool IsSimulationActive =>
         isActiveAndEnabled && rb != null && rb.simulated;
@@ -143,7 +144,7 @@ public class Enemy : Entity, IPoolable
         rb.collisionDetectionMode = CollisionDetectionMode2D.Discrete;
     }
 
-    private void ReleaseOrDestroy()
+    protected void ReleaseOrDestroy()
     {
         if (deathHandled)
         {

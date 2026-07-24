@@ -1,0 +1,396 @@
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+public sealed class CageBreakerEnemy : Enemy
+{
+    public enum BreakerState
+    {
+        Sneaking,
+        Breaking
+    }
+
+    private static readonly Dictionary<CageTower, CageBreakerEnemy> TargetClaims =
+        new Dictionary<CageTower, CageBreakerEnemy>();
+
+    [Header("Sneaking")]
+    [SerializeField, Min(0f)] private float moveSpeed = 4f;
+    [SerializeField, Range(0f, 1f)] private float sneakingOpacity = 0.25f;
+    [SerializeField, Min(0.1f)] private float spawnRadius = 12f;
+    [SerializeField, Min(0f)] private float breakingDistance = 1.25f;
+
+    [Header("Breaking")]
+    [SerializeField, Min(0f)] private float breakCountdown = 5f;
+    [SerializeField, Min(0f)] private float explosionRadius = 3f;
+    [SerializeField, Min(0.01f)] private float holdToKillDuration = 2f;
+    [SerializeField] private Vector2 countdownOffset = new Vector2(0f, 1.2f);
+    [SerializeField, Min(1f)] private float countdownFontSize = 10f;
+    [SerializeField] private TextMeshPro countdownText;
+
+    private readonly List<CageTower> cagesInExplosion = new List<CageTower>(16);
+    private SpriteRenderer[] spriteRenderers;
+    private CageTower targetCage;
+    private Camera mainCamera;
+    private BreakerState state;
+    private float countdownRemaining;
+    private float heldTime;
+    private bool holdStartedOnBreaker;
+
+    public BreakerState State => state;
+    public CageTower TargetCage => targetCage;
+
+    internal override bool UsesSeparation => false;
+
+    protected override void Awake()
+    {
+        base.Awake();
+        spriteRenderers = GetComponentsInChildren<SpriteRenderer>(true);
+        EnsureCountdownText();
+    }
+
+    protected override void OnEnable()
+    {
+        base.OnEnable();
+        mainCamera = Camera.main;
+
+        if (!TryClaimTarget())
+        {
+            ReleaseOrDestroy();
+            return;
+        }
+
+        PositionForAmbush();
+        EnterSneakingState();
+    }
+
+    protected override void OnDisable()
+    {
+        ReleaseTarget();
+        base.OnDisable();
+    }
+
+    private void Update()
+    {
+        if (state != BreakerState.Breaking)
+        {
+            return;
+        }
+
+        UpdateHoldToKill();
+        if (!isActiveAndEnabled)
+        {
+            return;
+        }
+
+        countdownRemaining -= Time.deltaTime;
+        UpdateCountdownText();
+        if (countdownRemaining < 0f)
+        {
+            Explode();
+        }
+    }
+
+    protected override Vector2 CalculateDesiredVelocity(Transform player, float elapsed)
+    {
+        if (state != BreakerState.Sneaking || !IsValidTarget(targetCage))
+        {
+            return Vector2.zero;
+        }
+
+        Vector2 toTarget = (Vector2)targetCage.transform.position - Position;
+        float distanceSquared = toTarget.sqrMagnitude;
+        float stopDistance = Mathf.Max(0f, breakingDistance);
+        if (distanceSquared <= stopDistance * stopDistance)
+        {
+            EnterBreakingState();
+            return Vector2.zero;
+        }
+
+        return toTarget * (Mathf.Max(0f, moveSpeed) / Mathf.Sqrt(distanceSquared));
+    }
+
+    protected override void OnStrategicTick(Transform player, float elapsed)
+    {
+        if (state == BreakerState.Sneaking && !IsValidTarget(targetCage))
+        {
+            ReleaseOrDestroy();
+        }
+    }
+
+    protected override void ResetEnemyState()
+    {
+        ReleaseTarget();
+        state = BreakerState.Sneaking;
+        countdownRemaining = 0f;
+        heldTime = 0f;
+        holdStartedOnBreaker = false;
+        SetSpriteOpacity(1f);
+
+        if (countdownText != null)
+        {
+            countdownText.gameObject.SetActive(false);
+        }
+    }
+
+    private bool TryClaimTarget()
+    {
+        ReleaseTarget();
+
+        Transform player = EnemySimulationManager.Instance.Player;
+        Vector2 playerPosition = player != null ? player.position : Position;
+        float farthestDistanceSquared = float.NegativeInfinity;
+        CageTower bestCage = null;
+        CageTower[] cages = FindObjectsByType<CageTower>(FindObjectsSortMode.None);
+
+        for (int i = 0; i < cages.Length; i++)
+        {
+            CageTower cage = cages[i];
+            if (!IsValidTarget(cage) || IsClaimedByAnother(cage))
+            {
+                continue;
+            }
+
+            float distanceSquared =
+                ((Vector2)cage.transform.position - playerPosition).sqrMagnitude;
+            if (distanceSquared > farthestDistanceSquared)
+            {
+                farthestDistanceSquared = distanceSquared;
+                bestCage = cage;
+            }
+        }
+
+        if (bestCage == null)
+        {
+            return false;
+        }
+
+        targetCage = bestCage;
+        TargetClaims[bestCage] = this;
+        return true;
+    }
+
+    private void PositionForAmbush()
+    {
+        Transform player = EnemySimulationManager.Instance.Player;
+        if (player == null || targetCage == null)
+        {
+            return;
+        }
+
+        Vector2 playerPosition = player.position;
+        Vector2 targetDirection = (Vector2)targetCage.transform.position - playerPosition;
+        if (targetDirection.sqrMagnitude <= 0.000001f)
+        {
+            targetDirection = Position - playerPosition;
+        }
+
+        if (targetDirection.sqrMagnitude <= 0.000001f)
+        {
+            targetDirection = Vector2.right;
+        }
+
+        Vector2 spawnPosition =
+            playerPosition - targetDirection.normalized * Mathf.Max(0.1f, spawnRadius);
+        rb.position = spawnPosition;
+        transform.position = spawnPosition;
+    }
+
+    private void EnterSneakingState()
+    {
+        state = BreakerState.Sneaking;
+        countdownRemaining = 0f;
+        heldTime = 0f;
+        holdStartedOnBreaker = false;
+        SetSpriteOpacity(sneakingOpacity);
+        countdownText.gameObject.SetActive(false);
+    }
+
+    private void EnterBreakingState()
+    {
+        if (state == BreakerState.Breaking)
+        {
+            return;
+        }
+
+        state = BreakerState.Breaking;
+        countdownRemaining = Mathf.Max(0f, breakCountdown);
+        heldTime = 0f;
+        holdStartedOnBreaker = false;
+        rb.linearVelocity = Vector2.zero;
+        SetSpriteOpacity(1f);
+        countdownText.gameObject.SetActive(true);
+        UpdateCountdownText();
+    }
+
+    private void UpdateHoldToKill()
+    {
+        Mouse mouse = Mouse.current;
+        if (mouse == null)
+        {
+            ResetHold();
+            return;
+        }
+
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+
+        bool pointerIsOverBreaker = false;
+        if (mainCamera != null && enemyCollider != null)
+        {
+            Vector2 worldPosition =
+                mainCamera.ScreenToWorldPoint(mouse.position.ReadValue());
+            pointerIsOverBreaker = enemyCollider.OverlapPoint(worldPosition);
+        }
+
+        if (mouse.leftButton.wasPressedThisFrame)
+        {
+            holdStartedOnBreaker = pointerIsOverBreaker;
+            heldTime = 0f;
+        }
+
+        if (!mouse.leftButton.isPressed
+            || !holdStartedOnBreaker
+            || !pointerIsOverBreaker)
+        {
+            ResetHold();
+            return;
+        }
+
+        heldTime += Time.deltaTime;
+        if (heldTime >= Mathf.Max(0.01f, holdToKillDuration))
+        {
+            ReleaseOrDestroy();
+        }
+    }
+
+    private void Explode()
+    {
+        cagesInExplosion.Clear();
+        CageTower[] cages = FindObjectsByType<CageTower>(FindObjectsSortMode.None);
+        float radiusSquared = Mathf.Max(0f, explosionRadius);
+        radiusSquared *= radiusSquared;
+
+        for (int i = 0; i < cages.Length; i++)
+        {
+            CageTower cage = cages[i];
+            if (cage != null
+                && ((Vector2)cage.transform.position - Position).sqrMagnitude
+                    <= radiusSquared)
+            {
+                cagesInExplosion.Add(cage);
+            }
+        }
+
+        for (int i = 0; i < cagesInExplosion.Count; i++)
+        {
+            cagesInExplosion[i].BreakCage();
+        }
+
+        ReleaseOrDestroy();
+    }
+
+    private void EnsureCountdownText()
+    {
+        if (countdownText == null)
+        {
+            countdownText = GetComponentInChildren<TextMeshPro>(true);
+        }
+
+        if (countdownText == null)
+        {
+            GameObject textObject = new GameObject("Break Countdown");
+            textObject.transform.SetParent(transform, false);
+            countdownText = textObject.AddComponent<TextMeshPro>();
+            countdownText.rectTransform.sizeDelta = new Vector2(20f, 5f);
+            countdownText.transform.localScale = Vector3.one * 0.1f;
+        }
+
+        countdownText.transform.localPosition = countdownOffset;
+        countdownText.alignment = TextAlignmentOptions.Center;
+        countdownText.fontSize = Mathf.Max(1f, countdownFontSize);
+        countdownText.textWrappingMode = TextWrappingModes.NoWrap;
+        countdownText.sortingOrder = 100;
+        countdownText.gameObject.SetActive(false);
+    }
+
+    private void UpdateCountdownText()
+    {
+        if (countdownText != null)
+        {
+            countdownText.text =
+                Mathf.Max(0, Mathf.CeilToInt(countdownRemaining)).ToString();
+        }
+    }
+
+    private void SetSpriteOpacity(float opacity)
+    {
+        if (spriteRenderers == null)
+        {
+            return;
+        }
+
+        float alpha = Mathf.Clamp01(opacity);
+        for (int i = 0; i < spriteRenderers.Length; i++)
+        {
+            SpriteRenderer spriteRenderer = spriteRenderers[i];
+            if (spriteRenderer == null)
+            {
+                continue;
+            }
+
+            Color color = spriteRenderer.color;
+            color.a = alpha;
+            spriteRenderer.color = color;
+        }
+    }
+
+    private void ResetHold()
+    {
+        holdStartedOnBreaker = false;
+        heldTime = 0f;
+    }
+
+    private void ReleaseTarget()
+    {
+        if (targetCage != null
+            && TargetClaims.TryGetValue(targetCage, out CageBreakerEnemy owner)
+            && owner == this)
+        {
+            TargetClaims.Remove(targetCage);
+        }
+
+        targetCage = null;
+    }
+
+    private bool IsClaimedByAnother(CageTower cage)
+    {
+        if (!TargetClaims.TryGetValue(cage, out CageBreakerEnemy owner))
+        {
+            return false;
+        }
+
+        if (owner == null || !owner.isActiveAndEnabled)
+        {
+            TargetClaims.Remove(cage);
+            return false;
+        }
+
+        return owner != this;
+    }
+
+    private static bool IsValidTarget(CageTower cage)
+    {
+        return cage != null
+            && cage.State == CageTower.CageState.Full
+            && cage.CapturedEnemy != null;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = new Color(1f, 0.35f, 0.1f, 0.35f);
+        Gizmos.DrawWireSphere(transform.position, Mathf.Max(0f, explosionRadius));
+    }
+}

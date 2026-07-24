@@ -324,6 +324,12 @@ public sealed class EnemySimulationManager : MonoBehaviour
                     continue;
                 }
 
+                if (!enemy.UsesSeparation)
+                {
+                    enemy.SetSeparationForce(Vector2.zero);
+                    continue;
+                }
+
                 Vector2 position = enemy.Position;
                 float radius = enemy.RepulsionRadius;
                 float radiusSquared = radius * radius;
