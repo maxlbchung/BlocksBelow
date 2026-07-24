@@ -127,7 +127,7 @@ MonoBehaviour:
   jumpBufferTime: 0.1
   groundCheckLength: 0.26
   platformCheckRadius: 2
-  animator: {fileID: 0}
+  animator: {fileID: 464871150817697749}
   spriteRenderer: {fileID: 7912393881069136176}
   walkAnimationThreshold: 0.1
   healthBarSize: {x: 1.4, y: 0.16}
@@ -209,7 +209,7 @@ Animator:
   m_GameObject: {fileID: 5802252109684593299}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: f0dd9001bec5bff4db130058e6e7280f, type: 2}
+  m_Controller: {fileID: 9100000, guid: 2cf4cf8e4b9b58c469ff05a0ecbdb69f, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0

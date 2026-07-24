@@ -638,6 +638,10 @@ PrefabInstance:
       propertyPath: maxHealth
       value: 100
       objectReference: {fileID: 0}
+    - target: {fileID: 4233762903127814040, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
+      propertyPath: m_Offset.y
+      value: -0.31
+      objectReference: {fileID: 0}
     - target: {fileID: 5802252109684593299, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: m_Name
       value: Player
@@ -1068,7 +1072,7 @@ MonoBehaviour:
     pitchShift: 0
   musicTracks: []
   audioMixer: {fileID: 24100000, guid: c06ee77f558d7e7458083183ac3fe289, type: 2}
-  sfxVolume: 0.139
+  sfxVolume: 0.518
   musicVolume: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
