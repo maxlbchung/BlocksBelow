@@ -86,8 +86,6 @@ public class PlayerController : Entity
 
     void Update()
     {
-        UpdateHealthBar();
-
         if (!alive)
             return;
 
@@ -239,11 +237,10 @@ public class PlayerController : Entity
             healthBarRoot.gameObject.SetActive(false);
             return;
         }
-        else 
+        else
         {
             healthBarRoot.gameObject.SetActive(true);
         }
-            healthBarRoot.localPosition = GetHealthBarLocalPosition();
 
         healthBarFill.localScale = new Vector3(
             healthBarSize.x * healthPercent,
