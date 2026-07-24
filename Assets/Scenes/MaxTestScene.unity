@@ -168,11 +168,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7551901418439493139, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -1.7844183
+      value: -1.7
       objectReference: {fileID: 0}
     - target: {fileID: 7551901418439493139, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -1.6938772
+      value: -0.57
       objectReference: {fileID: 0}
     - target: {fileID: 7551901418439493139, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: m_LocalPosition.z
@@ -253,7 +253,9 @@ GameObject:
   - component: {fileID: 641903232}
   - component: {fileID: 641903231}
   - component: {fileID: 641903230}
+  - component: {fileID: 641903234}
   - component: {fileID: 641903233}
+  - component: {fileID: 641903235}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -335,6 +337,108 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &641903233
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 641903229}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b26cc83e2ef6e974f93f57e85d353e11, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CalculateCameraBox
+--- !u!114 &641903234
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 641903229}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
+--- !u!61 &641903235
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 641903229}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  m_Size: {x: 1, y: 1}
+  m_EdgeRadius: 0
 --- !u!1 &1377077529
 GameObject:
   m_ObjectHideFlags: 0
@@ -486,149 +590,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 514b7e6cafd070b4eb4934ebb0348c24, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ground
---- !u!1 &1428253423
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1428253424}
-  - component: {fileID: 1428253426}
-  - component: {fileID: 1428253425}
-  - component: {fileID: 1428253427}
-  m_Layer: 0
-  m_Name: GameManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1428253424
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1428253423}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1428253425
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1428253423}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd21c34430a6b1844aa4c6842a5a8c7d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TowerShopUI
-  startingMoney: 1000
-  towers:
-  - displayName: MetalGrinder
-    script: 4
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-    price: 100
-  - displayName: Basic
-    script: 0
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-    price: 50
-  - displayName: Shotgun
-    script: 1
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-    price: 75
-  - displayName: Sawblade
-    script: 2
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-    price: 100
-  - displayName: Fan
-    script: 3
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-    price: 200
-  - displayName: Cage
-    script: 5
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-    price: 25
-  - displayName: Scaffolding
-    script: 6
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-    price: 25
-  placement: {fileID: 0}
-  basicProjectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
-  shotgunProjectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
-  sawBladePrefab: {fileID: 6163622273882598567, guid: 2a7857f5961cfcc4f927c40ae9a8b8f6, type: 3}
-  brokenCageSprite: {fileID: 0}
-  tunnelColliders: {fileID: 3175976844910774054, guid: 3886fc6f228624d4e9fa5edc32162ab5, type: 3}
-  cageCaptureRadius: 1.25
-  panelColor: {r: 0.08, g: 0.1, b: 0.14, a: 0.92}
-  buttonColor: {r: 0.2, g: 0.24, b: 0.3, a: 1}
-  selectedColor: {r: 0.25, g: 0.55, b: 0.3, a: 1}
-  basicTowerSprite: {fileID: 0}
-  shotgunTowerSprite: {fileID: 0}
-  brokenTowerSprite: {fileID: 0}
-  sawBladeTowerSprite: {fileID: 0}
-  fanTowerSprite: {fileID: 0}
-  moneyTowerSprite: {fileID: 0}
-  cageTowerSprite: {fileID: 0}
-  scaffoldingSprite: {fileID: 0}
---- !u!114 &1428253426
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1428253423}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6f67e3d5a1dab0a40b8cef64f015ca50, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SquarePlacement
-  cellSize: 1
-  gridOrigin: {x: 0, y: 0}
-  towerShop: {fileID: 0}
-  ghostSprite: {fileID: 0}
-  validGhostColor: {r: 1, g: 1, b: 1, a: 0.5}
-  invalidGhostColor: {r: 1, g: 0, b: 0, a: 0.5}
-  placementBase: {fileID: 1377077532}
-  adjacencyTolerance: 0.05
---- !u!114 &1428253427
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1428253423}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d1914537f2cf11349aed734cf33bd20f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: '::'
-  spawnPoints:
-  - {fileID: 13928648}
-  - {fileID: 455328588}
-  enemyPrefabs:
-  - {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
-  - {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
-  - {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
-  timeBetweenSpawns: 5
-  timeBetweenSpawnsDecrease: 0.1
-  minTimeBetweenSpawns: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 641903232}
   - {fileID: 1377077531}
-  - {fileID: 1428253424}
   - {fileID: 229090057}
   - {fileID: 13928648}
   - {fileID: 455328588}

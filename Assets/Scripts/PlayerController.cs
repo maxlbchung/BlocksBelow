@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : Entity
 {
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 8f;
@@ -13,9 +13,10 @@ public class PlayerController : MonoBehaviour
     [Header("Jumping")]
     [SerializeField] private float jumpForce = 12f;
     [SerializeField] private float maxJumpHeight = 5f;
+    [SerializeField, Range(0f, 1f)] private float jumpReleaseVelocityMultiplier = 0.5f;
     [SerializeField] private float fallAcceleration = 20f;
     [SerializeField] private float maxFallSpeed = 20f;
-    [SerializeField] private LayerMask ignoreLayers;
+    [SerializeField] private LayerMask includeLayers;
 
     [Header("Air Jumps")]
     [SerializeField] private int maxAirJumps = 0;
@@ -39,8 +40,12 @@ public class PlayerController : MonoBehaviour
     private bool isGrounded;
     private float currentHorizontalVelocity;
     private float knockbackTimer;
+    private bool jumpReleased;
+    private bool jumpInProgress;
     private Collider2D[] nearbyColliders = new Collider2D[32];
     private readonly List<PlatformEffector2D> droppingThroughPlatforms = new();
+
+    private bool alive = true;
 
     void Start()
     {
@@ -49,10 +54,14 @@ public class PlayerController : MonoBehaviour
         airJumpsRemaining = maxAirJumps;
         coyoteCounter = 0f;
         jumpBufferCounter = 0f;
+
     }
 
     void Update()
     {
+        if (!alive)
+            return;
+
         HandleInput();
         UpdateCoyoteTime();
         UpdateJumpBuffer();
@@ -62,6 +71,9 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (!alive)
+            return;
+        
         if (knockbackTimer > 0f)
         {
             knockbackTimer -= Time.fixedDeltaTime;
@@ -77,6 +89,7 @@ public class PlayerController : MonoBehaviour
 
         HandleMovement();
         HandleJumping();
+        ApplyJumpCut();
         ApplyGravity();
     }
 
@@ -123,6 +136,11 @@ public class PlayerController : MonoBehaviour
         {
             jumpBufferCounter = jumpBufferTime;
         }
+
+        if (keyboard.spaceKey.wasReleasedThisFrame)
+        {
+            jumpReleased = true;
+        }
     }
 
     private void UpdateCoyoteTime()
@@ -157,7 +175,7 @@ public class PlayerController : MonoBehaviour
             transform.position,
             Vector2.down,
             groundCheckLength,
-            ~ignoreLayers);
+            includeLayers);
 
         foreach (RaycastHit2D hit in hits)
         {
@@ -200,7 +218,7 @@ public class PlayerController : MonoBehaviour
         bool hasAirJump = airJumpsRemaining > 0;
         Debug.Log(jumpBufferCounter + " " + isGrounded);
 
-        if ((jumpBufferCounter > 0  || Keyboard.current.spaceKey.wasPressedThisFrame) && (canJump || hasAirJump))
+        if ((jumpBufferCounter > 0 || Keyboard.current.spaceKey.wasPressedThisFrame) && (canJump || hasAirJump))
         {
             jumpBufferCounter = 0;
 
@@ -209,20 +227,42 @@ public class PlayerController : MonoBehaviour
             {
                 rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
                 coyoteCounter = 0f; // Use up coyote time
+                jumpInProgress = true;
             }
             // Otherwise use air jump
             else if (hasAirJump)
             {
                 rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
                 airJumpsRemaining--;
+                jumpInProgress = true;
             }
         }
+    }
+
+    private void ApplyJumpCut()
+    {
+        if (!jumpReleased)
+        {
+            return;
+        }
+
+        jumpReleased = false;
+
+        // Releasing jump early removes some upward speed, producing a shorter jump.
+        if (jumpInProgress && rb.linearVelocity.y > 0f)
+        {
+            rb.linearVelocity = new Vector2(
+                rb.linearVelocity.x,
+                rb.linearVelocity.y * jumpReleaseVelocityMultiplier);
+        }
+
+        jumpInProgress = false;
     }
 
     private void ApplyGravity()
     {
         if (!isGrounded)
-        {   
+        {
             float newVelocityY = rb.linearVelocity.y - (fallAcceleration * Time.fixedDeltaTime);
             newVelocityY = Mathf.Max(newVelocityY, -maxFallSpeed);
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, newVelocityY);
@@ -299,4 +339,16 @@ public class PlayerController : MonoBehaviour
             nearbyColliders[i] = null;
         }
     }
+
+    public void DamagePlayer(int damage, Vector2 knockback)
+    {
+        ApplyKnockback(knockback);
+        health -= damage;
+        if (health <= 0)
+        {
+            alive = false;
+        }
+
+    }
 }
+
