@@ -37,7 +37,7 @@ public class ShotgunTower : MonoBehaviour
     private void Update()
     {
         bulletsPerShot = cageStack != null ? cageStack.PowerLevel : 0;
-        if (bulletsPerShot <= 0)
+        if (bulletsPerShot <= 0 || !WaveSpawner.IsWaveActive)
         {
             return;
         }

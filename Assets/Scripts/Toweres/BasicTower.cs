@@ -35,7 +35,7 @@ public class BasicTower : MonoBehaviour
     private void Update()
     {
         fireRate = cageStack != null ? cageStack.PowerLevel : 0f;
-        if (fireRate <= 0f)
+        if (fireRate <= 0f || !WaveSpawner.IsWaveActive)
         {
             return;
         }
