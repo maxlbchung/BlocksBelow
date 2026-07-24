@@ -6,7 +6,7 @@ public class EnemyBullet : MonoBehaviour, IPoolable
 {
     private Rigidbody2D body;
     private PooledObject poolHandle;
-
+    public int damage = 1;
     private void Awake()
     {
         body = GetComponent<Rigidbody2D>();

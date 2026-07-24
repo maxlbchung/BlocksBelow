@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Net;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -35,6 +36,13 @@ public class PlayerController : Entity
     [Header("Passable Platforms")]
     [SerializeField] private float platformCheckRadius = 2f;
 
+    [Header("Health Bar")]
+    [SerializeField] private Vector2 healthBarSize = new Vector2(1.4f, 0.16f);
+    [SerializeField] private float healthBarHeight = 0.25f;
+    [SerializeField] private Color healthBarColor = new Color(0.2f, 0.85f, 0.25f, 1f);
+    [SerializeField] private Color healthBarBackgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.9f);
+    [SerializeField] private int healthBarSortingOrder = 100;
+
     private Rigidbody2D rb;
     private Collider2D playerCollider;
     private bool isGrounded;
@@ -46,11 +54,19 @@ public class PlayerController : Entity
     private readonly List<PlatformEffector2D> droppingThroughPlatforms = new();
 
     private bool alive = true;
+    public int maxHealth;
+    private Transform healthBarRoot;
+    private Transform healthBarFill;
+    private Texture2D healthBarTexture;
+    private Sprite healthBarSprite;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         playerCollider = GetComponent<Collider2D>();
+        health = maxHealth;
+        CreateHealthBar();
+        UpdateHealthBar();
         airJumpsRemaining = maxAirJumps;
         coyoteCounter = 0f;
         jumpBufferCounter = 0f;
@@ -69,6 +85,8 @@ public class PlayerController : Entity
 
     void Update()
     {
+        UpdateHealthBar();
+
         if (!alive)
             return;
 
@@ -101,6 +119,117 @@ public class PlayerController : Entity
         HandleJumping();
         ApplyJumpCut();
         ApplyGravity();
+    }
+
+    private void CreateHealthBar()
+    {
+        healthBarTexture = new Texture2D(1, 1)
+        {
+            name = "Player Health Bar Texture",
+            filterMode = FilterMode.Point
+        };
+        healthBarTexture.SetPixel(0, 0, Color.white);
+        healthBarTexture.Apply();
+
+        healthBarSprite = Sprite.Create(
+            healthBarTexture,
+            new Rect(0f, 0f, 1f, 1f),
+            new Vector2(0.5f, 0.5f),
+            1f);
+        healthBarSprite.name = "Player Health Bar Sprite";
+
+        GameObject rootObject = new GameObject("Health Bar");
+        healthBarRoot = rootObject.transform;
+        healthBarRoot.SetParent(transform, false);
+        healthBarRoot.localPosition = GetHealthBarLocalPosition();
+
+        CreateHealthBarRenderer(
+            "Background",
+            healthBarRoot,
+            healthBarBackgroundColor,
+            healthBarSize,
+            healthBarSortingOrder);
+
+        GameObject fillObject = CreateHealthBarRenderer(
+            "Fill",
+            healthBarRoot,
+            healthBarColor,
+            healthBarSize,
+            healthBarSortingOrder + 1);
+        healthBarFill = fillObject.transform;
+        healthBarFill.localPosition = new Vector3(0f, 0f, -0.01f);
+    }
+
+    private GameObject CreateHealthBarRenderer(
+        string objectName,
+        Transform parent,
+        Color color,
+        Vector2 size,
+        int sortingOrder)
+    {
+        GameObject barObject = new GameObject(objectName);
+        barObject.transform.SetParent(parent, false);
+        barObject.transform.localScale = new Vector3(size.x, size.y, 1f);
+
+        SpriteRenderer renderer = barObject.AddComponent<SpriteRenderer>();
+        renderer.sprite = healthBarSprite;
+        renderer.color = color;
+        renderer.sortingOrder = sortingOrder;
+
+        return barObject;
+    }
+
+    private Vector3 GetHealthBarLocalPosition()
+    {
+        float playerTop = playerCollider != null
+            ? transform.InverseTransformPoint(playerCollider.bounds.max).y
+            : 0.5f;
+
+        return new Vector3(0f, playerTop + healthBarHeight, 0f);
+    }
+
+    private void UpdateHealthBar()
+    {
+        
+        if (healthBarRoot == null || healthBarFill == null)
+        {
+            return;
+        }
+
+        float healthPercent = Mathf.Clamp01(health / maxHealth);
+        if (healthPercent == 1)
+        {
+            healthBarRoot.gameObject.SetActive(false);
+            return;
+        }
+        else 
+        {
+            healthBarRoot.gameObject.SetActive(true);
+        }
+            healthBarRoot.localPosition = GetHealthBarLocalPosition();
+
+        healthBarFill.localScale = new Vector3(
+            healthBarSize.x * healthPercent,
+            healthBarSize.y,
+            1f);
+        healthBarFill.localPosition = new Vector3(
+            -(healthBarSize.x * (1f - healthPercent)) * 0.5f,
+            0f,
+            -0.01f);
+        healthBarRoot.gameObject.SetActive(healthPercent > 0f);
+    }
+
+    private void OnDestroy()
+    {
+        if (healthBarSprite != null)
+        {
+            Destroy(healthBarSprite);
+        }
+
+        if (healthBarTexture != null)
+        {
+            Destroy(healthBarTexture);
+        }
     }
 
     public void ApplyKnockback(Vector2 impulse)
@@ -357,7 +486,8 @@ public class PlayerController : Entity
     public void DamagePlayer(int damage, Vector2 knockback)
     {
         ApplyKnockback(knockback);
-        health -= damage;
+        health = Mathf.Max(0f, health - damage);
+        UpdateHealthBar();
         if (health <= 0)
         {
             alive = false;

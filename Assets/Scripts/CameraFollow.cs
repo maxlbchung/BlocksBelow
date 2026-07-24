@@ -65,11 +65,11 @@ public class CameraFollow : MonoBehaviour
     void FollowPlayer()
     {
 
-        Debug.Log(targetBounds.size.x);
+       
         float xTarget = camBox.size.x < targetBounds.size.x ? Mathf.Clamp(player.position.x, targetBounds.min.x + camBox.size.x / 2, targetBounds.max.x - camBox.size.x / 2) : (targetBounds.min.x + targetBounds.max.x) / 2;
         float yTarget = camBox.size.y < targetBounds.size.y ? Mathf.Clamp(player.position.y, targetBounds.min.y + camBox.size.y / 2, targetBounds.max.y - camBox.size.y / 2) : (targetBounds.min.y + targetBounds.max.y) / 2;
         Vector3 target = new Vector3(xTarget, yTarget, transform.position.z);
-        Debug.Log("Target: " + target);
+        
         transform.position = Vector3.Lerp(transform.position, target, speed * Time.deltaTime);
     }
 }
