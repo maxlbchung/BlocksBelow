@@ -131,6 +131,7 @@ GameObject:
   - component: {fileID: 265706327}
   - component: {fileID: 265706326}
   - component: {fileID: 265706325}
+  - component: {fileID: 265706329}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -156,39 +157,61 @@ MonoBehaviour:
       spawnCredits: 1
     tokens: 5
     targetEnemyCount: 1
+    birdCount: 3
+    breakerCount: 0
     targetTime: 1
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
-    tokens: 50
+    tokens: 25
     targetEnemyCount: 1
+    birdCount: 3
+    breakerCount: 0
     targetTime: 1
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
-    tokens: 50
+    tokens: 25
     targetEnemyCount: 1
+    birdCount: 3
+    breakerCount: 0
     targetTime: 1
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
-    tokens: 50
+    tokens: 25
     targetEnemyCount: 1
+    birdCount: 3
+    breakerCount: 0
     targetTime: 1
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
-    tokens: 50
+    tokens: 25
     targetEnemyCount: 1
+    birdCount: 3
+    breakerCount: 0
     targetTime: 1
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
-    tokens: 50
+    tokens: 25
     targetEnemyCount: 1
+    birdCount: 3
+    breakerCount: 0
+    targetTime: 1
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    tokens: 25
+    targetEnemyCount: 1
+    birdCount: 3
+    breakerCount: 0
     targetTime: 1
   player: {fileID: 0}
   spawnRadius: 12
+  bird: {fileID: 1216375964642885722, guid: 2b9c538861347054d93ec6b37701f143, type: 3}
+  breaker: {fileID: 0}
   prewarmPerEnemyType: 128
   maxPoolSizePerType: 512
   strictPrewarmedPools: 0
@@ -207,55 +230,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd21c34430a6b1844aa4c6842a5a8c7d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TowerShopUI
-  startingMoney: 1000
+  startingMoney: 10000
   towers:
-  - displayName: MetalGrinder
-    script: 4
-    sprite: {fileID: -5897110159133509205, guid: 7cd10c01d0f42934f8755a341ad0ad97, type: 3}
+  - displayName: Energy Producer
+    prefab: {fileID: 8755736338420080416, guid: 94d6126dbfd7c0941a9e2fdc9bc27c6e, type: 3}
     price: 100
   - displayName: Basic
-    script: 0
-    sprite: {fileID: -5897110159133509205, guid: 7cd10c01d0f42934f8755a341ad0ad97, type: 3}
+    prefab: {fileID: 6895232330752811065, guid: 93489eb75e09dd24db7c21c7b4c97a4a, type: 3}
     price: 50
   - displayName: Shotgun
-    script: 1
-    sprite: {fileID: -5897110159133509205, guid: 7cd10c01d0f42934f8755a341ad0ad97, type: 3}
+    prefab: {fileID: 4207048639629459165, guid: 113d84a8722d4104fa90cf1e65367424, type: 3}
     price: 75
   - displayName: Sawblade
-    script: 2
-    sprite: {fileID: -5897110159133509205, guid: 7cd10c01d0f42934f8755a341ad0ad97, type: 3}
+    prefab: {fileID: 689768124312060714, guid: 57bb0c77f467e394ca86e4bc504b76fe, type: 3}
     price: 100
   - displayName: Fan
-    script: 3
-    sprite: {fileID: -5897110159133509205, guid: 7cd10c01d0f42934f8755a341ad0ad97, type: 3}
+    prefab: {fileID: 5158665762915999829, guid: 1fd7ea4f4e2419a4c9239231c0912635, type: 3}
     price: 200
   - displayName: Cage
-    script: 5
-    sprite: {fileID: 6675669677758570782, guid: 93da9deb12fdbc4419fa4822f9b15681, type: 3}
+    prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
     price: 25
   - displayName: Scaffolding
-    script: 6
-    sprite: {fileID: -3228527351860832095, guid: 1616a815a45439f41bbbc1a66bd9b04d, type: 3}
+    prefab: {fileID: 8012409773836190367, guid: 9d1dad1ac33d16f4e9012becf684be94, type: 3}
     price: 25
+  - displayName: Tesla
+    prefab: {fileID: 5157854673919590627, guid: f37d943d75669644d82ff8f9695e8822, type: 3}
+    price: 300
   placement: {fileID: 0}
-  basicProjectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
-  shotgunProjectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
-  sawBladePrefab: {fileID: 6163622273882598567, guid: 2a7857f5961cfcc4f927c40ae9a8b8f6, type: 3}
-  brokenCageSprite: {fileID: 0}
-  cageCaptureRadius: 1.25
+  potionHealAmount: 5
+  potionPrice: 25
+  player: {fileID: 0}
+  cageRepairPrice: 25
   panelColor: {r: 0.08, g: 0.1, b: 0.14, a: 0.92}
   buttonColor: {r: 0.2, g: 0.24, b: 0.3, a: 1}
   selectedColor: {r: 0.25, g: 0.55, b: 0.3, a: 1}
   startRoundColor: {r: 0.16, g: 0.45, b: 0.22, a: 1}
   coinPayoutColor: {r: 1, g: 0.84, b: 0.25, a: 1}
-  placementSfx: {fileID: 0}
-  basicShootSfx: {fileID: 0}
-  shotgunShootSfx: {fileID: 0}
-  sawHitSfx: {fileID: 0}
-  moneySfx: {fileID: 0}
-  cageCaptureSfx: {fileID: 0}
-  cageBreakSfx: {fileID: 0}
-  teslaSfx: {fileID: 0}
+  placementSfx: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
+  cageRepairSfx: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
 --- !u!114 &265706327
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -274,8 +286,11 @@ MonoBehaviour:
   ghostSprite: {fileID: 0}
   validGhostColor: {r: 1, g: 1, b: 1, a: 0.5}
   invalidGhostColor: {r: 1, g: 0, b: 0, a: 0.5}
+  repairHighlightColor: {r: 0.3, g: 0.9, b: 0.45, a: 0.45}
   placementBase: {fileID: 476578461}
   adjacencyTolerance: 0.05
+  prePlacedTowersPosition: []
+  prePlacedTowers: []
 --- !u!4 &265706328
 Transform:
   m_ObjectHideFlags: 0
@@ -291,6 +306,65 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!212 &265706329
+SpriteRenderer:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 265706324}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_Sprite: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 1, y: 1}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 0
+  m_SpriteSortPoint: 0
 --- !u!1 &476578457
 GameObject:
   m_ObjectHideFlags: 0
@@ -562,7 +636,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3000397879216909440, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: maxHealth
-      value: 50
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 5802252109684593299, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: m_Name
@@ -902,6 +976,100 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
+--- !u!1 &2088937417
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2088937418}
+  - component: {fileID: 2088937419}
+  m_Layer: 0
+  m_Name: audio
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2088937418
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2088937417}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.82773, y: -0.81798, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2088937419
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2088937417}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6132c4c199f5d64d89ac17a85594f39, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioController
+  audioClips:
+  - clipName: MC Jump v2
+    clip: {fileID: 8300000, guid: 5dc9b57a38d0aca4f9c1399f5da0b5af, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: MC Jump
+    clip: {fileID: 8300000, guid: ec7b391fa6f637c43b24b85d2ba6fb52, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Bullet Orb
+    clip: {fileID: 8300000, guid: a723204c5cbe1434f9746b566c0ca0aa, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Fan
+    clip: {fileID: 8300000, guid: 4196a596177d4244686e7de21ada3b96, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Metal Placement
+    clip: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Saw Blade ON
+    clip: {fileID: 8300000, guid: 8e5e857fd3be1254d89ea55471871633, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Saw Blade Standby
+    clip: {fileID: 8300000, guid: f89e308e3fc13cd43bd1b21012198e8b, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Shotgun v1
+    clip: {fileID: 8300000, guid: ba8ba2a767922f143baee7fbb577a988, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Shotgun v2
+    clip: {fileID: 8300000, guid: c4bd30de22dc6b04e917a497093819e9, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  musicTracks: []
+  audioMixer: {fileID: 24100000, guid: c06ee77f558d7e7458083183ac3fe289, type: 2}
+  sfxVolume: 0.139
+  musicVolume: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -913,3 +1081,4 @@ SceneRoots:
   - {fileID: 654928298}
   - {fileID: 1142725349}
   - {fileID: 1182870943}
+  - {fileID: 2088937418}

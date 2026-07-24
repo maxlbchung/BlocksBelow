@@ -14,16 +14,12 @@ public class ShotgunTower : MonoBehaviour
 
     private float nextShotTime;
     private TowerCageStack cageStack;
-
-    public void Configure(Projectile newProjectilePrefab, AudioClip newShootSfx = null)
-    {
-        projectilePrefab = newProjectilePrefab;
-        shootSfx = newShootSfx;
-    }
+    private TowerShootAnimation shootAnimation;
 
     private void Start()
     {
         cageStack = GetComponent<TowerCageStack>();
+        shootAnimation = GetComponent<TowerShootAnimation>();
         if (projectilePrefab != null)
         {
             CombatObjectPool.Configure(
@@ -78,5 +74,10 @@ public class ShotgunTower : MonoBehaviour
 
         if (shootSfx != null)
             AudioController.Play(shootSfx);
+
+        if (shootAnimation != null)
+        {
+            shootAnimation.Play();
+        }
     }
 }

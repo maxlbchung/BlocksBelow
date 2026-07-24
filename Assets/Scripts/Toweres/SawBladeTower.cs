@@ -20,12 +20,6 @@ public class SawBladeTower : MonoBehaviour
 
     private static Material sharedTetherMaterial;
 
-    public void Configure(GameObject newSawPrefab, AudioClip newHitSfx = null)
-    {
-        sawPrefab = newSawPrefab;
-        hitSfx = newHitSfx;
-    }
-
     private void Start()
     {
         cageStack = GetComponent<TowerCageStack>();

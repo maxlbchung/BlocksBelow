@@ -20,6 +20,10 @@ public class SquarePlacement : MonoBehaviour
     [SerializeField] private Color validGhostColor = new Color(1f, 1f, 1f, 0.5f);
     [SerializeField] private Color invalidGhostColor = new Color(1f, 0f, 0f, 0.5f);
 
+    [Header("Repair")]
+    [Tooltip("Overlay drawn on the broken cage under the cursor while repair mode is active.")]
+    [SerializeField] private Color repairHighlightColor = new Color(0.3f, 0.9f, 0.45f, 0.45f);
+
     [Header("Collision")]
     [Tooltip("The starting base. It may be a BoxCollider2D of any width and does not need the tower tag.")]
     [SerializeField] private Collider2D placementBase;
@@ -34,8 +38,16 @@ public class SquarePlacement : MonoBehaviour
     private GameObject ghostObject;
     private SpriteRenderer ghostRenderer;
     private GameObject ghostAimIndicator;
+    private GameObject repairHighlight;
+    private SpriteRenderer repairHighlightRenderer;
+    private static Sprite repairHighlightSprite;
     private TowerShopUI.TowerOffer selectedTower;
     private int rotationSteps;
+
+    /// <summary>Width of one grid cell in world units.</summary>
+    public float CellSize => cellSize;
+
+    private bool IsRepairing => towerShop != null && towerShop.RepairMode;
 
     private Quaternion CurrentRotation => Quaternion.Euler(0f, 0f, -90f * rotationSteps);
 
@@ -67,11 +79,23 @@ public class SquarePlacement : MonoBehaviour
         if (mouse == null)
         {
             SetGhostVisible(false);
+            SetRepairHighlightVisible(false);
             return;
         }
 
         Vector2 cursorPosition = mouse.position.ReadValue();
-        UpdateGhost(cursorPosition);
+        bool repairing = IsRepairing;
+
+        if (repairing)
+        {
+            SetGhostVisible(false);
+            UpdateRepairHighlight(cursorPosition);
+        }
+        else
+        {
+            SetRepairHighlightVisible(false);
+            UpdateGhost(cursorPosition);
+        }
 
         Keyboard keyboard = Keyboard.current;
         if (keyboard != null && keyboard.rKey.wasPressedThisFrame)
@@ -82,7 +106,14 @@ public class SquarePlacement : MonoBehaviour
         if (mouse.leftButton.wasPressedThisFrame
             && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
         {
-            TryPlaceAtCursor(cursorPosition);
+            if (repairing)
+            {
+                TryRepairAtCursor(cursorPosition);
+            }
+            else
+            {
+                TryPlaceAtCursor(cursorPosition);
+            }
         }
     }
 
@@ -103,7 +134,7 @@ public class SquarePlacement : MonoBehaviour
             return;
         }
 
-        if (selectedTower != null && TowerShopUI.IsRotatable(selectedTower.script))
+        if (TowerShopUI.IsRotatable(selectedTower))
         {
             rotationSteps = (rotationSteps + 1) % 4;
             ApplyGhostRotation();
@@ -140,6 +171,14 @@ public class SquarePlacement : MonoBehaviour
 
     private static bool IsRotatableTower(Transform tower)
     {
+        // Prefab-built towers declare this themselves; the component checks cover
+        // towers still being assembled in code.
+        TowerPlacementInfo info = tower.GetComponent<TowerPlacementInfo>();
+        if (info != null)
+        {
+            return info.Rotatable;
+        }
+
         return tower.GetComponent<BasicTower>() != null
             || tower.GetComponent<ShotgunTower>() != null
             || tower.GetComponent<FanTower>() != null;
@@ -182,7 +221,7 @@ public class SquarePlacement : MonoBehaviour
             return;
         }
 
-        bool showIndicator = selectedTower != null && TowerShopUI.IsRotatable(selectedTower.script);
+        bool showIndicator = TowerShopUI.IsRotatable(selectedTower);
         if (!showIndicator)
         {
             if (ghostAimIndicator != null)
@@ -197,13 +236,13 @@ public class SquarePlacement : MonoBehaviour
         {
             ghostAimIndicator = TowerShopUI.CreateAimIndicator(
                 ghostObject.transform,
-                selectedTower.script,
+                TowerShopUI.GetAimDirection(selectedTower),
                 cellSize);
         }
         else
         {
             ghostAimIndicator.transform.localPosition =
-                TowerShopUI.GetAimDirection(selectedTower.script) * (cellSize * 0.55f);
+                TowerShopUI.GetAimDirection(selectedTower) * (cellSize * 0.55f);
         }
 
         ghostAimIndicator.SetActive(true);
@@ -261,9 +300,9 @@ public class SquarePlacement : MonoBehaviour
     public void SetSelectedTower(TowerShopUI.TowerOffer offer)
     {
         selectedTower = offer;
-        SetGhostSprite(offer != null ? offer.sprite : null);
+        SetGhostSprite(TowerShopUI.GetOfferSprite(offer));
 
-        if (offer == null || !TowerShopUI.IsRotatable(offer.script))
+        if (!TowerShopUI.IsRotatable(offer))
         {
             rotationSteps = 0;
         }
@@ -310,11 +349,128 @@ public class SquarePlacement : MonoBehaviour
         towerShop.CreateTower(selectedTower, cellPosition, cellSize, CurrentRotation);
     }
 
+    /// <summary>Repairs the broken cage in the cell under the cursor, if there is one.</summary>
+    private void TryRepairAtCursor(Vector2 screenPosition)
+    {
+        if (towerShop == null)
+        {
+            return;
+        }
+
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                Debug.LogError("Square Placement could not find a Main Camera.", this);
+                return;
+            }
+        }
+
+        Vector2 cellPosition = SnapToGrid(mainCamera.ScreenToWorldPoint(screenPosition));
+        CageTower cage = FindBrokenCageAt(cellPosition);
+        if (cage != null)
+        {
+            towerShop.TryRepairCage(cage);
+        }
+    }
+
+    private CageTower FindBrokenCageAt(Vector2 cellPosition)
+    {
+        // Slightly smaller than the cell so a neighbouring cage's body is not picked up.
+        Vector2 checkSize = Vector2.one * (cellSize * 0.9f);
+        Collider2D[] hits = Physics2D.OverlapBoxAll(cellPosition, checkSize, 0f);
+
+        foreach (Collider2D hit in hits)
+        {
+            // Capture triggers reach into neighbouring cells, so only solid bodies count.
+            if (hit.isTrigger)
+            {
+                continue;
+            }
+
+            CageTower cage = hit.GetComponentInParent<CageTower>();
+            if (cage != null
+                && cage.IsBroken
+                && IsCenteredOnCell(cage.transform.position, cellPosition))
+            {
+                return cage;
+            }
+        }
+
+        return null;
+    }
+
+    private void UpdateRepairHighlight(Vector2 screenPosition)
+    {
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+
+        if (mainCamera == null)
+        {
+            SetRepairHighlightVisible(false);
+            return;
+        }
+
+        Vector2 cellPosition = SnapToGrid(mainCamera.ScreenToWorldPoint(screenPosition));
+        if (FindBrokenCageAt(cellPosition) == null)
+        {
+            SetRepairHighlightVisible(false);
+            return;
+        }
+
+        if (repairHighlight == null)
+        {
+            CreateRepairHighlight();
+        }
+
+        repairHighlight.transform.position = new Vector3(cellPosition.x, cellPosition.y, 0f);
+        repairHighlightRenderer.color = repairHighlightColor;
+        SetRepairHighlightVisible(true);
+    }
+
+    private void CreateRepairHighlight()
+    {
+        repairHighlight = new GameObject("Cage Repair Highlight");
+        repairHighlight.transform.SetParent(transform);
+        repairHighlight.transform.localScale = Vector3.one * cellSize;
+        repairHighlight.SetActive(false);
+
+        repairHighlightRenderer = repairHighlight.AddComponent<SpriteRenderer>();
+        repairHighlightRenderer.sprite = GetRepairHighlightSprite();
+        repairHighlightRenderer.color = repairHighlightColor;
+        repairHighlightRenderer.sortingLayerName = "Towers";
+        repairHighlightRenderer.sortingOrder = 2;
+    }
+
+    private void SetRepairHighlightVisible(bool isVisible)
+    {
+        if (repairHighlight != null && repairHighlight.activeSelf != isVisible)
+        {
+            repairHighlight.SetActive(isVisible);
+        }
+    }
+
+    private static Sprite GetRepairHighlightSprite()
+    {
+        if (repairHighlightSprite == null)
+        {
+            Texture2D texture = Texture2D.whiteTexture;
+            repairHighlightSprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f),
+                texture.width);
+        }
+
+        return repairHighlightSprite;
+    }
+
     private bool CanPlaceAt(Vector2 cellPosition)
     {
-        bool isSupportPiece = selectedTower != null
-            && (selectedTower.script == TowerShopUI.TowerScript.CageTower
-                || selectedTower.script == TowerShopUI.TowerScript.Scaffolding);
+        bool isSupportPiece = TowerShopUI.IsSupportPiece(selectedTower);
 
         if (selectedTower == null
             || towerShop == null
@@ -335,7 +491,10 @@ public class SquarePlacement : MonoBehaviour
         return HasAdjacentStructure(cellPosition) || HasGroundDirectlyBelow(cellPosition);
     }
 
-    /// <summary>True when the cell directly below contains a Wall-layer collider (the ground).</summary>
+    /// <summary>
+    /// True when the cell directly below holds something solid to rest on, which in
+    /// practice means the ground or the starting base.
+    /// </summary>
     private bool HasGroundDirectlyBelow(Vector2 cellPosition)
     {
         int wallLayer = LayerMask.NameToLayer("Wall");
@@ -353,6 +512,14 @@ public class SquarePlacement : MonoBehaviour
 
         foreach (Collider2D hit in hits)
         {
+            // A cage's capture radius reaches well past its own cell, and a scaffold's
+            // box is walk-through. Counting either as ground let pieces be placed
+            // floating a cell away from a cage, with nothing underneath them.
+            if (hit.isTrigger)
+            {
+                continue;
+            }
+
             if (hit.gameObject.layer == wallLayer)
             {
                 return true;
@@ -372,8 +539,7 @@ public class SquarePlacement : MonoBehaviour
     private bool IsCellOccupied(Vector2 cellPosition)
     {
         // Scaffolding is a walk-through support piece, so the player's cell stays placeable for it.
-        bool ignorePlayer = selectedTower != null
-            && selectedTower.script == TowerShopUI.TowerScript.Scaffolding;
+        bool ignorePlayer = TowerShopUI.IsWalkThrough(selectedTower);
 
         // Slightly smaller than the cell so squares touching at their edges do not count as overlap.
         Vector2 checkSize = Vector2.one * (cellSize * 0.9f);
@@ -498,5 +664,8 @@ public class SquarePlacement : MonoBehaviour
     {
         if (ghostObject != null)
             Destroy(ghostObject);
+
+        if (repairHighlight != null)
+            Destroy(repairHighlight);
     }
 }

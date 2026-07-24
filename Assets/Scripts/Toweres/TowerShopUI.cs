@@ -8,24 +8,15 @@ using UnityEngine.UI;
 
 public class TowerShopUI : MonoBehaviour
 {
-    public enum TowerScript
-    {
-        BasicTower,
-        ShotgunTower,
-        SawBladeTower,
-        FanTower,
-        MoneyTower,
-        CageTower,
-        Scaffolding,
-        TeslaTower
-    }
-
     [Serializable]
     public class TowerOffer
     {
         public string displayName = "Tower";
-        public TowerScript script;
-        public Sprite sprite;
+
+        [Tooltip("The tower spawned when this offer is placed. Everything about the tower "
+            + "- art, damage, audio, firing frames - lives on this prefab.")]
+        public GameObject prefab;
+
         [Min(0)] public int price = 10;
     }
 
@@ -39,12 +30,8 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField, Min(0)] private int potionPrice = 25;
     [SerializeField] private PlayerController player;
 
-    [Header("Runtime Prefabs")]
-    [SerializeField] private Projectile basicProjectilePrefab;
-    [SerializeField] private Projectile shotgunProjectilePrefab;
-    [SerializeField] private GameObject sawBladePrefab;
-    [SerializeField] private Sprite brokenCageSprite;
-    [SerializeField, Min(0.1f)] private float cageCaptureRadius = 1.25f;
+    [Header("Cage Repair")]
+    [SerializeField, Min(0)] private int cageRepairPrice = 10;
 
     [Header("Appearance")]
     [SerializeField] private Color panelColor = new Color(0.08f, 0.1f, 0.14f, 0.92f);
@@ -53,32 +40,32 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField] private Color startRoundColor = new Color(0.16f, 0.45f, 0.22f, 1f);
     [SerializeField] private Color coinPayoutColor = new Color(1f, 0.84f, 0.25f, 1f);
 
-    [Header("Tower SFX")]
+    [Header("Shop SFX")]
+    [Tooltip("Per-tower sounds live on the tower prefabs; these two are shop actions.")]
     [SerializeField, AudioClipDropdown] private AudioClip placementSfx;
-    [SerializeField, AudioClipDropdown] private AudioClip basicShootSfx;
-    [SerializeField, AudioClipDropdown] private AudioClip shotgunShootSfx;
-    [SerializeField, AudioClipDropdown] private AudioClip sawHitSfx;
-    [SerializeField, AudioClipDropdown] private AudioClip moneySfx;
-    [SerializeField, AudioClipDropdown] private AudioClip cageCaptureSfx;
-    [SerializeField, AudioClipDropdown] private AudioClip cageBreakSfx;
-    [SerializeField, AudioClipDropdown] private AudioClip teslaSfx;
-
-   
-
-
+    [SerializeField, AudioClipDropdown] private AudioClip cageRepairSfx;
 
     private readonly List<Button> towerButtons = new List<Button>();
     private static Sprite aimIndicatorSprite;
     private Text moneyText;
     private Button potionButton;
+    private Button repairButton;
+    private Text repairLabel;
     private RectTransform canvasRect;
     private int money;
     private float displayedMoney;
     private Coroutine moneyTickRoutine;
     private int selectedIndex = -1;
+    private bool repairMode;
 
     public int Money => money;
     public Button StartRoundButton { get; private set; }
+
+    /// <summary>The configured offers, exposed for the prefab build tool.</summary>
+    public IReadOnlyList<TowerOffer> Towers => towers;
+
+    /// <summary>True while clicking a broken cage should repair it instead of placing a tower.</summary>
+    public bool RepairMode => repairMode;
 
     GameObject canvasObject;
 
@@ -160,6 +147,51 @@ public class TowerShopUI : MonoBehaviour
         }
 
         TrySpend(potionPrice);
+    }
+
+    public void ToggleRepairMode()
+    {
+        SetRepairMode(!repairMode);
+    }
+
+    /// <summary>
+    /// Enters or leaves cage-repair mode. Entering clears the selected tower so a
+    /// click repairs the cage under the cursor instead of placing a piece there.
+    /// </summary>
+    public void SetRepairMode(bool active)
+    {
+        repairMode = active;
+
+        if (repairMode)
+        {
+            selectedIndex = -1;
+            if (placement != null)
+            {
+                placement.SetSelectedTower(null);
+            }
+        }
+
+        RefreshUI();
+    }
+
+    /// <summary>Pays for and fixes a broken cage. Returns false when it cannot be repaired.</summary>
+    public bool TryRepairCage(CageTower cage)
+    {
+        if (cage == null || !cage.IsBroken || !TrySpend(cageRepairPrice))
+        {
+            return false;
+        }
+
+        cage.FixCage();
+        PlaySfx(cageRepairSfx);
+
+        // Nothing left to spend on the next cage, so drop out of repair mode.
+        if (!CanAfford(cageRepairPrice))
+        {
+            SetRepairMode(false);
+        }
+
+        return true;
     }
 
     /// <summary>Adds money and rolls the displayed counter up to the new total.</summary>
@@ -293,110 +325,95 @@ public class TowerShopUI : MonoBehaviour
         }
 
         TowerOffer offer = towers[index];
-        if (offer.sprite == null || !CanAfford(offer.price))
+        if (GetOfferSprite(offer) == null || !CanAfford(offer.price))
         {
             return;
         }
 
         selectedIndex = index;
+        repairMode = false;
         placement.SetSelectedTower(offer);
         RefreshUI();
     }
 
-    /// <summary>Towers that fire or push in a specific direction and may be rotated.</summary>
-    public static bool IsRotatable(TowerScript script)
+    /// <summary>The art this offer shows in the shop and under the placement ghost.</summary>
+    public static Sprite GetOfferSprite(TowerOffer offer)
     {
-        return script == TowerScript.BasicTower
-            || script == TowerScript.ShotgunTower
-            || script == TowerScript.FanTower;
-    }
-
-    /// <summary>The local-space direction an un-rotated tower of this type aims at.</summary>
-    public static Vector2 GetAimDirection(TowerScript script)
-    {
-        return script == TowerScript.FanTower ? Vector2.right : Vector2.left;
-    }
-
-    public GameObject CreateTower(TowerOffer offer, Vector2 position, float gridCellSize, Quaternion rotation)
-    {
-        if (offer == null || offer.sprite == null)
+        if (offer == null || offer.prefab == null)
         {
             return null;
         }
 
-        GameObject tower = new GameObject(offer.displayName);
-        tower.transform.position = position;
-        if (IsRotatable(offer.script))
+        SpriteRenderer prefabRenderer = offer.prefab.GetComponent<SpriteRenderer>();
+        return prefabRenderer != null ? prefabRenderer.sprite : null;
+    }
+
+    /// <summary>Towers that fire or push in a specific direction and may be rotated.</summary>
+    public static bool IsRotatable(TowerOffer offer)
+    {
+        TowerPlacementInfo info = GetPlacementInfo(offer);
+        return info != null && info.Rotatable;
+    }
+
+    /// <summary>The local-space direction an un-rotated tower aims at.</summary>
+    public static Vector2 GetAimDirection(TowerOffer offer)
+    {
+        TowerPlacementInfo info = GetPlacementInfo(offer);
+        return info != null ? info.AimDirection : Vector2.left;
+    }
+
+    /// <summary>Pieces that may be placed without a cage directly beneath them.</summary>
+    public static bool IsSupportPiece(TowerOffer offer)
+    {
+        TowerPlacementInfo info = GetPlacementInfo(offer);
+        return info != null && info.SupportPiece;
+    }
+
+    /// <summary>Pieces the player can stand inside, so their cell stays placeable.</summary>
+    public static bool IsWalkThrough(TowerOffer offer)
+    {
+        TowerPlacementInfo info = GetPlacementInfo(offer);
+        return info != null && info.WalkThrough;
+    }
+
+    private static TowerPlacementInfo GetPlacementInfo(TowerOffer offer)
+    {
+        return offer != null && offer.prefab != null
+            ? offer.prefab.GetComponent<TowerPlacementInfo>()
+            : null;
+    }
+
+    public GameObject CreateTower(TowerOffer offer, Vector2 position, float gridCellSize, Quaternion rotation)
+    {
+        if (offer == null || offer.prefab == null)
         {
-            tower.transform.rotation = rotation;
-        }
-        tower.tag = offer.script == TowerScript.CageTower ? "cage" : "tower";
-        int wallLayer = LayerMask.NameToLayer("Wall");
-        if (wallLayer >= 0)
-        {
-            tower.layer = wallLayer;
-        }
-
-        SpriteRenderer renderer = tower.AddComponent<SpriteRenderer>();
-        renderer.sprite = offer.sprite;
-        renderer.sortingLayerName = "Towers";
-        renderer.sortingOrder = 1;
-
-        BoxCollider2D collider = tower.AddComponent<BoxCollider2D>();
-        collider.size = Vector2.one;
-        collider.isTrigger = offer.script == TowerScript.Scaffolding;
-
-        switch (offer.script)
-        {
-            case TowerScript.BasicTower:
-                tower.AddComponent<BasicTower>().Configure(basicProjectilePrefab, basicShootSfx);
-                break;
-            case TowerScript.ShotgunTower:
-                tower.AddComponent<ShotgunTower>().Configure(shotgunProjectilePrefab, shotgunShootSfx);
-                break;
-            case TowerScript.SawBladeTower:
-                tower.AddComponent<SawBladeTower>().Configure(sawBladePrefab, sawHitSfx);
-                break;
-            case TowerScript.FanTower:
-                tower.AddComponent<FanTower>();
-                break;
-            case TowerScript.MoneyTower:
-                tower.AddComponent<MoneyTower>().Configure(moneySfx);
-                break;
-            case TowerScript.CageTower:
-                tower.AddComponent<CageTower>().Configure(
-                    brokenCageSprite,
-                    cageCaptureRadius,
-                    cageCaptureSfx,
-                    cageBreakSfx);
-                break;
-            case TowerScript.Scaffolding:
-                // Scaffolding intentionally has no behavior component.
-                SpriteRenderer sr = tower.GetComponent<SpriteRenderer>();
-                Color color = sr.color;
-                color.a = 0.5f;
-
-                sr.color = color;
-
-                CreateScaffoldingPlatforms(tower.transform, gridCellSize, wallLayer);
-                break;
-            case TowerScript.TeslaTower:
-                tower.AddComponent<TeslaTower>().Configure(teslaSfx);
-                break;
+            Debug.LogWarning(
+                $"Tower offer '{offer?.displayName}' has no prefab assigned, so nothing was placed.",
+                this);
+            return null;
         }
 
-        if (offer.script != TowerScript.CageTower)
+        bool rotatable = IsRotatable(offer);
+        GameObject tower = Instantiate(
+            offer.prefab,
+            position,
+            rotatable ? rotation : Quaternion.identity);
+        tower.name = offer.displayName;
+
+        // The indicator's sprite is generated at runtime, so it cannot be stored in the prefab.
+        if (rotatable)
         {
-            tower.AddComponent<TowerCageStack>().Initialize(gridCellSize);
+            CreateAimIndicator(tower.transform, GetAimDirection(offer), gridCellSize);
         }
 
-        if (IsRotatable(offer.script))
+        // Which cages a tower stands on depends on where it was dropped, so it is
+        // resolved per placement rather than baked into the asset.
+        TowerCageStack cageStack = tower.GetComponent<TowerCageStack>();
+        if (cageStack != null)
         {
-            CreateAimIndicator(tower.transform, offer.script, gridCellSize);
+            cageStack.Initialize(gridCellSize);
         }
 
-        SetLayerRecursively(tower, wallLayer);
-        PlaySfx(placementSfx);
         return tower;
     }
 
@@ -404,11 +421,11 @@ public class TowerShopUI : MonoBehaviour
     /// Adds a small barrel marker showing which way a directional tower aims.
     /// Rotates with the parent, so it stays accurate after R-key rotations.
     /// </summary>
-    public static GameObject CreateAimIndicator(Transform parent, TowerScript script, float cellSize)
+    public static GameObject CreateAimIndicator(Transform parent, Vector2 aimDirection, float cellSize)
     {
         GameObject indicator = new GameObject("Aim Indicator");
         indicator.transform.SetParent(parent, false);
-        indicator.transform.localPosition = GetAimDirection(script) * (cellSize * 0.55f);
+        indicator.transform.localPosition = aimDirection * (cellSize * 0.55f);
         indicator.transform.localScale = new Vector3(cellSize * 0.35f, cellSize * 0.1f, 1f);
 
         SpriteRenderer renderer = indicator.AddComponent<SpriteRenderer>();
@@ -448,60 +465,6 @@ public class TowerShopUI : MonoBehaviour
         }
     }
 
-    private static void CreateScaffoldingPlatforms(
-        Transform parent,
-        float size,
-        int layer)
-    {
-        float halfSize = size * 0.5f;
-        CreateOneWayEdge(parent, "Top Platform", halfSize, halfSize, layer);
-        CreateOneWayEdge(parent, "Bottom Platform", -halfSize, halfSize, layer);
-    }
-
-    private static void CreateOneWayEdge(
-        Transform parent,
-        string objectName,
-        float localY,
-        float halfWidth,
-        int layer)
-    {
-        GameObject platform = new GameObject(objectName);
-        platform.transform.SetParent(parent, false);
-        platform.transform.localPosition = new Vector3(0f, localY, 0f);
-
-        if (layer >= 0)
-        {
-            platform.layer = layer;
-        }
-
-        EdgeCollider2D edge = platform.AddComponent<EdgeCollider2D>();
-        edge.points = new[]
-        {
-            new Vector2(-halfWidth, 0f),
-            new Vector2(halfWidth, 0f)
-        };
-        edge.usedByEffector = true;
-
-        PlatformEffector2D effector = platform.AddComponent<PlatformEffector2D>();
-        effector.useOneWay = true;
-        effector.useSideFriction = false;
-        effector.surfaceArc = 180f;
-    }
-
-    private static void SetLayerRecursively(GameObject target, int layer)
-    {
-        if (target == null || layer < 0)
-        {
-            return;
-        }
-
-        target.layer = layer;
-        foreach (Transform child in target.transform)
-        {
-            SetLayerRecursively(child.gameObject, layer);
-        }
-    }
-
     private void BuildShopUI()
     {
         EnsureEventSystem();
@@ -529,7 +492,7 @@ public class TowerShopUI : MonoBehaviour
         panelRect.anchorMax = new Vector2(0f, 0.5f);
         panelRect.pivot = new Vector2(0f, 0.5f);
         panelRect.anchoredPosition = new Vector2(20f, 0f);
-        panelRect.sizeDelta = new Vector2(250f, Mathf.Max(150f, 234f + towers.Count * 72f));
+        panelRect.sizeDelta = new Vector2(250f, Mathf.Max(150f, 306f + towers.Count * 72f));
 
         VerticalLayoutGroup layout = panel.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(12, 12, 12, 12);
@@ -552,7 +515,27 @@ public class TowerShopUI : MonoBehaviour
         }
 
         potionButton = CreatePotionButton(panel.transform);
+        repairButton = CreateRepairButton(panel.transform);
         StartRoundButton = CreateStartRoundButton(panel.transform);
+    }
+
+    private Button CreateRepairButton(Transform parent)
+    {
+        GameObject buttonObject = CreateUIObject("Repair Cage", parent);
+        Image background = buttonObject.AddComponent<Image>();
+        background.color = buttonColor;
+        Button button = buttonObject.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.onClick.AddListener(ToggleRepairMode);
+        buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
+
+        repairLabel = CreateText("Label", buttonObject.transform, 20, TextAnchor.MiddleCenter);
+        RectTransform labelRect = repairLabel.rectTransform;
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(8f, 0f);
+        labelRect.offsetMax = new Vector2(-8f, 0f);
+        return button;
     }
 
     private Button CreatePotionButton(Transform parent)
@@ -612,7 +595,7 @@ public class TowerShopUI : MonoBehaviour
 
         GameObject iconObject = CreateUIObject("Icon", buttonObject.transform);
         Image icon = iconObject.AddComponent<Image>();
-        icon.sprite = offer.sprite;
+        icon.sprite = GetOfferSprite(offer);
         icon.preserveAspect = true;
         LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
         iconLayout.preferredWidth = 48f;
@@ -637,13 +620,22 @@ public class TowerShopUI : MonoBehaviour
         {
             Button button = towerButtons[i];
             TowerOffer offer = towers[i];
-            button.interactable = offer.sprite != null && CanAfford(offer.price);
+            button.interactable = GetOfferSprite(offer) != null && CanAfford(offer.price);
             button.GetComponent<Image>().color = i == selectedIndex ? selectedColor : buttonColor;
         }
 
         if (potionButton != null)
         {
             potionButton.interactable = player != null && CanAfford(potionPrice);
+        }
+
+        if (repairButton != null)
+        {
+            repairButton.interactable = CanAfford(cageRepairPrice);
+            repairButton.GetComponent<Image>().color = repairMode ? selectedColor : buttonColor;
+            repairLabel.text = repairMode
+                ? "Click a Cage to Repair"
+                : "Repair Cage  $" + cageRepairPrice;
         }
     }
 
@@ -685,5 +677,11 @@ public class TowerShopUI : MonoBehaviour
     {
         if (canvasObject != null)
             canvasObject.SetActive(true);
+
+        // Each build phase starts out of repair mode.
+        if (repairMode)
+        {
+            SetRepairMode(false);
+        }
     }
 }

@@ -8,11 +8,6 @@ public class MoneyTower : MonoBehaviour
 
     private TowerCageStack cageStack;
 
-    public void Configure(AudioClip newPaymentSfx)
-    {
-        paymentSfx = newPaymentSfx;
-    }
-
     private void Start()
     {
         cageStack = GetComponent<TowerCageStack>();

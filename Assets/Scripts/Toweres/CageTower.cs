@@ -31,20 +31,31 @@ public class CageTower : MonoBehaviour
     public CageState State => state;
     public bool IsBroken => state == CageState.Broken;
 
-    public void Configure(
-        Sprite newBrokenSprite,
-        float newCaptureRadius,
-        AudioClip newCaptureSfx = null,
-        AudioClip newBreakSfx = null)
+    private void Awake()
     {
-        brokenSprite = newBrokenSprite;
-        captureRadius = Mathf.Max(0.1f, newCaptureRadius);
-        captureSfx = newCaptureSfx;
-        breakSfx = newBreakSfx;
+        // A cage spawned from a prefab never goes through Configure, so the sprite
+        // and the capture trigger have to be resolved here instead.
+        CacheRenderer();
+        EnsureCaptureTrigger();
+    }
 
-        cageRenderer = GetComponent<SpriteRenderer>();
-        intactSprite = cageRenderer != null ? cageRenderer.sprite : null;
+    /// <summary>Remembers the resting sprite so a repaired cage can be put back to it.</summary>
+    private void CacheRenderer()
+    {
+        if (cageRenderer == null)
+        {
+            cageRenderer = GetComponent<SpriteRenderer>();
+        }
 
+        // A cage authored as already broken must not record its broken art as the intact art.
+        if (intactSprite == null && cageRenderer != null && state != CageState.Broken)
+        {
+            intactSprite = cageRenderer.sprite;
+        }
+    }
+
+    private void EnsureCaptureTrigger()
+    {
         CircleCollider2D captureTrigger = GetComponent<CircleCollider2D>();
         if (captureTrigger == null)
         {

@@ -9,59 +9,75 @@ public class TeslaTower : MonoBehaviour
     [SerializeField, Min(0.01f)] private float zapInterval = 1f;
 
     [Header("Lightning")]
-    [SerializeField, Min(0.01f)] private float lightningDuration = 0.2f;
+    [SerializeField, Min(0.01f)] private float lightningDuration = 0.6f;
     [SerializeField, Min(2)] private int pointsPerBolt = 7;
     [SerializeField, Min(0f)] private float jitterAmount = 0.12f;
-    [SerializeField, Min(0.001f)] private float lineWidth = 0.06f;
-    [SerializeField] private Color lightningColor = new Color(0.2f, 0.85f, 1f, 1f);
-    [SerializeField] private float damage = 1f;
+    [SerializeField, Min(0.01f), Tooltip("Seconds between re-rolls of the bolt's zigzag shape.")]
+    private float reshapeInterval = 0.055f;
+    [SerializeField, Min(0.001f)] private float lineWidth = 0.4f;
+    [SerializeField] private Color lightningColor = new Color(1f, 0.9f, 0.3f, 1f);
+    [SerializeField] private float damage = 3f;
     [SerializeField] private AudioClip zapSfx;
 
+    [Header("Sparks")]
+    [SerializeField, Min(0)] private int sparksPerHit = 10;
+
+    [Header("Orb")]
+    [SerializeField, Min(0.05f)] private float orbSize = 0.6f;
+    [SerializeField, Min(0.01f)] private float orbFlareDuration = 0.35f;
+
     private static Material sharedLightningMaterial;
+    private static Material sharedSparkMaterial;
+    private static readonly int OrbIntensityId = Shader.PropertyToID("_Intensity");
 
     private float nextZapTime;
+    private TowerCageStack cageStack;
     private Enemy[] hitEnemies;
     private LineRenderer[] boltLines;
     private Transform[] boltStarts;
     private Transform[] boltEnds;
+    private Vector2[] boltStartPositions;
+    private Vector2[] boltEndPositions;
     private float[] boltElapsed;
     private bool[] boltActive;
+    private float[][] boltJitter;
+    private float[] boltNextReshape;
+    private ParticleSystem sparks;
+    private Material orbMaterial;
+    private float orbFlare;
 
     public int ChainCount => chainCount;
-
-    public void Configure(AudioClip newZapSfx)
-    {
-        zapSfx = newZapSfx;
-    }
 
     private void Awake()
     {
         EnsureCapacity(Mathf.Max(1, chainCount + 1));
+        CreateSparkSystem();
+        CreateOrb();
     }
 
     private void Start()
     {
+        cageStack = GetComponent<TowerCageStack>();
         nextZapTime = Time.time + zapInterval;
     }
 
     private void Update()
     {
+        int powerLevel = cageStack != null ? cageStack.PowerLevel : 0;
+        // The first cage powers the zap itself; each cage beyond it adds a chain.
+        chainCount = Mathf.Max(0, powerLevel - 1);
+
         // Bolts keep fading even outside a wave; only new zaps are gated.
         UpdateBolts(Time.deltaTime);
+        UpdateOrb(powerLevel, Time.deltaTime);
 
-        if (!WaveSpawner.IsWaveActive || Time.time < nextZapTime)
+        if (powerLevel <= 0 || !WaveSpawner.IsWaveActive || Time.time < nextZapTime)
         {
             return;
         }
 
         Zap();
         nextZapTime = Time.time + Mathf.Max(0.01f, zapInterval);
-    }
-
-    public void IncrementChains(int amount = 1)
-    {
-        chainCount = Mathf.Max(0, chainCount + amount);
-        EnsureCapacity(Mathf.Max(1, chainCount + 1));
     }
 
     public void Zap()
@@ -78,16 +94,17 @@ public class TeslaTower : MonoBehaviour
 
         int hitCount = 1;
         hitEnemies[0] = firstEnemy;
+        orbFlare = 1f;
         if (zapSfx != null)
         {
             AudioController.Play(zapSfx);
         }
 
         ShowBolt(0, transform, firstEnemy.transform);
+        firstEnemy.health -= damage;
         Enemy currentEnemy = firstEnemy;
         for (int i = 0; i < chainCount; i++)
         {
-            currentEnemy.health -= damage;
             Enemy nextEnemy = simulation.FindClosestEnemy(
                 currentEnemy.Position,
                 chainRadius,
@@ -99,6 +116,7 @@ public class TeslaTower : MonoBehaviour
             }
 
             ShowBolt(i + 1, currentEnemy.transform, nextEnemy.transform);
+            nextEnemy.health -= damage;
             hitEnemies[hitCount++] = nextEnemy;
             currentEnemy = nextEnemy;
         }
@@ -122,8 +140,12 @@ public class TeslaTower : MonoBehaviour
         LineRenderer[] newBoltLines = new LineRenderer[capacity];
         Transform[] newBoltStarts = new Transform[capacity];
         Transform[] newBoltEnds = new Transform[capacity];
+        Vector2[] newBoltStartPositions = new Vector2[capacity];
+        Vector2[] newBoltEndPositions = new Vector2[capacity];
         float[] newBoltElapsed = new float[capacity];
         bool[] newBoltActive = new bool[capacity];
+        float[][] newBoltJitter = new float[capacity][];
+        float[] newBoltNextReshape = new float[capacity];
 
         for (int i = 0; i < oldLength; i++)
         {
@@ -131,20 +153,29 @@ public class TeslaTower : MonoBehaviour
             newBoltLines[i] = boltLines[i];
             newBoltStarts[i] = boltStarts[i];
             newBoltEnds[i] = boltEnds[i];
+            newBoltStartPositions[i] = boltStartPositions[i];
+            newBoltEndPositions[i] = boltEndPositions[i];
             newBoltElapsed[i] = boltElapsed[i];
             newBoltActive[i] = boltActive[i];
+            newBoltJitter[i] = boltJitter[i];
+            newBoltNextReshape[i] = boltNextReshape[i];
         }
 
         hitEnemies = newHitEnemies;
         boltLines = newBoltLines;
         boltStarts = newBoltStarts;
         boltEnds = newBoltEnds;
+        boltStartPositions = newBoltStartPositions;
+        boltEndPositions = newBoltEndPositions;
         boltElapsed = newBoltElapsed;
         boltActive = newBoltActive;
+        boltJitter = newBoltJitter;
+        boltNextReshape = newBoltNextReshape;
 
         for (int i = oldLength; i < capacity; i++)
         {
             boltLines[i] = CreateBoltLine(i);
+            boltJitter[i] = new float[Mathf.Max(2, pointsPerBolt)];
         }
     }
 
@@ -156,7 +187,7 @@ public class TeslaTower : MonoBehaviour
         line.useWorldSpace = true;
         line.positionCount = Mathf.Max(2, pointsPerBolt);
         line.startWidth = lineWidth;
-        line.endWidth = lineWidth * 0.35f;
+        line.endWidth = lineWidth * 0.6f;
         line.numCapVertices = 2;
         line.sortingLayerName = "Towers";
         line.sortingOrder = 3;
@@ -172,10 +203,16 @@ public class TeslaTower : MonoBehaviour
             return sharedLightningMaterial;
         }
 
-        Shader spriteShader = Shader.Find("Sprites/Default");
-        if (spriteShader != null)
+        Shader lightningShader = Shader.Find("TowerDefense/TeslaLightning");
+        if (lightningShader == null)
         {
-            sharedLightningMaterial = new Material(spriteShader)
+            Debug.LogWarning("The TowerDefense/TeslaLightning shader could not be found.");
+            lightningShader = Shader.Find("Sprites/Default");
+        }
+
+        if (lightningShader != null)
+        {
+            sharedLightningMaterial = new Material(lightningShader)
             {
                 name = "Shared Tesla Lightning Material",
                 hideFlags = HideFlags.HideAndDontSave
@@ -194,9 +231,14 @@ public class TeslaTower : MonoBehaviour
 
         boltStarts[index] = startTarget;
         boltEnds[index] = endTarget;
+        boltStartPositions[index] = startTarget.position;
+        boltEndPositions[index] = endTarget.position;
         boltElapsed[index] = 0f;
+        boltNextReshape[index] = reshapeInterval;
         boltActive[index] = true;
         boltLines[index].enabled = true;
+        RollBoltShape(index);
+        EmitSparks(endTarget.position);
         UpdateBolt(index);
     }
 
@@ -209,15 +251,8 @@ public class TeslaTower : MonoBehaviour
                 continue;
             }
 
-            Transform startTarget = boltStarts[i];
-            Transform endTarget = boltEnds[i];
             boltElapsed[i] += deltaTime;
-
-            if (boltElapsed[i] >= lightningDuration
-                || startTarget == null
-                || endTarget == null
-                || !startTarget.gameObject.activeInHierarchy
-                || !endTarget.gameObject.activeInHierarchy)
+            if (boltElapsed[i] >= lightningDuration)
             {
                 boltActive[i] = false;
                 boltLines[i].enabled = false;
@@ -226,22 +261,63 @@ public class TeslaTower : MonoBehaviour
                 continue;
             }
 
+            // Follow targets while they live. A killed enemy no longer cuts
+            // the bolt short; it keeps fading at the victim's last position.
+            Transform startTarget = boltStarts[i];
+            if (startTarget != null && startTarget.gameObject.activeInHierarchy)
+            {
+                boltStartPositions[i] = startTarget.position;
+            }
+            else
+            {
+                boltStarts[i] = null;
+            }
+
+            Transform endTarget = boltEnds[i];
+            if (endTarget != null && endTarget.gameObject.activeInHierarchy)
+            {
+                boltEndPositions[i] = endTarget.position;
+            }
+            else
+            {
+                boltEnds[i] = null;
+            }
+
+            // The zigzag holds each shape briefly before re-rolling, so the
+            // arc visibly writhes; re-rolling every frame read as frozen fuzz.
+            if (boltElapsed[i] >= boltNextReshape[i])
+            {
+                RollBoltShape(i);
+                boltNextReshape[i] += reshapeInterval;
+            }
+
             UpdateBolt(i);
+        }
+    }
+
+    private void RollBoltShape(int index)
+    {
+        float[] offsets = boltJitter[index];
+        for (int i = 0; i < offsets.Length; i++)
+        {
+            offsets[i] = Random.Range(-jitterAmount, jitterAmount);
         }
     }
 
     private void UpdateBolt(int index)
     {
         LineRenderer line = boltLines[index];
-        Transform startTarget = boltStarts[index];
-        Transform endTarget = boltEnds[index];
-        if (line == null || startTarget == null || endTarget == null)
+        if (line == null)
         {
             return;
         }
 
-        float life = 1f - Mathf.Clamp01(
+        float progress = Mathf.Clamp01(
             boltElapsed[index] / Mathf.Max(0.01f, lightningDuration));
+        // Hold full brightness for most of the strike, then ease out; a
+        // linear fade from birth made bolts read as vanishing instantly.
+        float life = 1f - Mathf.SmoothStep(
+            0f, 1f, Mathf.InverseLerp(0.45f, 1f, progress));
         line.startColor = new Color(1f, 1f, 1f, life);
         line.endColor = new Color(
             lightningColor.r,
@@ -249,8 +325,8 @@ public class TeslaTower : MonoBehaviour
             lightningColor.b,
             lightningColor.a * life);
 
-        Vector2 start = startTarget.position;
-        Vector2 end = endTarget.position;
+        Vector2 start = boltStartPositions[index];
+        Vector2 end = boltEndPositions[index];
         Vector2 direction = end - start;
         float directionLengthSquared = direction.sqrMagnitude;
         Vector2 perpendicular = directionLengthSquared > 0.000001f
@@ -258,18 +334,161 @@ public class TeslaTower : MonoBehaviour
             : Vector2.up;
 
         int pointCount = line.positionCount;
+        float[] offsets = boltJitter[index];
         for (int i = 0; i < pointCount; i++)
         {
-            float progress = i / (pointCount - 1f);
-            Vector2 point = Vector2.Lerp(start, end, progress);
+            float alongBolt = i / (pointCount - 1f);
+            Vector2 point = Vector2.Lerp(start, end, alongBolt);
             if (i > 0 && i < pointCount - 1)
             {
-                float taper = Mathf.Sin(progress * Mathf.PI);
-                point += perpendicular * Random.Range(-jitterAmount, jitterAmount) * taper;
+                float taper = Mathf.Sin(alongBolt * Mathf.PI);
+                point += perpendicular * (offsets[i] * taper);
             }
 
             line.SetPosition(i, point);
         }
+    }
+
+    private void CreateSparkSystem()
+    {
+        GameObject sparkObject = new GameObject("Tesla Sparks");
+        sparkObject.transform.SetParent(transform, false);
+        sparks = sparkObject.AddComponent<ParticleSystem>();
+
+        ParticleSystem.MainModule main = sparks.main;
+        main.loop = true;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.25f, 0.55f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(1.5f, 4.5f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.09f);
+        main.startColor = new ParticleSystem.MinMaxGradient(Color.white, lightningColor);
+        main.gravityModifier = 0.5f;
+
+        // Bursts come only from Emit(); nothing trickles out between zaps.
+        ParticleSystem.EmissionModule emission = sparks.emission;
+        emission.enabled = false;
+
+        ParticleSystem.ShapeModule shape = sparks.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 0.05f;
+
+        ParticleSystem.ColorOverLifetimeModule colorOverLifetime = sparks.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(lightningColor, 0.35f),
+                new GradientColorKey(lightningColor, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 0.4f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOverLifetime.color = gradient;
+
+        // Stretched along their velocity, the particles read as flying
+        // sparks rather than dots.
+        ParticleSystemRenderer sparkRenderer = sparkObject.GetComponent<ParticleSystemRenderer>();
+        sparkRenderer.renderMode = ParticleSystemRenderMode.Stretch;
+        sparkRenderer.lengthScale = 3.5f;
+        sparkRenderer.sortingLayerName = "Towers";
+        sparkRenderer.sortingOrder = 4;
+        sparkRenderer.sharedMaterial = GetSharedSparkMaterial();
+    }
+
+    private void EmitSparks(Vector3 position)
+    {
+        if (sparks == null || sparksPerHit <= 0)
+        {
+            return;
+        }
+
+        ParticleSystem.EmitParams emitParams = new ParticleSystem.EmitParams
+        {
+            position = position,
+            applyShapeToPosition = true
+        };
+        sparks.Emit(emitParams, sparksPerHit);
+    }
+
+    private void CreateOrb()
+    {
+        Shader orbShader = Shader.Find("TowerDefense/TeslaOrb");
+        if (orbShader == null)
+        {
+            Debug.LogWarning("The TowerDefense/TeslaOrb shader could not be found.", this);
+            return;
+        }
+
+        GameObject orbObject = new GameObject("Tesla Orb");
+        orbObject.transform.SetParent(transform, false);
+        orbObject.transform.localScale = new Vector3(orbSize, orbSize, 1f);
+
+        Mesh quad = new Mesh { name = "Tesla Orb Quad" };
+        quad.vertices = new[]
+        {
+            new Vector3(-0.5f, -0.5f),
+            new Vector3(0.5f, -0.5f),
+            new Vector3(-0.5f, 0.5f),
+            new Vector3(0.5f, 0.5f)
+        };
+        quad.uv = new[]
+        {
+            new Vector2(0f, 0f),
+            new Vector2(1f, 0f),
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f)
+        };
+        quad.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+
+        orbObject.AddComponent<MeshFilter>().sharedMesh = quad;
+        MeshRenderer orbRenderer = orbObject.AddComponent<MeshRenderer>();
+        orbRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        orbRenderer.receiveShadows = false;
+        orbRenderer.sortingLayerName = "Towers";
+        orbRenderer.sortingOrder = 4;
+
+        orbMaterial = new Material(orbShader) { name = "Tesla Orb Material" };
+        orbRenderer.sharedMaterial = orbMaterial;
+    }
+
+    private void UpdateOrb(int powerLevel, float deltaTime)
+    {
+        if (orbMaterial == null)
+        {
+            return;
+        }
+
+        orbFlare = Mathf.MoveTowards(
+            orbFlare, 0f, deltaTime / Mathf.Max(0.01f, orbFlareDuration));
+        // A powered orb idles at a visible glow and flares on each zap; an
+        // unpowered one is a barely-lit ember.
+        float idle = powerLevel > 0 ? 0.55f : 0.12f;
+        orbMaterial.SetFloat(OrbIntensityId, idle + orbFlare * 0.7f);
+    }
+
+    private static Material GetSharedSparkMaterial()
+    {
+        if (sharedSparkMaterial != null)
+        {
+            return sharedSparkMaterial;
+        }
+
+        Shader spriteShader = Shader.Find("Sprites/Default");
+        if (spriteShader != null)
+        {
+            sharedSparkMaterial = new Material(spriteShader)
+            {
+                name = "Shared Tesla Spark Material",
+                hideFlags = HideFlags.HideAndDontSave
+            };
+        }
+
+        return sharedSparkMaterial;
     }
 
     private void OnDrawGizmosSelected()
