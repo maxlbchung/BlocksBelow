@@ -29,6 +29,7 @@ public class Enemy : Entity, IPoolable
         isActiveAndEnabled && rb != null && rb.simulated;
     public Rigidbody2D Body => rb;
     public Collider2D EnemyCollider => enemyCollider;
+    public virtual bool CanTakeDamage => true;
 
     [Header("Cage")]
     public bool isCagable = false;
@@ -104,6 +105,17 @@ public class Enemy : Entity, IPoolable
     {
     }
 
+    public bool TryTakeDamage(float damage)
+    {
+        if (!CanTakeDamage)
+        {
+            return false;
+        }
+
+        health -= damage;
+        return true;
+    }
+
     public void OnPoolAcquire()
     {
         health = initialHealth;
@@ -162,5 +174,30 @@ public class Enemy : Entity, IPoolable
         }
     }
 
-    
+    void FixedUpdate()
+    {
+        if (rb.linearVelocity.sqrMagnitude > 0.01f)
+        {
+            // Get angle toward velocity
+            float angle = Mathf.Atan2(rb.linearVelocity.y, rb.linearVelocity.x) * Mathf.Rad2Deg;
+
+            // Apply rotation
+            rb.MoveRotation(angle);
+
+            // Reflect/Flip on Y-axis if pointing left so it doesn't appear upside down
+            Vector3 currentScale = transform.localScale;
+            if (rb.linearVelocity.x < 0)
+            {
+                // Invert Y scale to prevent being upside down when facing left
+                currentScale.y = -Mathf.Abs(currentScale.y);
+            }
+            else
+            {
+                // Normal Y scale when facing right
+                currentScale.y = Mathf.Abs(currentScale.y);
+            }
+            transform.localScale = currentScale;
+        }
+    }
+
 }

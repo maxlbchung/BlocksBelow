@@ -20,9 +20,16 @@ public class SawBlade : MonoBehaviour
             return;
         }
 
-        SawBladeHit();
-
         Rigidbody2D enemyBody = other.attachedRigidbody;
+        Enemy enemy = EnemySimulationManager.InstanceOrNull != null
+            ? EnemySimulationManager.InstanceOrNull.FindEnemy(other)
+            : null;
+        if (enemy == null || !enemy.TryTakeDamage(damage))
+        {
+            return;
+        }
+
+        SawBladeHit();
         if (enemyBody == null)
         {
             return;
@@ -35,14 +42,6 @@ public class SawBlade : MonoBehaviour
         }
 
         enemyBody.AddForce(pushDirection * pushForce, ForceMode2D.Impulse);
-
-        Enemy enemy = EnemySimulationManager.InstanceOrNull != null
-            ? EnemySimulationManager.InstanceOrNull.FindEnemy(other)
-            : null;
-        if (enemy != null)
-        {
-            enemy.health -= damage;
-        }
     }
 
     public void SawBladeHit()

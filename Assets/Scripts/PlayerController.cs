@@ -36,6 +36,11 @@ public class PlayerController : Entity
     [Header("Passable Platforms")]
     [SerializeField] private float platformCheckRadius = 2f;
 
+    [Header("Animation")]
+    [SerializeField] private Animator animator;
+    [SerializeField] private SpriteRenderer spriteRenderer;
+    [SerializeField, Min(0f)] private float walkAnimationThreshold = 0.1f;
+
     [Header("Health Bar")]
     [SerializeField] private Vector2 healthBarSize = new Vector2(1.4f, 0.16f);
     [SerializeField] private float healthBarHeight = 0.25f;
@@ -60,11 +65,14 @@ public class PlayerController : Entity
     private Texture2D healthBarTexture;
     private Sprite healthBarSprite;
     private Vector2 pendingWindForce;
+    private static readonly int IsWalkingAnimationParameter = Animator.StringToHash("IsWalking");
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         playerCollider = GetComponent<Collider2D>();
+        animator = GetComponent<Animator>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
         health = maxHealth;
         CreateHealthBar();
         UpdateHealthBar();
@@ -87,13 +95,42 @@ public class PlayerController : Entity
     void Update()
     {
         if (!alive)
+        {
+            UpdateAnimation();
             return;
+        }
+
+        animator.SetFloat("Movement", Mathf.Abs(rb.linearVelocityX));
 
         HandleInput();
         UpdateCoyoteTime();
         UpdateJumpBuffer();
         UpdateGroundedState();
         UpdatePlatformEffectors();
+        UpdateAnimation();
+    }
+
+    private void UpdateAnimation()
+    {
+        bool isWalking = alive
+            && Mathf.Abs(currentHorizontalVelocity) > walkAnimationThreshold;
+
+        if (animator != null)
+        {
+            animator.SetBool(IsWalkingAnimationParameter, isWalking);
+        }
+
+        if (spriteRenderer != null)
+        {
+            if (currentHorizontalVelocity > walkAnimationThreshold)
+            {
+                spriteRenderer.flipX = false;
+            }
+            else if (currentHorizontalVelocity < -walkAnimationThreshold)
+            {
+                spriteRenderer.flipX = true;
+            }
+        }
     }
 
     void FixedUpdate()
