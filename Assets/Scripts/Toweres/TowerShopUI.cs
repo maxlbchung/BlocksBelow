@@ -414,6 +414,7 @@ public class TowerShopUI : MonoBehaviour
             cageStack.Initialize(gridCellSize);
         }
 
+        PlaySfx(placementSfx);
         return tower;
     }
 
