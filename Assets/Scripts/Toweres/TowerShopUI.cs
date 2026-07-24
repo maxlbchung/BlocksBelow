@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -44,6 +45,8 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField] private Color panelColor = new Color(0.08f, 0.1f, 0.14f, 0.92f);
     [SerializeField] private Color buttonColor = new Color(0.2f, 0.24f, 0.3f, 1f);
     [SerializeField] private Color selectedColor = new Color(0.25f, 0.55f, 0.3f, 1f);
+    [SerializeField] private Color startRoundColor = new Color(0.16f, 0.45f, 0.22f, 1f);
+    [SerializeField] private Color coinPayoutColor = new Color(1f, 0.84f, 0.25f, 1f);
 
     [Header("Tower SFX")]
     [SerializeField, AudioClipDropdown] private AudioClip placementSfx;
@@ -57,17 +60,23 @@ public class TowerShopUI : MonoBehaviour
 
 
     private readonly List<Button> towerButtons = new List<Button>();
+    private static Sprite aimIndicatorSprite;
     private Text moneyText;
+    private RectTransform canvasRect;
     private int money;
+    private float displayedMoney;
+    private Coroutine moneyTickRoutine;
     private int selectedIndex = -1;
 
     public int Money => money;
+    public Button StartRoundButton { get; private set; }
 
     GameObject canvasObject;
 
     private void Awake()
     {
         money = startingMoney;
+        displayedMoney = money;
 
         if (placement == null)
         {
@@ -106,6 +115,7 @@ public class TowerShopUI : MonoBehaviour
         }
 
         money -= price;
+        SyncDisplayedMoney();
         RefreshUI();
         return true;
     }
@@ -113,7 +123,131 @@ public class TowerShopUI : MonoBehaviour
     public void AddMoney(int amount)
     {
         money = Mathf.Max(0, money + amount);
+        SyncDisplayedMoney();
         RefreshUI();
+    }
+
+    /// <summary>Adds money and rolls the displayed counter up to the new total.</summary>
+    public void AddMoneyAnimated(int amount)
+    {
+        money = Mathf.Max(0, money + amount);
+        if (moneyTickRoutine == null)
+        {
+            moneyTickRoutine = StartCoroutine(TickDisplayedMoney());
+        }
+
+        RefreshUI();
+    }
+
+    private void SyncDisplayedMoney()
+    {
+        // While a count-up is running it converges to the new total on its own.
+        if (moneyTickRoutine == null)
+        {
+            displayedMoney = money;
+        }
+    }
+
+    private IEnumerator TickDisplayedMoney()
+    {
+        while (!Mathf.Approximately(displayedMoney, money))
+        {
+            float gap = Mathf.Abs(money - displayedMoney);
+            float speed = Mathf.Max(60f, gap * 4f);
+            displayedMoney = Mathf.MoveTowards(displayedMoney, money, speed * Time.deltaTime);
+            RefreshUI();
+            yield return null;
+        }
+
+        displayedMoney = money;
+        moneyTickRoutine = null;
+        RefreshUI();
+    }
+
+    /// <summary>
+    /// Shows coins earned above a tower, flies the text to the money display,
+    /// then adds the amount with an animated count-up.
+    /// </summary>
+    public void ShowCoinPayout(Vector3 worldPosition, int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        if (canvasObject == null || canvasRect == null || moneyText == null)
+        {
+            AddMoneyAnimated(amount);
+            return;
+        }
+
+        StartCoroutine(CoinPayoutRoutine(worldPosition, amount));
+    }
+
+    private IEnumerator CoinPayoutRoutine(Vector3 worldPosition, int amount)
+    {
+        Camera worldCamera = Camera.main;
+        if (worldCamera == null)
+        {
+            AddMoneyAnimated(amount);
+            yield break;
+        }
+
+        Text coinText = CreateText("Coin Payout", canvasObject.transform, 34, TextAnchor.MiddleCenter);
+        coinText.text = "+$" + amount;
+        coinText.color = coinPayoutColor;
+        coinText.fontStyle = FontStyle.Bold;
+        coinText.raycastTarget = false;
+        coinText.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.9f);
+
+        RectTransform coinRect = coinText.rectTransform;
+        coinRect.sizeDelta = new Vector2(240f, 64f);
+        // Last sibling of the canvas root, so the payout number draws on top of the shop panel.
+        coinRect.SetAsLastSibling();
+
+        const float holdDuration = 0.6f;
+        const float driftDistance = 0.4f;
+        for (float elapsed = 0f; elapsed < holdDuration; elapsed += Time.deltaTime)
+        {
+            Vector3 driftedPosition = worldPosition
+                + Vector3.up * (0.9f + driftDistance * (elapsed / holdDuration));
+            coinRect.anchoredPosition = WorldToCanvasPoint(worldCamera, driftedPosition);
+            yield return null;
+        }
+
+        Vector2 flightStart = coinRect.anchoredPosition;
+        const float flightDuration = 0.45f;
+        for (float elapsed = 0f; elapsed < flightDuration; elapsed += Time.deltaTime)
+        {
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / flightDuration);
+            coinRect.anchoredPosition = Vector2.Lerp(flightStart, GetMoneyTextCanvasPoint(), t);
+            yield return null;
+        }
+
+        Destroy(coinText.gameObject);
+        AddMoneyAnimated(amount);
+    }
+
+    private Vector2 WorldToCanvasPoint(Camera worldCamera, Vector3 worldPosition)
+    {
+        Vector2 screenPoint = worldCamera.WorldToScreenPoint(worldPosition);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvasRect,
+            screenPoint,
+            null,
+            out Vector2 localPoint);
+        return localPoint;
+    }
+
+    private Vector2 GetMoneyTextCanvasPoint()
+    {
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(null, moneyText.rectTransform.position);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvasRect,
+            screenPoint,
+            null,
+            out Vector2 localPoint);
+        return localPoint;
     }
 
     public void SelectTower(int index)
@@ -134,7 +268,21 @@ public class TowerShopUI : MonoBehaviour
         RefreshUI();
     }
 
-    public GameObject CreateTower(TowerOffer offer, Vector2 position, float gridCellSize)
+    /// <summary>Towers that fire or push in a specific direction and may be rotated.</summary>
+    public static bool IsRotatable(TowerScript script)
+    {
+        return script == TowerScript.BasicTower
+            || script == TowerScript.ShotgunTower
+            || script == TowerScript.FanTower;
+    }
+
+    /// <summary>The local-space direction an un-rotated tower of this type aims at.</summary>
+    public static Vector2 GetAimDirection(TowerScript script)
+    {
+        return script == TowerScript.FanTower ? Vector2.right : Vector2.left;
+    }
+
+    public GameObject CreateTower(TowerOffer offer, Vector2 position, float gridCellSize, Quaternion rotation)
     {
         if (offer == null || offer.sprite == null)
         {
@@ -143,6 +291,10 @@ public class TowerShopUI : MonoBehaviour
 
         GameObject tower = new GameObject(offer.displayName);
         tower.transform.position = position;
+        if (IsRotatable(offer.script))
+        {
+            tower.transform.rotation = rotation;
+        }
         tower.tag = offer.script == TowerScript.CageTower ? "cage" : "tower";
         int wallLayer = LayerMask.NameToLayer("Wall");
         if (wallLayer >= 0)
@@ -203,9 +355,54 @@ public class TowerShopUI : MonoBehaviour
             tower.AddComponent<TowerCageStack>().Initialize(gridCellSize);
         }
 
+        if (IsRotatable(offer.script))
+        {
+            CreateAimIndicator(tower.transform, offer.script, gridCellSize);
+        }
+
         SetLayerRecursively(tower, wallLayer);
         PlaySfx(placementSfx);
         return tower;
+    }
+
+    /// <summary>
+    /// Adds a small barrel marker showing which way a directional tower aims.
+    /// Rotates with the parent, so it stays accurate after R-key rotations.
+    /// </summary>
+    public static GameObject CreateAimIndicator(Transform parent, TowerScript script, float cellSize)
+    {
+        GameObject indicator = new GameObject("Aim Indicator");
+        indicator.transform.SetParent(parent, false);
+        indicator.transform.localPosition = GetAimDirection(script) * (cellSize * 0.55f);
+        indicator.transform.localScale = new Vector3(cellSize * 0.35f, cellSize * 0.1f, 1f);
+
+        SpriteRenderer renderer = indicator.AddComponent<SpriteRenderer>();
+        renderer.sprite = GetAimIndicatorSprite();
+        renderer.color = new Color(0.1f, 0.1f, 0.1f, 0.9f);
+
+        SpriteRenderer parentRenderer = parent.GetComponent<SpriteRenderer>();
+        if (parentRenderer != null)
+        {
+            renderer.sortingLayerID = parentRenderer.sortingLayerID;
+            renderer.sortingOrder = parentRenderer.sortingOrder + 1;
+        }
+
+        return indicator;
+    }
+
+    private static Sprite GetAimIndicatorSprite()
+    {
+        if (aimIndicatorSprite == null)
+        {
+            Texture2D texture = Texture2D.whiteTexture;
+            aimIndicatorSprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f),
+                texture.width);
+        }
+
+        return aimIndicatorSprite;
     }
 
     private static void PlaySfx(AudioClip clip)
@@ -286,6 +483,8 @@ public class TowerShopUI : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = 1f;
 
+        canvasRect = canvasObject.GetComponent<RectTransform>();
+
         GameObject panel = CreateUIObject("Tower Shop", canvasObject.transform);
         Image panelImage = panel.AddComponent<Image>();
         panelImage.color = panelColor;
@@ -295,7 +494,7 @@ public class TowerShopUI : MonoBehaviour
         panelRect.anchorMax = new Vector2(0f, 0.5f);
         panelRect.pivot = new Vector2(0f, 0.5f);
         panelRect.anchoredPosition = new Vector2(20f, 0f);
-        panelRect.sizeDelta = new Vector2(250f, Mathf.Max(150f, 90f + towers.Count * 72f));
+        panelRect.sizeDelta = new Vector2(250f, Mathf.Max(150f, 162f + towers.Count * 72f));
 
         VerticalLayoutGroup layout = panel.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(12, 12, 12, 12);
@@ -316,6 +515,27 @@ public class TowerShopUI : MonoBehaviour
             button.onClick.AddListener(() => SelectTower(capturedIndex));
             towerButtons.Add(button);
         }
+
+        StartRoundButton = CreateStartRoundButton(panel.transform);
+    }
+
+    private Button CreateStartRoundButton(Transform parent)
+    {
+        GameObject buttonObject = CreateUIObject("Start Round", parent);
+        Image background = buttonObject.AddComponent<Image>();
+        background.color = startRoundColor;
+        Button button = buttonObject.AddComponent<Button>();
+        button.targetGraphic = background;
+        buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
+
+        Text label = CreateText("Label", buttonObject.transform, 24, TextAnchor.MiddleCenter);
+        label.text = "Start Round";
+        RectTransform labelRect = label.rectTransform;
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+        return button;
     }
 
     private Button CreateButton(Transform parent, TowerOffer offer, int index)
@@ -354,7 +574,7 @@ public class TowerShopUI : MonoBehaviour
     {
         if (moneyText != null)
         {
-            moneyText.text = "Money: $" + money;
+            moneyText.text = "Money: $" + Mathf.RoundToInt(displayedMoney);
         }
 
         for (int i = 0; i < towerButtons.Count; i++)

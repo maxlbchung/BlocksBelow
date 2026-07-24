@@ -66,7 +66,9 @@ public class WaveSpawner : MonoBehaviour
     [Header("Building Mode")]
     [SerializeField] private TowerShopUI towerShop;
     [SerializeField] private SquarePlacement squarePlacement;
-    [SerializeField] private Button startGameButton;
+
+    // Created by the tower shop inside its own panel; resolved in Start.
+    private Button startGameButton;
 
     [Header("Runtime")]
     public GameState gameState = GameState.Wave;
@@ -133,6 +135,12 @@ public class WaveSpawner : MonoBehaviour
 
         PreparePools();
 
+        if (towerShop == null)
+        {
+            towerShop = FindFirstObjectByType<TowerShopUI>();
+        }
+
+        startGameButton = towerShop != null ? towerShop.StartRoundButton : null;
         if (startGameButton != null)
         {
             startGameButton.onClick.AddListener(StartNextWave);
@@ -390,8 +398,24 @@ public class WaveSpawner : MonoBehaviour
             return;
         }
 
+        bool roundJustEnded = gameState == GameState.Wave;
         gameState = GameState.Building;
         SetBuildingToolsEnabled(true);
+
+        // Pay after the shop is re-enabled so the coin effect lands on a visible canvas.
+        if (roundJustEnded)
+        {
+            PayOutMoneyTowers();
+        }
+    }
+
+    private static void PayOutMoneyTowers()
+    {
+        MoneyTower[] moneyTowers = FindObjectsByType<MoneyTower>(FindObjectsSortMode.None);
+        for (int i = 0; i < moneyTowers.Length; i++)
+        {
+            moneyTowers[i].PayOutRound();
+        }
     }
 
     private void SetBuildingToolsEnabled(bool enabled)
