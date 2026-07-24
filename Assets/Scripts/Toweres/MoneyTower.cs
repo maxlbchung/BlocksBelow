@@ -2,11 +2,10 @@ using UnityEngine;
 
 public class MoneyTower : MonoBehaviour
 {
-    [SerializeField, Min(0)] private int coinsPerSecond;
+    [SerializeField, Min(0)] private int coinsPerPower = 100;
     [SerializeField] private TowerShopUI towerShop;
     [SerializeField] private AudioClip paymentSfx;
 
-    private float nextPaymentTime;
     private TowerCageStack cageStack;
 
     public void Configure(AudioClip newPaymentSfx)
@@ -21,23 +20,26 @@ public class MoneyTower : MonoBehaviour
         {
             towerShop = FindFirstObjectByType<TowerShopUI>();
         }
-
-        nextPaymentTime = Time.time + 1f;
     }
 
-    private void Update()
+    /// <summary>
+    /// Pays out once at the end of a round. The coins are shown above the tower,
+    /// fly to the shop's money display, and are then added to the balance.
+    /// </summary>
+    public void PayOutRound()
     {
-        coinsPerSecond = cageStack != null ? cageStack.PowerLevel : 0;
-        if (towerShop == null || Time.time < nextPaymentTime)
+        int power = cageStack != null ? cageStack.PowerLevel : 0;
+        int amount = power * coinsPerPower;
+        if (amount <= 0 || towerShop == null)
         {
             return;
         }
 
-        towerShop.AddMoney(coinsPerSecond);
-        if (coinsPerSecond > 0 && paymentSfx != null)
+        if (paymentSfx != null)
         {
             AudioController.Play(paymentSfx);
         }
-        nextPaymentTime = Time.time + 1f;
+
+        towerShop.ShowCoinPayout(transform.position, amount);
     }
 }

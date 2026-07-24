@@ -164,7 +164,6 @@ MonoBehaviour:
   strictPrewarmedPools: 0
   towerShop: {fileID: 265706326}
   squarePlacement: {fileID: 265706327}
-  startGameButton: {fileID: 1482780189}
   gameState: 0
 --- !u!114 &265706326
 MonoBehaviour:
@@ -1235,7 +1234,6 @@ SceneRoots:
   - {fileID: 265706328}
   - {fileID: 476578459}
   - {fileID: 673086790}
-  - {fileID: 1729072227}
   - {fileID: 654928298}
   - {fileID: 1182870943}
   - {fileID: 1420174076}

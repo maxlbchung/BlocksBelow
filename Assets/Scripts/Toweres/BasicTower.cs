@@ -61,7 +61,7 @@ public class BasicTower : MonoBehaviour
             projectilePrefab,
             transform.position,
             Quaternion.identity,
-            Vector2.left,
+            transform.rotation * Vector2.left,
             damage);
         if (projectile != null)
         {

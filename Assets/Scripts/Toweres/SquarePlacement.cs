@@ -27,7 +27,11 @@ public class SquarePlacement : MonoBehaviour
     private Camera mainCamera;
     private GameObject ghostObject;
     private SpriteRenderer ghostRenderer;
+    private GameObject ghostAimIndicator;
     private TowerShopUI.TowerOffer selectedTower;
+    private int rotationSteps;
+
+    private Quaternion CurrentRotation => Quaternion.Euler(0f, 0f, -90f * rotationSteps);
 
     private void Awake()
     {
@@ -51,6 +55,12 @@ public class SquarePlacement : MonoBehaviour
         Vector2 cursorPosition = mouse.position.ReadValue();
         UpdateGhost(cursorPosition);
 
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard != null && keyboard.rKey.wasPressedThisFrame)
+        {
+            HandleRotationInput(cursorPosition);
+        }
+
         if (mouse.leftButton.wasPressedThisFrame
             && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
         {
@@ -58,8 +68,81 @@ public class SquarePlacement : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Rotates the directional tower under the cursor a quarter turn clockwise,
+    /// or the placement ghost when no rotatable tower is hovered.
+    /// </summary>
+    private void HandleRotationInput(Vector2 screenPosition)
+    {
+        if (mainCamera == null)
+        {
+            return;
+        }
+
+        Vector2 cellPosition = SnapToGrid(mainCamera.ScreenToWorldPoint(screenPosition));
+        if (TryRotateTowerAt(cellPosition))
+        {
+            return;
+        }
+
+        if (selectedTower != null && TowerShopUI.IsRotatable(selectedTower.script))
+        {
+            rotationSteps = (rotationSteps + 1) % 4;
+            ApplyGhostRotation();
+        }
+    }
+
+    private bool TryRotateTowerAt(Vector2 cellPosition)
+    {
+        Vector2 checkSize = Vector2.one * (cellSize * 0.9f);
+        Collider2D[] hits = Physics2D.OverlapBoxAll(cellPosition, checkSize, 0f);
+
+        foreach (Collider2D hit in hits)
+        {
+            Transform current = hit.transform;
+            while (current != null)
+            {
+                if (current.CompareTag("tower"))
+                {
+                    if (IsCenteredOnCell(current.position, cellPosition) && IsRotatableTower(current))
+                    {
+                        current.Rotate(0f, 0f, -90f);
+                        return true;
+                    }
+
+                    break;
+                }
+
+                current = current.parent;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsRotatableTower(Transform tower)
+    {
+        return tower.GetComponent<BasicTower>() != null
+            || tower.GetComponent<ShotgunTower>() != null
+            || tower.GetComponent<FanTower>() != null;
+    }
+
+    private void ApplyGhostRotation()
+    {
+        if (ghostObject != null)
+        {
+            ghostObject.transform.localRotation = CurrentRotation;
+        }
+    }
+
     private void CreateGhost()
     {
+        if (ghostObject != null)
+        {
+            Destroy(ghostObject);
+            ghostAimIndicator = null;
+        }
+
         ghostObject = new GameObject("Square Placement Ghost");
         ghostObject.transform.SetParent(transform);
         ghostObject.SetActive(false);
@@ -69,6 +152,43 @@ public class SquarePlacement : MonoBehaviour
 
         ghostRenderer.sprite = ghostSprite;
         ghostRenderer.sortingOrder = 1;
+
+        ApplyGhostRotation();
+        RefreshGhostAimIndicator();
+    }
+
+    private void RefreshGhostAimIndicator()
+    {
+        if (ghostObject == null)
+        {
+            return;
+        }
+
+        bool showIndicator = selectedTower != null && TowerShopUI.IsRotatable(selectedTower.script);
+        if (!showIndicator)
+        {
+            if (ghostAimIndicator != null)
+            {
+                ghostAimIndicator.SetActive(false);
+            }
+
+            return;
+        }
+
+        if (ghostAimIndicator == null)
+        {
+            ghostAimIndicator = TowerShopUI.CreateAimIndicator(
+                ghostObject.transform,
+                selectedTower.script,
+                cellSize);
+        }
+        else
+        {
+            ghostAimIndicator.transform.localPosition =
+                TowerShopUI.GetAimDirection(selectedTower.script) * (cellSize * 0.55f);
+        }
+
+        ghostAimIndicator.SetActive(true);
     }
 
     private void UpdateGhost(Vector2 screenPosition)
@@ -124,6 +244,14 @@ public class SquarePlacement : MonoBehaviour
     {
         selectedTower = offer;
         SetGhostSprite(offer != null ? offer.sprite : null);
+
+        if (offer == null || !TowerShopUI.IsRotatable(offer.script))
+        {
+            rotationSteps = 0;
+        }
+
+        ApplyGhostRotation();
+        RefreshGhostAimIndicator();
     }
 
     public void SetTowerShop(TowerShopUI shop)
@@ -161,7 +289,7 @@ public class SquarePlacement : MonoBehaviour
             return;
         }
 
-        towerShop.CreateTower(selectedTower, cellPosition, cellSize);
+        towerShop.CreateTower(selectedTower, cellPosition, cellSize, CurrentRotation);
     }
 
     private bool CanPlaceAt(Vector2 cellPosition)
@@ -187,13 +315,17 @@ public class SquarePlacement : MonoBehaviour
 
     private bool IsCellOccupied(Vector2 cellPosition)
     {
+        // Scaffolding is a walk-through support piece, so the player's cell stays placeable for it.
+        bool ignorePlayer = selectedTower != null
+            && selectedTower.script == TowerShopUI.TowerScript.Scaffolding;
+
         // Slightly smaller than the cell so squares touching at their edges do not count as overlap.
         Vector2 checkSize = Vector2.one * (cellSize * 0.9f);
         Collider2D[] hits = Physics2D.OverlapBoxAll(cellPosition, checkSize, 0f);
 
         foreach (Collider2D hit in hits)
         {
-            if (IsTowerOrCageCenteredAt(hit, cellPosition) || IsPlayer(hit))
+            if (IsTowerOrCageCenteredAt(hit, cellPosition) || (!ignorePlayer && IsPlayer(hit)))
             {
                 return true;
             }

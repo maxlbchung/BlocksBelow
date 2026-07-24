@@ -67,7 +67,7 @@ public class ShotgunTower : MonoBehaviour
                 ? 0f
                 : Mathf.Lerp(-spread * 0.5f, spread * 0.5f, i / (shotCount - 1f));
 
-            Vector2 direction = Quaternion.Euler(0f, 0f, angle) * Vector2.left;
+            Vector2 direction = transform.rotation * Quaternion.Euler(0f, 0f, angle) * Vector2.left;
             Projectile.Spawn(
                 projectilePrefab,
                 transform.position,

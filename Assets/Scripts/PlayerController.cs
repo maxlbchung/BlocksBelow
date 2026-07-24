@@ -226,24 +226,30 @@ public class PlayerController : Entity
     {
         bool canJump = isGrounded || coyoteCounter > 0;
         bool hasAirJump = airJumpsRemaining > 0;
-        if ((jumpBufferCounter > 0  || Keyboard.current.spaceKey.wasPressedThisFrame) && (canJump || hasAirJump))
-        {
-            jumpBufferCounter = 0;
+        bool jumpHeld = Keyboard.current != null && Keyboard.current.spaceKey.isPressed;
 
-            // Use coyote jump if available
-            if (canJump)
-            {
-                rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-                coyoteCounter = 0f; // Use up coyote time
-                jumpInProgress = true;
-            }
-            // Otherwise use air jump
-            else if (hasAirJump)
-            {
-                rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-                airJumpsRemaining--;
-                jumpInProgress = true;
-            }
+        // A buffered/fresh press can jump off the ground or spend an air jump.
+        // Simply holding space keeps re-jumping off the ground (bunny hop) but
+        // never auto-consumes air jumps while airborne.
+        bool wantsJump = jumpBufferCounter > 0 || (jumpHeld && canJump);
+        if (!wantsJump)
+            return;
+
+        // Use coyote jump if available
+        if (canJump)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+            coyoteCounter = 0f; // Use up coyote time
+            jumpBufferCounter = 0;
+            jumpInProgress = true;
+        }
+        // Otherwise use air jump, but only on an actual press (not a held key)
+        else if (hasAirJump && jumpBufferCounter > 0)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+            airJumpsRemaining--;
+            jumpBufferCounter = 0;
+            jumpInProgress = true;
         }
     }
 
