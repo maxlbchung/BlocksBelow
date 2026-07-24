@@ -6,6 +6,9 @@ public class BasicTower : MonoBehaviour
     [SerializeField, Min(0f)] private float fireRate;
     [SerializeField] private float damage = 1f;
     [SerializeField] private AudioClip shootSfx;
+    [SerializeField, Min(0), Tooltip("Projectiles prepared before this tower starts firing.")]
+    private int projectilePrewarmCount = 128;
+    [SerializeField, Min(1)] private int projectilePoolMaxSize = 512;
 
     private float nextShotTime;
     private TowerCageStack cageStack;
@@ -19,6 +22,14 @@ public class BasicTower : MonoBehaviour
     private void Start()
     {
         cageStack = GetComponent<TowerCageStack>();
+        if (projectilePrefab != null)
+        {
+            CombatObjectPool.Configure(
+                projectilePrefab.gameObject,
+                projectilePrewarmCount,
+                projectilePoolMaxSize,
+                false);
+        }
     }
 
     private void Update()
@@ -46,10 +57,16 @@ public class BasicTower : MonoBehaviour
             return;
         }
 
-        Projectile projectile = Instantiate(projectilePrefab, transform.position, Quaternion.identity);
-        projectile.SetDirection(Vector2.left);
-        projectile.damage = damage;
-        PlaySfx();
+        Projectile projectile = Projectile.Spawn(
+            projectilePrefab,
+            transform.position,
+            Quaternion.identity,
+            Vector2.left,
+            damage);
+        if (projectile != null)
+        {
+            PlaySfx();
+        }
     }
 
     private void PlaySfx()

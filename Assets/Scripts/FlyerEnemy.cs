@@ -3,97 +3,126 @@ using UnityEngine;
 public class FlyerEnemy : Enemy
 {
     [SerializeField] private float moveSpeed = 1f;
-    [SerializeField] private float desiredRange = 5f; // Desired range from the player
-    [SerializeField] private float runRange = 1f; // Range at which the enemy will start to run away from the player
-    [SerializeField] private float shootInterval = 2f; // Time interval between shots
-    [SerializeField] private GameObject bulletPrefab; // Prefab for the bullet
-    [SerializeField] private float bulletSpeed = 5f; // Speed of the bullet
-    private GameObject player;
+    [SerializeField] private float desiredRange = 5f;
+    [SerializeField] private float runRange = 1f;
+    [SerializeField] private float shootInterval = 2f;
+    [SerializeField] private GameObject bulletPrefab;
+    [SerializeField] private float bulletSpeed = 5f;
+    [SerializeField, Min(0.1f), Tooltip("Seconds before an enemy bullet is returned to its pool.")]
+    private float bulletLifetime = 8f;
+    [SerializeField, Min(0), Tooltip("Bullets reserved when this enemy type is prepared by a wave spawner.")]
+    private int bulletPrewarmCount = 128;
 
-    private Vector3 target;
+    private Vector2 target;
+    private float shootCounter;
 
-    private float shootCounter = 0f;
-
-    private void Start()
-    {
-        player = GameObject.FindGameObjectWithTag("Player");
-
-        // Disable gravity and set body type to dynamic
-        if (rb != null)
-        {
-            rb.gravityScale = 0f;
-            rb.constraints = RigidbodyConstraints2D.FreezeRotation;
-        }
-    }
-    private void Update()
-    {
-        shootCounter += Time.deltaTime;
-        if (shootCounter >= shootInterval)
-        {
-            ShootAtPlayer();
-            shootCounter = 0f;
-        }
-    }
-
-    protected override void FixedUpdate()
+    protected override Vector2 CalculateDesiredVelocity(Transform player, float elapsed)
     {
         if (player == null)
         {
-            player = GameObject.FindGameObjectWithTag("Player");
-        }
-        if (Vector3.Distance(target, transform.position) > 0.1f)
-        {
-            Vector2 direction = (target - transform.position).normalized;
-            Vector2 targetVelocity = direction * moveSpeed;
-
-            // Apply force towards player instead of setting velocity directly
-            Vector2 velocityDifference = targetVelocity - rb.linearVelocity;
-            rb.AddForce(velocityDifference * rb.mass, ForceMode2D.Force);
-        }
-        if (player != null && rb != null)
-        {
-            if (Vector3.Distance(player.transform.position, transform.position) > desiredRange)
-            {
-                target = GetClosestPointOnCircle(player.transform.position, desiredRange, transform.position);
-            }
-            else if (Vector3.Distance(player.transform.position, transform.position) < runRange)
-            {
-                Vector3 directionAwayFromPlayer = (transform.position - player.transform.position).normalized;
-                target = transform.position + (directionAwayFromPlayer * desiredRange);
-            }
-            else
-            {
-                target = transform.position; // Stay in place if within the desired range
-            }
+            target = Position;
+            return Vector2.zero;
         }
 
-        // Apply repulsion from other enemies   
-        base.FixedUpdate();
+        Vector2 position = Position;
+        Vector2 playerPosition = player.position;
+        Vector2 fromPlayer = position - playerPosition;
+        float distanceSquared = fromPlayer.sqrMagnitude;
+        float desiredRangeSquared = desiredRange * desiredRange;
+        float runRangeSquared = runRange * runRange;
+
+        if (distanceSquared > desiredRangeSquared)
+        {
+            target = GetClosestPointOnCircle(playerPosition, desiredRange, position);
+        }
+        else if (distanceSquared < runRangeSquared)
+        {
+            Vector2 away = distanceSquared > 0.000001f
+                ? fromPlayer / Mathf.Sqrt(distanceSquared)
+                : Vector2.right;
+            target = position + away * desiredRange;
+        }
+        else
+        {
+            target = position;
+        }
+
+        Vector2 toTarget = target - position;
+        float targetDistanceSquared = toTarget.sqrMagnitude;
+        if (targetDistanceSquared <= 0.01f)
+        {
+            return Vector2.zero;
+        }
+
+        return toTarget * (moveSpeed / Mathf.Sqrt(targetDistanceSquared));
     }
 
-    public static Vector3 GetClosestPointOnCircle(Vector3 circleCenter, float radius, Vector3 targetPosition)
+    protected override void OnDecisionTick(Transform player, float elapsed)
     {
-        // Vector pointing from circle center to target
-        Vector3 direction = targetPosition - circleCenter;
-
-        // Handle edge case where target is exactly at the center
-        if (direction.sqrMagnitude < 0.0001f)
+        shootCounter += elapsed;
+        if (shootCounter < Mathf.Max(0.01f, shootInterval))
         {
-            return circleCenter + Vector3.forward * radius; // Default fallback direction
+            return;
         }
 
-        // direction.normalized gets the unit vector (length 1)
-        // Multiply by radius and add circleCenter to project onto the edge
-        return circleCenter + (direction.normalized * radius);
+        shootCounter %= Mathf.Max(0.01f, shootInterval);
+        ShootAtPlayer(player);
     }
 
-    public void ShootAtPlayer()
+    public override void PreparePools(int prewarmCount, int maxPoolSize, bool strict)
     {
-        if (player != null)
+        if (bulletPrefab != null)
         {
-            Vector3 directionToPlayer = (player.transform.position - transform.position).normalized;
-            GameObject bullet = Instantiate(bulletPrefab, transform.position, Quaternion.identity);
-            bullet.GetComponent<Rigidbody2D>().linearVelocity = directionToPlayer * bulletSpeed;
+            int bulletCount = Mathf.Max(bulletPrewarmCount, prewarmCount);
+            CombatObjectPool.Configure(
+                bulletPrefab,
+                bulletCount,
+                Mathf.Max(bulletCount, maxPoolSize),
+                strict);
         }
+    }
+
+    protected override void ResetEnemyState()
+    {
+        target = Position;
+        shootCounter = 0f;
+    }
+
+    public static Vector2 GetClosestPointOnCircle(
+        Vector2 circleCenter,
+        float radius,
+        Vector2 targetPosition)
+    {
+        Vector2 direction = targetPosition - circleCenter;
+        float distanceSquared = direction.sqrMagnitude;
+        if (distanceSquared < 0.0001f)
+        {
+            return circleCenter + Vector2.right * radius;
+        }
+
+        return circleCenter + direction * (radius / Mathf.Sqrt(distanceSquared));
+    }
+
+    private void ShootAtPlayer(Transform player)
+    {
+        if (player == null || bulletPrefab == null)
+        {
+            return;
+        }
+
+        Vector2 direction = (Vector2)player.position - Position;
+        float distanceSquared = direction.sqrMagnitude;
+        if (distanceSquared <= 0.000001f)
+        {
+            return;
+        }
+
+        Vector2 velocity = direction * (bulletSpeed / Mathf.Sqrt(distanceSquared));
+        EnemyBullet.Spawn(
+            bulletPrefab,
+            Position,
+            Quaternion.identity,
+            velocity,
+            bulletLifetime);
     }
 }

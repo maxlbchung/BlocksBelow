@@ -51,6 +51,16 @@ public class PlayerController : MonoBehaviour
         jumpBufferCounter = 0f;
     }
 
+    private void OnEnable()
+    {
+        EnemySimulationManager.SetPlayer(transform);
+    }
+
+    private void OnDisable()
+    {
+        EnemySimulationManager.ClearPlayer(transform);
+    }
+
     void Update()
     {
         HandleInput();
@@ -198,8 +208,6 @@ public class PlayerController : MonoBehaviour
     {
         bool canJump = isGrounded || coyoteCounter > 0;
         bool hasAirJump = airJumpsRemaining > 0;
-        Debug.Log(jumpBufferCounter + " " + isGrounded);
-
         if ((jumpBufferCounter > 0  || Keyboard.current.spaceKey.wasPressedThisFrame) && (canJump || hasAirJump))
         {
             jumpBufferCounter = 0;

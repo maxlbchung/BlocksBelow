@@ -15,6 +15,7 @@ public class CageTower : MonoBehaviour
     [SerializeField] private CageState state = CageState.Empty;
     [SerializeField] private AudioClip captureSfx;
     [SerializeField] private AudioClip breakSfx;
+    [SerializeField] private WaveSpawner waveSpawner;
 
     private readonly List<MonoBehaviour> disabledEnemyScripts = new List<MonoBehaviour>();
     private readonly List<Collider2D> disabledEnemyColliders = new List<Collider2D>();
@@ -74,6 +75,7 @@ public class CageTower : MonoBehaviour
         state = CageState.Full;
         disabledEnemyScripts.Clear();
         disabledEnemyColliders.Clear();
+        GetWaveSpawner()?.RemoveLivingEnemy(enemy);
 
         foreach (MonoBehaviour behaviour in enemy.GetComponentsInChildren<MonoBehaviour>())
         {
@@ -153,6 +155,7 @@ public class CageTower : MonoBehaviour
             }
         }
 
+        GetWaveSpawner()?.AddLivingEnemy(enemy);
         SetEnemySorting(enemy, "Enemy");
         disabledEnemyColliders.Clear();
         disabledEnemyScripts.Clear();
@@ -179,6 +182,16 @@ public class CageTower : MonoBehaviour
         {
             cageRenderer.sprite = broken && brokenSprite != null ? brokenSprite : intactSprite;
         }
+    }
+
+    private WaveSpawner GetWaveSpawner()
+    {
+        if (waveSpawner == null)
+        {
+            waveSpawner = FindFirstObjectByType<WaveSpawner>();
+        }
+
+        return waveSpawner;
     }
 
     private static GameObject FindTaggedEnemy(Collider2D other)
