@@ -156,9 +156,13 @@ MonoBehaviour:
       spawnCredits: 1
     tokens: 5
     targetEnemyCount: 5
+    birdCount: 2
+    breakerCount: 2
     targetTime: 10
   player: {fileID: 0}
   spawnRadius: 12
+  bird: {fileID: 1216375964642885722, guid: 2b9c538861347054d93ec6b37701f143, type: 3}
+  breaker: {fileID: 1216375964642885722, guid: 2b9c538861347054d93ec6b37701f143, type: 3}
   prewarmPerEnemyType: 128
   maxPoolSizePerType: 512
   strictPrewarmedPools: 0
@@ -185,11 +189,11 @@ MonoBehaviour:
     price: 100
   - displayName: Basic
     script: 0
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    sprite: {fileID: 21300000, guid: 66f86cc65f3889c4288f90349a3c08e5, type: 3}
     price: 50
   - displayName: Shotgun
     script: 1
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    sprite: {fileID: 21300000, guid: 47365aa6a1a75d9499271f7b3ce65671, type: 3}
     price: 75
   - displayName: Sawblade
     script: 2
@@ -205,7 +209,7 @@ MonoBehaviour:
     price: 25
   - displayName: Scaffolding
     script: 6
-    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    sprite: {fileID: 21300000, guid: fbb9ce21251ebc34f972012f892da870, type: 3}
     price: 25
   placement: {fileID: 0}
   basicProjectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
@@ -216,6 +220,8 @@ MonoBehaviour:
   panelColor: {r: 0.08, g: 0.1, b: 0.14, a: 0.92}
   buttonColor: {r: 0.2, g: 0.24, b: 0.3, a: 1}
   selectedColor: {r: 0.25, g: 0.55, b: 0.3, a: 1}
+  startRoundColor: {r: 0.16, g: 0.45, b: 0.22, a: 1}
+  coinPayoutColor: {r: 1, g: 0.84, b: 0.25, a: 1}
   placementSfx: {fileID: 0}
   basicShootSfx: {fileID: 0}
   shotgunShootSfx: {fileID: 0}
@@ -809,7 +815,7 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
---- !u!1001 &1420174076
+--- !u!1001 &1463324478
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -823,11 +829,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7551901418439493139, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.074939
+      value: -1.9622297
       objectReference: {fileID: 0}
     - target: {fileID: 7551901418439493139, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -2.7725344
+      value: -2.9235291
       objectReference: {fileID: 0}
     - target: {fileID: 7551901418439493139, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: m_LocalPosition.z
@@ -876,4 +882,4 @@ SceneRoots:
   - {fileID: 673086790}
   - {fileID: 654928298}
   - {fileID: 1182870943}
-  - {fileID: 1420174076}
+  - {fileID: 1463324478}

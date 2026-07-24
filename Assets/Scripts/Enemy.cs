@@ -29,6 +29,9 @@ public class Enemy : Entity, IPoolable
     public Rigidbody2D Body => rb;
     public Collider2D EnemyCollider => enemyCollider;
 
+    [Header("Cage")]
+    public bool isCagable = false;
+
     protected virtual void Awake()
     {
         rb = GetComponent<Rigidbody2D>();

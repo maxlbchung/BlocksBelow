@@ -130,7 +130,7 @@ MonoBehaviour:
   healthBarColor: {r: 0.2, g: 0.85, b: 0.25, a: 1}
   healthBarBackgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 0.9}
   healthBarSortingOrder: 100
-  maxHealth: 0
+  maxHealth: 15
 --- !u!50 &8186934828032893683
 Rigidbody2D:
   serializedVersion: 5

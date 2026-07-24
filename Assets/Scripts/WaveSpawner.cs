@@ -32,6 +32,14 @@ public class WaveSpawner : MonoBehaviour
         [Tooltip("The spawner tries to build a pool containing this many enemies.")]
         public int targetEnemyCount = 5;
 
+        [Min(0)]
+        [Tooltip("Mandatory birds added to this wave. These do not count toward the target enemy count or cost spawn credits.")]
+        public int birdCount;
+
+        [Min(0)]
+        [Tooltip("Mandatory breakers added to this wave. These do not count toward the target enemy count or cost spawn credits.")]
+        public int breakerCount;
+
         [Min(0f)]
         [Tooltip("Seconds from starting the wave until the final enemy is spawned.")]
         public float targetTime = 20f;
@@ -54,6 +62,8 @@ public class WaveSpawner : MonoBehaviour
     [Header("Spawning")]
     [SerializeField] private Transform player;
     [SerializeField, Min(0f)] private float spawnRadius = 12f;
+    [SerializeField] private GameObject bird;
+    [SerializeField] private GameObject breaker;
 
     [Header("Pooling")]
     [SerializeField, Min(0), Tooltip("Minimum inactive instances prepared for each configured enemy type.")]
@@ -253,10 +263,35 @@ public class WaveSpawner : MonoBehaviour
                         enemyPrefab.PreparePools(
                             prewarmPerEnemyType,
                             maxPoolSizePerType,
-                            strictPrewarmedPools);
+                        strictPrewarmedPools);
                     }
                 }
             }
+
+            PrepareEnemyPool(bird);
+            PrepareEnemyPool(breaker);
+        }
+    }
+
+    private void PrepareEnemyPool(GameObject enemyPrefab)
+    {
+        if (enemyPrefab == null)
+        {
+            return;
+        }
+
+        CombatObjectPool.Configure(
+            enemyPrefab,
+            prewarmPerEnemyType,
+            maxPoolSizePerType,
+            strictPrewarmedPools);
+
+        if (enemyPrefab.TryGetComponent(out Enemy enemy))
+        {
+            enemy.PreparePools(
+                prewarmPerEnemyType,
+                maxPoolSizePerType,
+                strictPrewarmedPools);
         }
     }
 
@@ -291,38 +326,52 @@ public class WaveSpawner : MonoBehaviour
             validEnemies[insertAt + 1] = current;
         }
 
-        if (validEnemies.Count == 0 || wave.tokens <= 0)
+        if (validEnemies.Count > 0 && wave.tokens > 0)
+        {
+            int creditsRemaining = wave.tokens;
+            EnemySpawnData cheapest = validEnemies[validEnemies.Count - 1];
+
+            for (int slot = 0; slot < wave.targetEnemyCount && creditsRemaining > 0; slot++)
+            {
+                int slotsAfterThis = wave.targetEnemyCount - slot - 1;
+                int spendableCredits = creditsRemaining - slotsAfterThis * cheapest.spawnCredits;
+                EnemySpawnData selected = null;
+
+                for (int i = 0; i < validEnemies.Count; i++)
+                {
+                    if (validEnemies[i].spawnCredits <= spendableCredits)
+                    {
+                        selected = validEnemies[i];
+                        break;
+                    }
+                }
+
+                selected ??= cheapest;
+                spawnPool.Add(selected.enemyPrefab);
+                creditsRemaining = Mathf.Max(0, creditsRemaining - selected.spawnCredits);
+            }
+
+            while (creditsRemaining > 0)
+            {
+                spawnPool.Add(cheapest.enemyPrefab);
+                creditsRemaining = Mathf.Max(0, creditsRemaining - cheapest.spawnCredits);
+            }
+        }
+
+        AddMandatorySpawns(bird, wave.birdCount);
+        AddMandatorySpawns(breaker, wave.breakerCount);
+    }
+
+    private void AddMandatorySpawns(GameObject enemyPrefab, int count)
+    {
+        if (enemyPrefab == null)
         {
             return;
         }
 
-        int creditsRemaining = wave.tokens;
-        EnemySpawnData cheapest = validEnemies[validEnemies.Count - 1];
-
-        for (int slot = 0; slot < wave.targetEnemyCount && creditsRemaining > 0; slot++)
+        for (int i = 0; i < count; i++)
         {
-            int slotsAfterThis = wave.targetEnemyCount - slot - 1;
-            int spendableCredits = creditsRemaining - slotsAfterThis * cheapest.spawnCredits;
-            EnemySpawnData selected = null;
-
-            for (int i = 0; i < validEnemies.Count; i++)
-            {
-                if (validEnemies[i].spawnCredits <= spendableCredits)
-                {
-                    selected = validEnemies[i];
-                    break;
-                }
-            }
-
-            selected ??= cheapest;
-            spawnPool.Add(selected.enemyPrefab);
-            creditsRemaining = Mathf.Max(0, creditsRemaining - selected.spawnCredits);
-        }
-
-        while (creditsRemaining > 0)
-        {
-            spawnPool.Add(cheapest.enemyPrefab);
-            creditsRemaining = Mathf.Max(0, creditsRemaining - cheapest.spawnCredits);
+            spawnPool.Add(enemyPrefab);
         }
     }
 

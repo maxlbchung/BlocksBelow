@@ -63,7 +63,7 @@ public class CageTower : MonoBehaviour
         }
 
         GameObject enemy = FindTaggedEnemy(other);
-        if (enemy != null)
+        if (enemy != null && enemy.GetComponent<Enemy>().isCagable)
         {
             Capture(enemy);
         }
