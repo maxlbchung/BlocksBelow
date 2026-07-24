@@ -111,6 +111,7 @@ MonoBehaviour:
   repulsionRadius: 1
   exponentialFalloff: 3
   moveSpeed: 5
+  damage: 2
 --- !u!50 &4573768113491351581
 Rigidbody2D:
   serializedVersion: 5
