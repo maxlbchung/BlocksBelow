@@ -6,6 +6,7 @@ Shader "TowerDefense/WindArea"
         _Speed ("Wind Speed", Float) = 2.5
         _Density ("Streak Density", Float) = 9
         _Distortion ("Distortion", Float) = 1.5
+        _Strength ("Strength", Range(0, 1)) = 1
     }
 
     SubShader
@@ -49,6 +50,7 @@ Shader "TowerDefense/WindArea"
                 float _Speed;
                 float _Density;
                 float _Distortion;
+                float _Strength;
             CBUFFER_END
 
             Varyings vert(Attributes input)
@@ -96,6 +98,30 @@ Shader "TowerDefense/WindArea"
                 return noise;
             }
 
+            // One traveling puff on a band. Each seed gets an independent random
+            // phase, speed, length, and per-cycle idle chance, so puffs stay
+            // scattered along the stream instead of arriving together.
+            float streakSegment(float bandIndex, float uvx, float time, float seed)
+            {
+                float2 randomBase = float2(
+                    bandIndex * 2.17 + seed * 13.73,
+                    seed * 5.19 + 7.3
+                );
+                float phase = hash21(randomBase);
+                float speed = lerp(0.14, 0.5, hash21(randomBase + 19.4));
+                float movement = time * speed + phase;
+                float head = frac(movement);
+                float trail = frac(head - uvx);
+                float segmentLength = lerp(0.06, 0.22, hash21(randomBase + 4.6));
+
+                float segment = (1.0 - smoothstep(segmentLength * 0.55, segmentLength, trail))
+                    * smoothstep(0.0, 0.025, trail);
+
+                float cycle = floor(movement);
+                float active = step(0.2, hash21(float2(randomBase.x * 5.3, cycle + 17.0)));
+                return segment * active;
+            }
+
             half4 frag(Varyings input) : SV_Target
             {
                 float2 uv = input.uv;
@@ -110,40 +136,22 @@ Shader "TowerDefense/WindArea"
                 float thinStreaks = pow(saturate(1.0 - bandA), 11.0);
                 float wideStreaks = pow(saturate(1.0 - bandB), 3.5);
 
-                // Every horizontal band gets independent timing, speed, length,
-                // and idle cycles. Its head moves along +X and leaves a short
-                // fading trail, preventing synchronized clumps.
+                // Several independent puffs per band keep the stream continuous:
+                // while one puff sits out or trails off, another is usually
+                // mid-flight somewhere else along the band.
                 float bandIndexA = floor(uv.y * _Density);
                 float bandIndexB = floor((uv.y + 0.07) * (_Density * 0.55));
-                float phaseA = hash21(float2(bandIndexA * 2.17, 7.3));
-                float phaseB = hash21(float2(13.1, bandIndexB * 3.71));
-                float speedA = lerp(0.18, 0.52,
-                    hash21(float2(bandIndexA + 19.4, bandIndexA * 0.37)));
-                float speedB = lerp(0.12, 0.38,
-                    hash21(float2(bandIndexB * 0.61, bandIndexB + 31.8)));
-                float movementA = time * speedA + phaseA;
-                float movementB = time * speedB + phaseB;
-                float headA = frac(movementA);
-                float headB = frac(movementB);
-                float trailA = frac(headA - uv.x);
-                float trailB = frac(headB - uv.x);
-                float lengthA = lerp(0.07, 0.2,
-                    hash21(float2(bandIndexA + 4.6, 22.9)));
-                float lengthB = lerp(0.1, 0.26,
-                    hash21(float2(41.2, bandIndexB + 8.7)));
-                float segmentA = (1.0 - smoothstep(lengthA * 0.55, lengthA, trailA))
-                    * smoothstep(0.0, 0.025, trailA);
-                float segmentB = (1.0 - smoothstep(lengthB * 0.5, lengthB, trailB))
-                    * smoothstep(0.0, 0.035, trailB);
+                float segmentA = 0.0;
+                float segmentB = 0.0;
 
-                float cycleA = floor(movementA);
-                float cycleB = floor(movementB);
-                float activeA = step(0.3,
-                    hash21(float2(bandIndexA * 5.3, cycleA + 17.0)));
-                float activeB = step(0.42,
-                    hash21(float2(cycleB + 29.0, bandIndexB * 7.1)));
-                segmentA *= activeA;
-                segmentB *= activeB;
+                [unroll]
+                for (int puff = 0; puff < 3; puff++)
+                {
+                    segmentA = max(segmentA,
+                        streakSegment(bandIndexA, uv.x, time, (float)puff));
+                    segmentB = max(segmentB,
+                        streakSegment(bandIndexB, uv.x, time, (float)puff + 11.0));
+                }
 
                 float fineVariation = windNoise(float2(
                     uv.x * 6.0 - time * 1.1,
@@ -173,14 +181,15 @@ Shader "TowerDefense/WindArea"
                     * smoothstep(0.0, 0.22, 1.0 - uv.y);
                 float sourceFade = smoothstep(0.0, 0.12, uv.x);
                 float frontFade = 1.0 - smoothstep(0.68, 1.0, uv.x);
-                float breathing = 0.82 + sin(time * 1.7 + uv.x * 5.0) * 0.12;
 
+                // No global pulsing term here: a synchronized sine made every
+                // puff surge and fade together in visible waves.
                 half alpha = _WindColor.a
                     * (gustBody + streakBody + softStreakBody)
                     * sideFade
                     * sourceFade
                     * frontFade
-                    * breathing;
+                    * _Strength;
 
                 return half4(_WindColor.rgb, alpha);
             }

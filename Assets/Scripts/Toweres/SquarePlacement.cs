@@ -4,7 +4,8 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// Places shop-configured towers on a square grid at the mouse cursor.
-/// A tower can only be placed in an empty cell beside a Collider2D tagged "tower".
+/// Cells overlapping or below the ground are unbuildable. A piece must rest on
+/// the ground or sit beside an existing tower, cage, or scaffold.
 /// </summary>
 public class SquarePlacement : MonoBehaviour
 {
@@ -25,6 +26,7 @@ public class SquarePlacement : MonoBehaviour
     [SerializeField, Min(0.001f)] private float adjacencyTolerance = 0.05f;
 
     private Camera mainCamera;
+    private float groundSurfaceY = float.NegativeInfinity;
     private GameObject ghostObject;
     private SpriteRenderer ghostRenderer;
     private GameObject ghostAimIndicator;
@@ -40,6 +42,13 @@ public class SquarePlacement : MonoBehaviour
         {
             towerShop = FindFirstObjectByType<TowerShopUI>();
         }
+
+        GameObject ground = GameObject.FindWithTag("Ground");
+        if (ground != null && ground.TryGetComponent(out Collider2D groundCollider))
+        {
+            groundSurfaceY = groundCollider.bounds.max.y;
+        }
+
         CreateGhost();
     }
 
@@ -298,12 +307,50 @@ public class SquarePlacement : MonoBehaviour
             && (selectedTower.script == TowerShopUI.TowerScript.CageTower
                 || selectedTower.script == TowerShopUI.TowerScript.Scaffolding);
 
-        return selectedTower != null
-            && towerShop != null
-            && towerShop.CanAfford(selectedTower.price)
-            && !IsCellOccupied(cellPosition)
-            && HasAdjacentSquare(cellPosition)
-            && (isSupportPiece || HasCageDirectlyBelow(cellPosition));
+        if (selectedTower == null
+            || towerShop == null
+            || !towerShop.CanAfford(selectedTower.price)
+            || IsCellOccupied(cellPosition)
+            || (!isSupportPiece && !HasCageDirectlyBelow(cellPosition)))
+        {
+            return false;
+        }
+
+        // A cell whose center is below the ground top would overlap or sit inside
+        // the ground, so it is unbuildable. The row resting on the surface is fine.
+        if (cellPosition.y < groundSurfaceY)
+        {
+            return false;
+        }
+
+        return HasAdjacentStructure(cellPosition) || HasGroundDirectlyBelow(cellPosition);
+    }
+
+    /// <summary>True when the cell directly below contains a Wall-layer collider (the ground).</summary>
+    private bool HasGroundDirectlyBelow(Vector2 cellPosition)
+    {
+        int wallLayer = LayerMask.NameToLayer("Wall");
+        if (wallLayer < 0)
+        {
+            return false;
+        }
+
+        float probeSize = Mathf.Max(cellSize * 0.1f, adjacencyTolerance * 2f);
+        Collider2D[] hits = Physics2D.OverlapBoxAll(
+            cellPosition + Vector2.down * cellSize,
+            Vector2.one * probeSize,
+            0f
+        );
+
+        foreach (Collider2D hit in hits)
+        {
+            if (hit.gameObject.layer == wallLayer)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private Vector2 SnapToGrid(Vector2 worldPosition)
@@ -356,25 +403,19 @@ public class SquarePlacement : MonoBehaviour
         return false;
     }
 
-    private bool HasAdjacentSquare(Vector2 cellPosition)
+    private static readonly Vector2[] CardinalDirections =
     {
-        int wallLayer = LayerMask.NameToLayer("Wall");
-        if (wallLayer < 0)
-        {
-            return false;
-        }
+        Vector2.up,
+        Vector2.down,
+        Vector2.left,
+        Vector2.right
+    };
 
-        Vector2[] cardinalDirections =
-        {
-            Vector2.up,
-            Vector2.down,
-            Vector2.left,
-            Vector2.right
-        };
-
+    private bool HasAdjacentStructure(Vector2 cellPosition)
+    {
         float probeSize = Mathf.Max(cellSize * 0.1f, adjacencyTolerance * 2f);
 
-        foreach (Vector2 direction in cardinalDirections)
+        foreach (Vector2 direction in CardinalDirections)
         {
             Vector2 neighborCenter = cellPosition + direction * cellSize;
             Collider2D[] hits = Physics2D.OverlapBoxAll(
@@ -385,7 +426,9 @@ public class SquarePlacement : MonoBehaviour
 
             foreach (Collider2D hit in hits)
             {
-                if (hit.gameObject.layer == wallLayer)
+                // Only a tower, cage, or scaffold occupying the neighbor cell counts.
+                // Children like wind funnels or orbiting saws fail the centered check.
+                if (IsTowerOrCageCenteredAt(hit, neighborCenter))
                 {
                     return true;
                 }
@@ -394,6 +437,7 @@ public class SquarePlacement : MonoBehaviour
 
         return false;
     }
+
 
     private bool IsTowerOrCageCenteredAt(Collider2D hit, Vector2 cellCenter)
     {

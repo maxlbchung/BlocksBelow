@@ -46,6 +46,7 @@ public class PlayerController : Entity
     private readonly List<PlatformEffector2D> droppingThroughPlatforms = new();
 
     private bool alive = true;
+    private Vector2 pendingWindForce;
 
     void Start()
     {
@@ -82,12 +83,16 @@ public class PlayerController : Entity
     void FixedUpdate()
     {
         if (!alive)
+        {
+            pendingWindForce = Vector2.zero;
             return;
-        
+        }
+
         if (knockbackTimer > 0f)
         {
             knockbackTimer -= Time.fixedDeltaTime;
             ApplyGravity();
+            ApplyPendingWindForce();
 
             if (knockbackTimer <= 0f)
             {
@@ -101,6 +106,38 @@ public class PlayerController : Entity
         HandleJumping();
         ApplyJumpCut();
         ApplyGravity();
+        ApplyPendingWindForce();
+    }
+
+    /// <summary>
+    /// Queues a continuous external force (e.g. a FanTower's wind) for this
+    /// physics step. Wind gets its own path because ApplyKnockback locks player
+    /// control and HandleMovement/ApplyGravity rewrite velocity every step,
+    /// which together erase a plain AddForce.
+    /// </summary>
+    public void ApplyWindForce(Vector2 force)
+    {
+        pendingWindForce += force;
+    }
+
+    private void ApplyPendingWindForce()
+    {
+        if (pendingWindForce == Vector2.zero)
+            return;
+
+        Vector2 windVelocity = pendingWindForce * (Time.fixedDeltaTime / rb.mass);
+        pendingWindForce = Vector2.zero;
+
+        // Integrated after ApplyGravity so vertical wind composes with it: an
+        // updraft stronger than fallAcceleration genuinely lifts the player.
+        rb.linearVelocity += windVelocity;
+
+        // Feed the horizontal part into the movement model so HandleMovement
+        // doesn't erase it next step; input then naturally fights the wind.
+        if (knockbackTimer <= 0f)
+        {
+            currentHorizontalVelocity += windVelocity.x;
+        }
     }
 
     public void ApplyKnockback(Vector2 impulse)

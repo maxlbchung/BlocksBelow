@@ -4,13 +4,23 @@ using UnityEngine;
 public class FanTower : MonoBehaviour
 {
     [SerializeField, Min(0f)] private float pushForce;
+    [SerializeField, Min(0f)] private float forcePerPowerLevel = 3f;
+    // Tuned against the player's fallAcceleration (20 at mass 1): with
+    // forcePerPowerLevel 3, power 1 gives 7.5 (a floaty, barely-there push)
+    // and power 3 gives 22.5, the point where an updraft overrides gravity.
+    [SerializeField, Min(0f)] private float playerForceMultiplier = 2.5f;
+    [SerializeField, Min(0f)] private float spinUpTime = 1.5f;
+    [SerializeField, Min(0f)] private float spinDownTime = 0.4f;
     [SerializeField, Min(0.1f)] private float windRange = 5f;
     [SerializeField, Min(0.1f)] private float windWidth = 2f;
     [SerializeField] private Color windColor = new Color(0.94f, 0.98f, 1f, 0.3f);
 
+    private static readonly int StrengthId = Shader.PropertyToID("_Strength");
+
     private Material windMaterial;
     private TowerCageStack cageStack;
     private Vector2 windForce;
+    private float activation;
     private const int FunnelSegments = 16;
 
     private void Start()
@@ -21,27 +31,57 @@ public class FanTower : MonoBehaviour
 
     private void Update()
     {
-        pushForce = cageStack != null ? cageStack.PowerLevel : 0f;
+        pushForce = (cageStack != null ? cageStack.PowerLevel : 0f) * forcePerPowerLevel;
+
+        // The fan winds down for the building phase or when unpowered, and
+        // spins back up smoothly once the round starts.
+        float targetActivation = WaveSpawner.IsWaveActive && pushForce > 0f ? 1f : 0f;
+        float rampTime = targetActivation > activation ? spinUpTime : spinDownTime;
+        activation = rampTime > 0f
+            ? Mathf.MoveTowards(activation, targetActivation, Time.deltaTime / rampTime)
+            : targetActivation;
+
+        if (windMaterial != null)
+        {
+            windMaterial.SetFloat(StrengthId, activation);
+        }
     }
 
     private void FixedUpdate()
     {
         // Cache the wind force once per physics step. ApplyWind runs from OnTriggerStay2D for
         // every enemy inside the zone each step, so this avoids recomputing it per enemy.
-        windForce = (Vector2)transform.right * pushForce;
+        windForce = (Vector2)transform.right * (pushForce * activation);
     }
 
     public void ApplyWind(Collider2D other)
     {
-        if (!other.CompareTag("Enemy"))
+        if (activation <= 0f)
         {
             return;
         }
 
-        Rigidbody2D enemyBody = other.attachedRigidbody;
-        if (enemyBody != null)
+        if (other.CompareTag("Enemy"))
         {
-            enemyBody.AddForce(windForce, ForceMode2D.Force);
+            Rigidbody2D enemyBody = other.attachedRigidbody;
+            if (enemyBody != null)
+            {
+                enemyBody.AddForce(windForce, ForceMode2D.Force);
+            }
+
+            return;
+        }
+
+        if (other.CompareTag("Player"))
+        {
+            // ApplyWindForce integrates the push into the player's movement model
+            // without the control lock ApplyKnockback would impose every step.
+            Rigidbody2D playerBody = other.attachedRigidbody;
+            if (playerBody != null
+                && playerBody.TryGetComponent(out PlayerController player))
+            {
+                player.ApplyWindForce(windForce * playerForceMultiplier);
+            }
         }
     }
 
@@ -150,6 +190,7 @@ public class FanTower : MonoBehaviour
 
         windMaterial = new Material(windShader);
         windMaterial.SetColor("_WindColor", windColor);
+        windMaterial.SetFloat(StrengthId, activation);
         meshRenderer.sharedMaterial = windMaterial;
     }
 
