@@ -18,6 +18,8 @@ public class SawBladeTower : MonoBehaviour
     private readonly List<Transform> saws = new List<Transform>();
     private readonly List<LineRenderer> sawLines = new List<LineRenderer>();
 
+    private static Material sharedTetherMaterial;
+
     public void Configure(GameObject newSawPrefab, AudioClip newHitSfx = null)
     {
         sawPrefab = newSawPrefab;
@@ -125,14 +127,31 @@ public class SawBladeTower : MonoBehaviour
         line.endColor = lineColor;
         line.numCapVertices = 2;
         line.sortingOrder = -1;
+        // Per-tether color comes from the LineRenderer's vertex colors, so every tether can
+        // share one material. Avoids a Material clone per saw (draw-call batching + no leak).
+        line.sharedMaterial = GetSharedTetherMaterial();
+
+        return line;
+    }
+
+    private static Material GetSharedTetherMaterial()
+    {
+        if (sharedTetherMaterial != null)
+        {
+            return sharedTetherMaterial;
+        }
 
         Shader spriteShader = Shader.Find("Sprites/Default");
         if (spriteShader != null)
         {
-            line.material = new Material(spriteShader);
+            sharedTetherMaterial = new Material(spriteShader)
+            {
+                name = "Shared Saw Tether Material",
+                hideFlags = HideFlags.HideAndDontSave
+            };
         }
 
-        return line;
+        return sharedTetherMaterial;
     }
 
     private void UpdateSawLines()

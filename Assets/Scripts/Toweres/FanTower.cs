@@ -10,6 +10,7 @@ public class FanTower : MonoBehaviour
 
     private Material windMaterial;
     private TowerCageStack cageStack;
+    private Vector2 windForce;
     private const int FunnelSegments = 16;
 
     private void Start()
@@ -23,6 +24,13 @@ public class FanTower : MonoBehaviour
         pushForce = cageStack != null ? cageStack.PowerLevel : 0f;
     }
 
+    private void FixedUpdate()
+    {
+        // Cache the wind force once per physics step. ApplyWind runs from OnTriggerStay2D for
+        // every enemy inside the zone each step, so this avoids recomputing it per enemy.
+        windForce = (Vector2)transform.right * pushForce;
+    }
+
     public void ApplyWind(Collider2D other)
     {
         if (!other.CompareTag("Enemy"))
@@ -33,7 +41,7 @@ public class FanTower : MonoBehaviour
         Rigidbody2D enemyBody = other.attachedRigidbody;
         if (enemyBody != null)
         {
-            enemyBody.AddForce((Vector2)transform.right * pushForce, ForceMode2D.Force);
+            enemyBody.AddForce(windForce, ForceMode2D.Force);
         }
     }
 
