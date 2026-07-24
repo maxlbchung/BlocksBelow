@@ -23,7 +23,9 @@ public class SawBlade : MonoBehaviour
 
     private void TryHitEnemy(Collider2D other)
     {
-        if (!other.CompareTag("Enemy") && !other.CompareTag("Player"))
+        bool isPlayer = other.CompareTag("Player");
+        bool isEnemy = other.CompareTag("Enemy");
+        if (!isPlayer && !isEnemy)
         {
             return;
         }
@@ -42,25 +44,31 @@ public class SawBlade : MonoBehaviour
             pushDirection = -transform.right;
         }
 
-        PlayerController player = other.GetComponentInParent<PlayerController>();
-        if (player != null)
+        if (isPlayer)
         {
-            player.ApplyKnockback(pushDirection * pushForce);
-        }
-        else
-        {
-            enemyBody.AddForce(pushDirection * pushForce, ForceMode2D.Impulse);
+            // Only the player routes knockback through its control-lock; look it up only here.
+            PlayerController player = other.GetComponentInParent<PlayerController>();
+            if (player != null)
+            {
+                player.ApplyKnockback(pushDirection * pushForce);
+            }
+            else
+            {
+                enemyBody.AddForce(pushDirection * pushForce, ForceMode2D.Impulse);
+            }
+
+            return;
         }
 
-        if (other.CompareTag("Enemy"))
+        // Enemy hit: apply the impulse and damage directly, no component lookup.
+        enemyBody.AddForce(pushDirection * pushForce, ForceMode2D.Impulse);
+
+        Enemy enemy = EnemySimulationManager.InstanceOrNull != null
+            ? EnemySimulationManager.InstanceOrNull.FindEnemy(other)
+            : null;
+        if (enemy != null)
         {
-            Enemy enemy = EnemySimulationManager.InstanceOrNull != null
-                ? EnemySimulationManager.InstanceOrNull.FindEnemy(other)
-                : null;
-            if (enemy != null)
-            {
-                enemy.health -= damage;
-            }
+            enemy.health -= damage;
         }
     }
 
