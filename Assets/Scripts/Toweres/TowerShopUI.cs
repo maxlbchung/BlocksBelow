@@ -34,6 +34,11 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField] private List<TowerOffer> towers = new List<TowerOffer>();
     [SerializeField] private SquarePlacement placement;
 
+    [Header("Health Potion")]
+    [SerializeField, Min(1)] private int potionHealAmount = 5;
+    [SerializeField, Min(0)] private int potionPrice = 25;
+    [SerializeField] private PlayerController player;
+
     [Header("Runtime Prefabs")]
     [SerializeField] private Projectile basicProjectilePrefab;
     [SerializeField] private Projectile shotgunProjectilePrefab;
@@ -65,6 +70,7 @@ public class TowerShopUI : MonoBehaviour
     private readonly List<Button> towerButtons = new List<Button>();
     private static Sprite aimIndicatorSprite;
     private Text moneyText;
+    private Button potionButton;
     private RectTransform canvasRect;
     private int money;
     private float displayedMoney;
@@ -89,6 +95,11 @@ public class TowerShopUI : MonoBehaviour
         if (placement != null)
         {
             placement.SetTowerShop(this);
+        }
+
+        if (player == null)
+        {
+            player = FindFirstObjectByType<PlayerController>();
         }
 
         BuildShopUI();
@@ -128,6 +139,27 @@ public class TowerShopUI : MonoBehaviour
         money = Mathf.Max(0, money + amount);
         SyncDisplayedMoney();
         RefreshUI();
+    }
+
+    public void BuyHealthPotion()
+    {
+        if (player == null)
+        {
+            player = FindFirstObjectByType<PlayerController>();
+        }
+
+        if (player == null || !CanAfford(potionPrice))
+        {
+            return;
+        }
+
+        // Heal first so a full-health player is never charged.
+        if (!player.Heal(potionHealAmount))
+        {
+            return;
+        }
+
+        TrySpend(potionPrice);
     }
 
     /// <summary>Adds money and rolls the displayed counter up to the new total.</summary>
@@ -497,7 +529,7 @@ public class TowerShopUI : MonoBehaviour
         panelRect.anchorMax = new Vector2(0f, 0.5f);
         panelRect.pivot = new Vector2(0f, 0.5f);
         panelRect.anchoredPosition = new Vector2(20f, 0f);
-        panelRect.sizeDelta = new Vector2(250f, Mathf.Max(150f, 162f + towers.Count * 72f));
+        panelRect.sizeDelta = new Vector2(250f, Mathf.Max(150f, 234f + towers.Count * 72f));
 
         VerticalLayoutGroup layout = panel.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(12, 12, 12, 12);
@@ -519,7 +551,28 @@ public class TowerShopUI : MonoBehaviour
             towerButtons.Add(button);
         }
 
+        potionButton = CreatePotionButton(panel.transform);
         StartRoundButton = CreateStartRoundButton(panel.transform);
+    }
+
+    private Button CreatePotionButton(Transform parent)
+    {
+        GameObject buttonObject = CreateUIObject("Health Potion", parent);
+        Image background = buttonObject.AddComponent<Image>();
+        background.color = buttonColor;
+        Button button = buttonObject.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.onClick.AddListener(BuyHealthPotion);
+        buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
+
+        Text label = CreateText("Label", buttonObject.transform, 20, TextAnchor.MiddleCenter);
+        label.text = "Health Potion (+" + potionHealAmount + ")  $" + potionPrice;
+        RectTransform labelRect = label.rectTransform;
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(8f, 0f);
+        labelRect.offsetMax = new Vector2(-8f, 0f);
+        return button;
     }
 
     private Button CreateStartRoundButton(Transform parent)
@@ -586,6 +639,11 @@ public class TowerShopUI : MonoBehaviour
             TowerOffer offer = towers[i];
             button.interactable = offer.sprite != null && CanAfford(offer.price);
             button.GetComponent<Image>().color = i == selectedIndex ? selectedColor : buttonColor;
+        }
+
+        if (potionButton != null)
+        {
+            potionButton.interactable = player != null && CanAfford(potionPrice);
         }
     }
 

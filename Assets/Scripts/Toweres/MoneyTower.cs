@@ -28,6 +28,8 @@ public class MoneyTower : MonoBehaviour
     /// </summary>
     public void PayOutRound()
     {
+        cageStack.FindContinuousCagesBelow();
+        cageStack.RefreshTowerValue();
         int power = cageStack != null ? cageStack.PowerLevel : 0;
         int amount = power * coinsPerPower;
         if (amount <= 0 || towerShop == null)

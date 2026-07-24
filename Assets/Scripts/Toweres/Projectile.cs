@@ -6,8 +6,6 @@ public class Projectile : MonoBehaviour, IPoolable
     [SerializeField, Min(0f)] private float speed = 8f;
     [SerializeField, Min(0.1f), Tooltip("Seconds before the projectile is returned to its pool.")]
     private float lifetime = 8f;
-    [SerializeField, Tooltip("Return to the pool after damaging an enemy.")]
-    private bool releaseOnEnemyHit;
 
     private Rigidbody2D body;
     private Vector2 direction = Vector2.left;
@@ -113,10 +111,10 @@ public class Projectile : MonoBehaviour, IPoolable
         }
 
         enemy.health -= damage;
-        if (releaseOnEnemyHit)
-        {
-            Release();
-        }
+        // Pooled projectiles must be released rather than directly destroyed.
+        // Releasing immediately also prevents this shot from damaging another
+        // overlapping enemy before the next physics step.
+        Release();
     }
 
     private void Release()

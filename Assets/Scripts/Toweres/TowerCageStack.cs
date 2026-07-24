@@ -25,7 +25,7 @@ public class TowerCageStack : MonoBehaviour
         RefreshTowerValue();
     }
 
-    private void FindContinuousCagesBelow()
+    public void FindContinuousCagesBelow()
     {
         cagesBelow.Clear();
         float probeSize = cellSize * 0.2f;
@@ -60,7 +60,7 @@ public class TowerCageStack : MonoBehaviour
         }
     }
 
-    private void RefreshTowerValue()
+    public void RefreshTowerValue()
     {
         int fullCageCount = 0;
 
@@ -74,4 +74,6 @@ public class TowerCageStack : MonoBehaviour
 
         towerValue = fullCageCount;
     }
+
+    
 }

@@ -133,16 +133,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a28b365eba441844895e3a150890304, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlyerEnemy
-  health: 1
+  health: 2
   repulsionForce: 1.5
   repulsionRadius: 3
   exponentialFalloff: 2
+  isCagable: 0
   moveSpeed: 4
   desiredRange: 7
   runRange: 2.5
   shootInterval: 2
   bulletPrefab: {fileID: 2105853612659289840, guid: 2beea353b56e9e94885ba30122ab6966, type: 3}
   bulletSpeed: 5
+  bulletLifetime: 8
+  bulletPrewarmCount: 128
 --- !u!61 &8705924546012806200
 BoxCollider2D:
   m_ObjectHideFlags: 0

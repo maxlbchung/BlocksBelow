@@ -152,13 +152,221 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   waves:
   - enemiesEnabled:
+    tokens: 0
+    targetEnemyCount: 0
+    birdCount: 1
+    breakerCount: 0
+    targetTime: 1
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    tokens: 3
+    targetEnemyCount: 3
+    birdCount: 1
+    breakerCount: 0
+    targetTime: 8
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    tokens: 4
+    targetEnemyCount: 4
+    birdCount: 1
+    breakerCount: 0
+    targetTime: 9
+  - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
     tokens: 5
     targetEnemyCount: 5
-    birdCount: 2
-    breakerCount: 2
+    birdCount: 1
+    breakerCount: 0
     targetTime: 10
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    tokens: 8
+    targetEnemyCount: 6
+    birdCount: 1
+    breakerCount: 0
+    targetTime: 11
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    tokens: 11
+    targetEnemyCount: 7
+    birdCount: 1
+    breakerCount: 0
+    targetTime: 12
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    tokens: 14
+    targetEnemyCount: 8
+    birdCount: 2
+    breakerCount: 0
+    targetTime: 13
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 15
+    targetEnemyCount: 9
+    birdCount: 2
+    breakerCount: 0
+    targetTime: 14
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 18
+    targetEnemyCount: 10
+    birdCount: 2
+    breakerCount: 0
+    targetTime: 15
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 21
+    targetEnemyCount: 11
+    birdCount: 2
+    breakerCount: 0
+    targetTime: 16
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 24
+    targetEnemyCount: 12
+    birdCount: 2
+    breakerCount: 0
+    targetTime: 17
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 29
+    targetEnemyCount: 13
+    birdCount: 2
+    breakerCount: 0
+    targetTime: 18
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 34
+    targetEnemyCount: 14
+    birdCount: 3
+    breakerCount: 0
+    targetTime: 19
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 39
+    targetEnemyCount: 15
+    birdCount: 3
+    breakerCount: 0
+    targetTime: 20
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 44
+    targetEnemyCount: 16
+    birdCount: 3
+    breakerCount: 0
+    targetTime: 20
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 49
+    targetEnemyCount: 17
+    birdCount: 3
+    breakerCount: 0
+    targetTime: 21
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 54
+    targetEnemyCount: 18
+    birdCount: 3
+    breakerCount: 0
+    targetTime: 21
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 59
+    targetEnemyCount: 19
+    birdCount: 3
+    breakerCount: 0
+    targetTime: 22
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 64
+    targetEnemyCount: 20
+    birdCount: 3
+    breakerCount: 0
+    targetTime: 22
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
+      spawnCredits: 5
+    tokens: 74
+    targetEnemyCount: 22
+    birdCount: 3
+    breakerCount: 0
+    targetTime: 23
   player: {fileID: 0}
   spawnRadius: 12
   bird: {fileID: 1216375964642885722, guid: 2b9c538861347054d93ec6b37701f143, type: 3}

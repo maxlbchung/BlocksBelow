@@ -528,5 +528,20 @@ public class PlayerController : Entity
         }
 
     }
+
+    /// <summary>
+    /// Restores health up to maxHealth. Returns false when no healing was needed.
+    /// </summary>
+    public bool Heal(int amount)
+    {
+        if (!alive || amount <= 0 || health >= maxHealth)
+        {
+            return false;
+        }
+
+        health = Mathf.Min(maxHealth, health + amount);
+        UpdateHealthBar();
+        return true;
+    }
 }
 
