@@ -106,7 +106,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5b0105c2986d894b9aad495862227f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  health: 0
+  health: 5
   moveSpeed: 8
   acceleration: 15
   deceleration: 12
