@@ -274,7 +274,7 @@ MonoBehaviour:
   ghostSprite: {fileID: 0}
   validGhostColor: {r: 1, g: 1, b: 1, a: 0.5}
   invalidGhostColor: {r: 1, g: 0, b: 0, a: 0.5}
-  placementBase: {fileID: 0}
+  placementBase: {fileID: 476578461}
   adjacencyTolerance: 0.05
 --- !u!4 &265706328
 Transform:
