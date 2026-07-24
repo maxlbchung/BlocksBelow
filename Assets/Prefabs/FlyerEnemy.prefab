@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 7423074834533875387}
   - component: {fileID: 4661153846497314094}
   - component: {fileID: 8705924546012806200}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FlyerEnemy
   m_TagString: Enemy
   m_Icon: {fileID: 0}
@@ -109,7 +109,7 @@ Rigidbody2D:
   m_Mass: 1
   m_LinearDamping: 0
   m_AngularDamping: 0.05
-  m_GravityScale: 1
+  m_GravityScale: 0
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -120,7 +120,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!114 &4661153846497314094
 MonoBehaviour:
   m_ObjectHideFlags: 0

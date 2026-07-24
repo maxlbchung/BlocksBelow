@@ -607,6 +607,100 @@ MonoBehaviour:
   timeBetweenSpawns: 5
   timeBetweenSpawnsDecrease: 0.1
   minTimeBetweenSpawns: 1
+--- !u!1 &2033517902
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2033517903}
+  - component: {fileID: 2033517904}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2033517903
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2033517902}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.84513, y: -1.62034, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2033517904
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2033517902}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6132c4c199f5d64d89ac17a85594f39, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioController
+  audioClips:
+  - clipName: MC Jump v2
+    clip: {fileID: 8300000, guid: 5dc9b57a38d0aca4f9c1399f5da0b5af, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: MC Jump
+    clip: {fileID: 8300000, guid: ec7b391fa6f637c43b24b85d2ba6fb52, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Bullet Orb
+    clip: {fileID: 8300000, guid: a723204c5cbe1434f9746b566c0ca0aa, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Fan
+    clip: {fileID: 8300000, guid: 4196a596177d4244686e7de21ada3b96, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Metal Placement
+    clip: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Saw Blade ON
+    clip: {fileID: 8300000, guid: 8e5e857fd3be1254d89ea55471871633, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Saw Blade Standby
+    clip: {fileID: 8300000, guid: f89e308e3fc13cd43bd1b21012198e8b, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Shotgun v1
+    clip: {fileID: 8300000, guid: ba8ba2a767922f143baee7fbb577a988, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Shotgun v2
+    clip: {fileID: 8300000, guid: c4bd30de22dc6b04e917a497093819e9, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  musicTracks: []
+  audioMixer: {fileID: 0}
+  sfxVolume: 1
+  musicVolume: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -617,3 +711,4 @@ SceneRoots:
   - {fileID: 229090057}
   - {fileID: 13928648}
   - {fileID: 455328588}
+  - {fileID: 2033517903}

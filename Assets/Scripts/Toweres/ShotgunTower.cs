@@ -8,6 +8,9 @@ public class ShotgunTower : MonoBehaviour
     [SerializeField, Range(0f, 180f)] private float spread = 30f;
     [SerializeField] private float damage = 1f;
     [SerializeField] private AudioClip shootSfx;
+    [SerializeField, Min(0), Tooltip("Projectiles prepared before this tower starts firing.")]
+    private int projectilePrewarmCount = 256;
+    [SerializeField, Min(1)] private int projectilePoolMaxSize = 1024;
 
     private float nextShotTime;
     private TowerCageStack cageStack;
@@ -21,6 +24,14 @@ public class ShotgunTower : MonoBehaviour
     private void Start()
     {
         cageStack = GetComponent<TowerCageStack>();
+        if (projectilePrefab != null)
+        {
+            CombatObjectPool.Configure(
+                projectilePrefab.gameObject,
+                projectilePrewarmCount,
+                projectilePoolMaxSize,
+                false);
+        }
     }
 
     private void Update()
@@ -57,9 +68,12 @@ public class ShotgunTower : MonoBehaviour
                 : Mathf.Lerp(-spread * 0.5f, spread * 0.5f, i / (shotCount - 1f));
 
             Vector2 direction = Quaternion.Euler(0f, 0f, angle) * Vector2.left;
-            Projectile projectile = Instantiate(projectilePrefab, transform.position, Quaternion.identity);
-            projectile.SetDirection(direction);
-            projectile.damage = damage;
+            Projectile.Spawn(
+                projectilePrefab,
+                transform.position,
+                Quaternion.identity,
+                direction,
+                damage);
         }
 
         if (shootSfx != null)

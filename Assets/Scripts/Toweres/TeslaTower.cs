@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class TeslaTower : MonoBehaviour
@@ -19,13 +17,26 @@ public class TeslaTower : MonoBehaviour
     [SerializeField] private float damage = 1f;
     [SerializeField] private AudioClip zapSfx;
 
+    private static Material sharedLightningMaterial;
+
     private float nextZapTime;
+    private Enemy[] hitEnemies;
+    private LineRenderer[] boltLines;
+    private Transform[] boltStarts;
+    private Transform[] boltEnds;
+    private float[] boltElapsed;
+    private bool[] boltActive;
 
     public int ChainCount => chainCount;
 
     public void Configure(AudioClip newZapSfx)
     {
         zapSfx = newZapSfx;
+    }
+
+    private void Awake()
+    {
+        EnsureCapacity(Mathf.Max(1, chainCount + 1));
     }
 
     private void Start()
@@ -36,6 +47,8 @@ public class TeslaTower : MonoBehaviour
 
     private void Update()
     {
+        UpdateBolts(Time.deltaTime);
+
         if (Time.time < nextZapTime)
         {
             return;
@@ -48,70 +61,97 @@ public class TeslaTower : MonoBehaviour
     public void IncrementChains(int amount = 1)
     {
         chainCount = Mathf.Max(0, chainCount + amount);
+        EnsureCapacity(Mathf.Max(1, chainCount + 1));
     }
 
     public void Zap()
     {
-        Transform firstEnemy = FindClosestEnemy(transform.position, initialTargetRadius, null);
+        EnsureCapacity(Mathf.Max(1, chainCount + 1));
+        EnemySimulationManager simulation = EnemySimulationManager.Instance;
+        Enemy firstEnemy = simulation.FindClosestEnemy(
+            transform.position,
+            initialTargetRadius);
         if (firstEnemy == null)
         {
             return;
         }
 
-        List<Transform> hitEnemies = new List<Transform> { firstEnemy };
+        int hitCount = 1;
+        hitEnemies[0] = firstEnemy;
         if (zapSfx != null)
         {
             AudioController.Play(zapSfx);
         }
-        StartCoroutine(DrawLightning(transform, firstEnemy));
 
-        Transform currentEnemy = firstEnemy;
+        ShowBolt(0, transform, firstEnemy.transform);
+        Enemy currentEnemy = firstEnemy;
         for (int i = 0; i < chainCount; i++)
         {
-            currentEnemy.gameObject.GetComponent<Enemy>().health -= damage; // Apply damage to the current enemy
-            Transform nextEnemy = FindClosestEnemy(currentEnemy.position, chainRadius, hitEnemies);
+            currentEnemy.health -= damage;
+            Enemy nextEnemy = simulation.FindClosestEnemy(
+                currentEnemy.Position,
+                chainRadius,
+                hitEnemies,
+                hitCount);
             if (nextEnemy == null)
             {
                 break;
             }
 
-            StartCoroutine(DrawLightning(currentEnemy, nextEnemy));
-            hitEnemies.Add(nextEnemy);
+            ShowBolt(i + 1, currentEnemy.transform, nextEnemy.transform);
+            hitEnemies[hitCount++] = nextEnemy;
             currentEnemy = nextEnemy;
         }
+
+        for (int i = hitCount; i < hitEnemies.Length; i++)
+        {
+            hitEnemies[i] = null;
+        }
     }
 
-    private Transform FindClosestEnemy(
-        Vector2 origin,
-        float radius,
-        List<Transform> excludedEnemies)
+    private void EnsureCapacity(int required)
     {
-        Collider2D[] hits = Physics2D.OverlapCircleAll(origin, radius);
-        Transform closest = null;
-        float closestDistance = float.PositiveInfinity;
-
-        foreach (Collider2D hit in hits)
+        if (hitEnemies != null && hitEnemies.Length >= required)
         {
-            Transform enemy = FindEnemyRoot(hit);
-            if (enemy == null || (excludedEnemies != null && excludedEnemies.Contains(enemy)))
-            {
-                continue;
-            }
-
-            float distance = ((Vector2)enemy.position - origin).sqrMagnitude;
-            if (distance < closestDistance)
-            {
-                closestDistance = distance;
-                closest = enemy;
-            }
+            return;
         }
 
-        return closest;
+        int oldLength = hitEnemies != null ? hitEnemies.Length : 0;
+        int capacity = Mathf.NextPowerOfTwo(Mathf.Max(1, required));
+        Enemy[] newHitEnemies = new Enemy[capacity];
+        LineRenderer[] newBoltLines = new LineRenderer[capacity];
+        Transform[] newBoltStarts = new Transform[capacity];
+        Transform[] newBoltEnds = new Transform[capacity];
+        float[] newBoltElapsed = new float[capacity];
+        bool[] newBoltActive = new bool[capacity];
+
+        for (int i = 0; i < oldLength; i++)
+        {
+            newHitEnemies[i] = hitEnemies[i];
+            newBoltLines[i] = boltLines[i];
+            newBoltStarts[i] = boltStarts[i];
+            newBoltEnds[i] = boltEnds[i];
+            newBoltElapsed[i] = boltElapsed[i];
+            newBoltActive[i] = boltActive[i];
+        }
+
+        hitEnemies = newHitEnemies;
+        boltLines = newBoltLines;
+        boltStarts = newBoltStarts;
+        boltEnds = newBoltEnds;
+        boltElapsed = newBoltElapsed;
+        boltActive = newBoltActive;
+
+        for (int i = oldLength; i < capacity; i++)
+        {
+            boltLines[i] = CreateBoltLine(i);
+        }
     }
 
-    private IEnumerator DrawLightning(Transform startTarget, Transform endTarget)
+    private LineRenderer CreateBoltLine(int index)
     {
-        GameObject boltObject = new GameObject("Tesla Lightning");
+        GameObject boltObject = new GameObject($"Tesla Lightning {index + 1}");
+        boltObject.transform.SetParent(transform, false);
         LineRenderer line = boltObject.AddComponent<LineRenderer>();
         line.useWorldSpace = true;
         line.positionCount = Mathf.Max(2, pointsPerBolt);
@@ -120,72 +160,116 @@ public class TeslaTower : MonoBehaviour
         line.numCapVertices = 2;
         line.sortingLayerName = "Towers";
         line.sortingOrder = 3;
+        line.sharedMaterial = GetSharedLightningMaterial();
+        line.enabled = false;
+        return line;
+    }
+
+    private static Material GetSharedLightningMaterial()
+    {
+        if (sharedLightningMaterial != null)
+        {
+            return sharedLightningMaterial;
+        }
 
         Shader spriteShader = Shader.Find("Sprites/Default");
         if (spriteShader != null)
         {
-            line.material = new Material(spriteShader);
-        }
-
-        float elapsed = 0f;
-        while (elapsed < lightningDuration && startTarget != null && endTarget != null)
-        {
-            elapsed += Time.deltaTime;
-            float life = 1f - Mathf.Clamp01(elapsed / Mathf.Max(0.01f, lightningDuration));
-            Color fadedColor = new Color(
-                lightningColor.r,
-                lightningColor.g,
-                lightningColor.b,
-                lightningColor.a * life
-            );
-            line.startColor = Color.white * new Color(1f, 1f, 1f, life);
-            line.endColor = fadedColor;
-
-            Vector2 start = startTarget.position;
-            Vector2 end = endTarget.position;
-            Vector2 direction = end - start;
-            Vector2 perpendicular = direction.sqrMagnitude > 0f
-                ? new Vector2(-direction.y, direction.x).normalized
-                : Vector2.up;
-
-            int pointCount = line.positionCount;
-            for (int i = 0; i < pointCount; i++)
+            sharedLightningMaterial = new Material(spriteShader)
             {
-                float progress = i / (pointCount - 1f);
-                Vector2 point = Vector2.Lerp(start, end, progress);
-
-                if (i > 0 && i < pointCount - 1)
-                {
-                    float taper = Mathf.Sin(progress * Mathf.PI);
-                    point += perpendicular * Random.Range(-jitterAmount, jitterAmount) * taper;
-                }
-
-                line.SetPosition(i, point);
-            }
-
-            yield return null;
+                name = "Shared Tesla Lightning Material",
+                hideFlags = HideFlags.HideAndDontSave
+            };
         }
 
-        Destroy(boltObject);
+        return sharedLightningMaterial;
     }
 
-    private static Transform FindEnemyRoot(Collider2D hit)
+    private void ShowBolt(int index, Transform startTarget, Transform endTarget)
     {
-        Transform current = hit.attachedRigidbody != null
-            ? hit.attachedRigidbody.transform
-            : hit.transform;
-
-        while (current != null)
+        if ((uint)index >= (uint)boltLines.Length)
         {
-            if (current.CompareTag("Enemy"))
-            {
-                return current;
-            }
-
-            current = current.parent;
+            return;
         }
 
-        return null;
+        boltStarts[index] = startTarget;
+        boltEnds[index] = endTarget;
+        boltElapsed[index] = 0f;
+        boltActive[index] = true;
+        boltLines[index].enabled = true;
+        UpdateBolt(index);
+    }
+
+    private void UpdateBolts(float deltaTime)
+    {
+        for (int i = 0; i < boltActive.Length; i++)
+        {
+            if (!boltActive[i])
+            {
+                continue;
+            }
+
+            Transform startTarget = boltStarts[i];
+            Transform endTarget = boltEnds[i];
+            boltElapsed[i] += deltaTime;
+
+            if (boltElapsed[i] >= lightningDuration
+                || startTarget == null
+                || endTarget == null
+                || !startTarget.gameObject.activeInHierarchy
+                || !endTarget.gameObject.activeInHierarchy)
+            {
+                boltActive[i] = false;
+                boltLines[i].enabled = false;
+                boltStarts[i] = null;
+                boltEnds[i] = null;
+                continue;
+            }
+
+            UpdateBolt(i);
+        }
+    }
+
+    private void UpdateBolt(int index)
+    {
+        LineRenderer line = boltLines[index];
+        Transform startTarget = boltStarts[index];
+        Transform endTarget = boltEnds[index];
+        if (line == null || startTarget == null || endTarget == null)
+        {
+            return;
+        }
+
+        float life = 1f - Mathf.Clamp01(
+            boltElapsed[index] / Mathf.Max(0.01f, lightningDuration));
+        line.startColor = new Color(1f, 1f, 1f, life);
+        line.endColor = new Color(
+            lightningColor.r,
+            lightningColor.g,
+            lightningColor.b,
+            lightningColor.a * life);
+
+        Vector2 start = startTarget.position;
+        Vector2 end = endTarget.position;
+        Vector2 direction = end - start;
+        float directionLengthSquared = direction.sqrMagnitude;
+        Vector2 perpendicular = directionLengthSquared > 0.000001f
+            ? new Vector2(-direction.y, direction.x) / Mathf.Sqrt(directionLengthSquared)
+            : Vector2.up;
+
+        int pointCount = line.positionCount;
+        for (int i = 0; i < pointCount; i++)
+        {
+            float progress = i / (pointCount - 1f);
+            Vector2 point = Vector2.Lerp(start, end, progress);
+            if (i > 0 && i < pointCount - 1)
+            {
+                float taper = Mathf.Sin(progress * Mathf.PI);
+                point += perpendicular * Random.Range(-jitterAmount, jitterAmount) * taper;
+            }
+
+            line.SetPosition(i, point);
+        }
     }
 
     private void OnDrawGizmosSelected()

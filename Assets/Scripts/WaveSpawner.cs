@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -42,12 +43,25 @@ public class WaveSpawner : MonoBehaviour
         Wave
     }
 
+    private static readonly ProfilerMarker SpawnMarker =
+        new ProfilerMarker("EnemySpawning.Spawn");
+    private static readonly ProfilerMarker PoolPreparationMarker =
+        new ProfilerMarker("EnemySpawning.Prewarm");
+
     [Header("Waves")]
     [SerializeField] private List<Wave> waves = new List<Wave>();
 
     [Header("Spawning")]
     [SerializeField] private Transform player;
     [SerializeField, Min(0f)] private float spawnRadius = 12f;
+
+    [Header("Pooling")]
+    [SerializeField, Min(0), Tooltip("Minimum inactive instances prepared for each configured enemy type.")]
+    private int prewarmPerEnemyType = 128;
+    [SerializeField, Min(1), Tooltip("Hard size limit for each enemy and related projectile pool.")]
+    private int maxPoolSizePerType = 512;
+    [SerializeField, Tooltip("When enabled, a depleted pool records a miss and skips a spawn instead of instantiating.")]
+    private bool strictPrewarmedPools;
 
     [Header("Building Mode")]
     [SerializeField] private TowerShopUI towerShop;
@@ -57,7 +71,9 @@ public class WaveSpawner : MonoBehaviour
     [Header("Runtime")]
     public GameState gameState = GameState.Wave;
 
-    private readonly List<GameObject> livingEnemies = new List<GameObject>();
+    private readonly List<Enemy> livingEnemies = new List<Enemy>(512);
+    private readonly List<GameObject> spawnPool = new List<GameObject>(512);
+    private readonly List<EnemySpawnData> validEnemies = new List<EnemySpawnData>(16);
     private Coroutine spawnRoutine;
     private int currentWaveIndex = -1;
     private bool finishedSpawning;
@@ -65,16 +81,57 @@ public class WaveSpawner : MonoBehaviour
     public int CurrentWaveIndex => currentWaveIndex;
     public int LivingEnemyCount => livingEnemies.Count;
 
+    public void RemoveLivingEnemy(GameObject enemyObject)
+    {
+        if (enemyObject == null)
+        {
+            return;
+        }
+
+        for (int i = livingEnemies.Count - 1; i >= 0; i--)
+        {
+            Enemy enemy = livingEnemies[i];
+            if (enemy == null || enemy.gameObject == enemyObject)
+            {
+                int lastIndex = livingEnemies.Count - 1;
+                livingEnemies[i] = livingEnemies[lastIndex];
+                livingEnemies.RemoveAt(lastIndex);
+            }
+        }
+    }
+
+    public void AddLivingEnemy(GameObject enemyObject)
+    {
+        if (gameState != GameState.Wave
+            || enemyObject == null
+            || !enemyObject.TryGetComponent(out Enemy enemy))
+        {
+            return;
+        }
+
+        for (int i = 0; i < livingEnemies.Count; i++)
+        {
+            if (livingEnemies[i] == enemy)
+            {
+                return;
+            }
+        }
+
+        livingEnemies.Add(enemy);
+    }
+
     private void Start()
     {
         if (player == null)
         {
-            GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
-            if (playerObject != null)
-            {
-                player = playerObject.transform;
-            }
+            player = EnemySimulationManager.Instance.Player;
         }
+        else
+        {
+            EnemySimulationManager.SetPlayer(player);
+        }
+
+        PreparePools();
 
         if (startGameButton != null)
         {
@@ -99,16 +156,19 @@ public class WaveSpawner : MonoBehaviour
             return;
         }
 
-        // Destroyed Unity objects compare equal to null, so this also catches
-        // enemies destroyed by systems other than the Enemy script.
-        livingEnemies.RemoveAll(enemy => enemy == null);
-        livingEnemies.RemoveAll(enemy => enemy.GetComponent<Enemy>().enabled == false);
-
-        Debug.Log($"Wave {currentWaveIndex + 1} - Living Enemies: {livingEnemies.Count}, Finished Spawning: {finishedSpawning}");
+        for (int i = livingEnemies.Count - 1; i >= 0; i--)
+        {
+            Enemy enemy = livingEnemies[i];
+            if (enemy == null || !enemy.isActiveAndEnabled)
+            {
+                int lastIndex = livingEnemies.Count - 1;
+                livingEnemies[i] = livingEnemies[lastIndex];
+                livingEnemies.RemoveAt(lastIndex);
+            }
+        }
 
         if (finishedSpawning && livingEnemies.Count == 0)
         {
-            Debug.Log("Switched");
             switchGameState(GameState.Building);
         }
     }
@@ -119,7 +179,6 @@ public class WaveSpawner : MonoBehaviour
         {
             if (currentWaveIndex + 1 >= waves.Count)
             {
-                Debug.Log("All configured waves have been completed.", this);
                 switchGameState(GameState.Building);
 
                 if (startGameButton != null)
@@ -137,35 +196,92 @@ public class WaveSpawner : MonoBehaviour
         livingEnemies.Clear();
         SetBuildingToolsEnabled(false);
 
-        List<GameObject> spawnPool = BuildSpawnPool(waves[currentWaveIndex]);
+        BuildSpawnPool(waves[currentWaveIndex]);
         Shuffle(spawnPool);
-        spawnRoutine = StartCoroutine(SpawnWave(spawnPool, waves[currentWaveIndex].targetTime));
+        spawnRoutine = StartCoroutine(SpawnWave(waves[currentWaveIndex].targetTime));
     }
 
-    private List<GameObject> BuildSpawnPool(Wave wave)
+    private void PreparePools()
     {
-        List<EnemySpawnData> validEnemies = wave.enemiesEnabled.FindAll(
-            enemy => enemy != null && enemy.enemyPrefab != null && enemy.spawnCredits > 0
-        );
+        using (PoolPreparationMarker.Auto())
+        {
+            for (int waveIndex = 0; waveIndex < waves.Count; waveIndex++)
+            {
+                Wave wave = waves[waveIndex];
+                if (wave == null)
+                {
+                    continue;
+                }
 
-        validEnemies.Sort((left, right) => right.spawnCredits.CompareTo(left.spawnCredits));
+                for (int enemyIndex = 0; enemyIndex < wave.enemiesEnabled.Count; enemyIndex++)
+                {
+                    EnemySpawnData spawnData = wave.enemiesEnabled[enemyIndex];
+                    if (spawnData == null || spawnData.enemyPrefab == null)
+                    {
+                        continue;
+                    }
 
-        List<GameObject> pool = new List<GameObject>();
+                    CombatObjectPool.Configure(
+                        spawnData.enemyPrefab,
+                        prewarmPerEnemyType,
+                        maxPoolSizePerType,
+                        strictPrewarmedPools);
+
+                    if (spawnData.enemyPrefab.TryGetComponent(out Enemy enemyPrefab))
+                    {
+                        enemyPrefab.PreparePools(
+                            prewarmPerEnemyType,
+                            maxPoolSizePerType,
+                            strictPrewarmedPools);
+                    }
+                }
+            }
+        }
+    }
+
+    private void BuildSpawnPool(Wave wave)
+    {
+        spawnPool.Clear();
+        validEnemies.Clear();
+
+        for (int i = 0; i < wave.enemiesEnabled.Count; i++)
+        {
+            EnemySpawnData spawnData = wave.enemiesEnabled[i];
+            if (spawnData != null
+                && spawnData.enemyPrefab != null
+                && spawnData.spawnCredits > 0)
+            {
+                validEnemies.Add(spawnData);
+            }
+        }
+
+        // The list is tiny and this avoids a Comparison delegate allocation.
+        for (int i = 1; i < validEnemies.Count; i++)
+        {
+            EnemySpawnData current = validEnemies[i];
+            int insertAt = i - 1;
+            while (insertAt >= 0
+                && validEnemies[insertAt].spawnCredits < current.spawnCredits)
+            {
+                validEnemies[insertAt + 1] = validEnemies[insertAt];
+                insertAt--;
+            }
+
+            validEnemies[insertAt + 1] = current;
+        }
+
         if (validEnemies.Count == 0 || wave.tokens <= 0)
         {
-            return pool;
+            return;
         }
 
         int creditsRemaining = wave.tokens;
-        int lowestCost = validEnemies[validEnemies.Count - 1].spawnCredits;
-        GameObject lowestCostEnemy = validEnemies[validEnemies.Count - 1].enemyPrefab;
+        EnemySpawnData cheapest = validEnemies[validEnemies.Count - 1];
 
-        // Fill the requested number of slots with the most expensive enemies
-        // possible while reserving enough credits for the remaining slots.
         for (int slot = 0; slot < wave.targetEnemyCount && creditsRemaining > 0; slot++)
         {
             int slotsAfterThis = wave.targetEnemyCount - slot - 1;
-            int spendableCredits = creditsRemaining - (slotsAfterThis * lowestCost);
+            int spendableCredits = creditsRemaining - slotsAfterThis * cheapest.spawnCredits;
             EnemySpawnData selected = null;
 
             for (int i = 0; i < validEnemies.Count; i++)
@@ -177,29 +293,19 @@ public class WaveSpawner : MonoBehaviour
                 }
             }
 
-            // The target count cannot be fully funded. Use the cheapest enemy
-            // and let it consume the last partial credit balance.
-            if (selected == null)
-            {
-                selected = validEnemies[validEnemies.Count - 1];
-            }
-
-            pool.Add(selected.enemyPrefab);
+            selected ??= cheapest;
+            spawnPool.Add(selected.enemyPrefab);
             creditsRemaining = Mathf.Max(0, creditsRemaining - selected.spawnCredits);
         }
 
-        // If the requested count cannot consume the budget exactly, going over
-        // the count with the cheapest enemy is preferable to leaving credits.
         while (creditsRemaining > 0)
         {
-            pool.Add(lowestCostEnemy);
-            creditsRemaining = Mathf.Max(0, creditsRemaining - lowestCost);
+            spawnPool.Add(cheapest.enemyPrefab);
+            creditsRemaining = Mathf.Max(0, creditsRemaining - cheapest.spawnCredits);
         }
-
-        return pool;
     }
 
-    private IEnumerator SpawnWave(List<GameObject> spawnPool, float targetTime)
+    private IEnumerator SpawnWave(float targetTime)
     {
         if (spawnPool.Count == 0)
         {
@@ -209,15 +315,17 @@ public class WaveSpawner : MonoBehaviour
         }
 
         float delayBetweenSpawns = targetTime / spawnPool.Count;
+        float nextSpawnTime = Time.time + delayBetweenSpawns;
 
         for (int i = 0; i < spawnPool.Count; i++)
         {
-            if (delayBetweenSpawns > 0f)
+            while (delayBetweenSpawns > 0f && Time.time < nextSpawnTime)
             {
-                yield return new WaitForSeconds(delayBetweenSpawns);
+                yield return null;
             }
 
             SpawnEnemy(spawnPool[i]);
+            nextSpawnTime += delayBetweenSpawns;
         }
 
         spawnRoutine = null;
@@ -231,35 +339,46 @@ public class WaveSpawner : MonoBehaviour
             return;
         }
 
-        if (player == null)
+        using (SpawnMarker.Auto())
         {
-            GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
-            if (playerObject != null)
+            if (player == null)
             {
-                player = playerObject.transform;
+                player = EnemySimulationManager.Instance.Player;
             }
-        }
 
-        Vector3 center = player != null ? player.position : transform.position;
-        Vector2 direction = UnityEngine.Random.insideUnitCircle.normalized;
-        if (direction == Vector2.zero)
-        {
-            direction = Vector2.right;
-        }
+            Vector3 center = player != null ? player.position : transform.position;
+            Vector2 direction = UnityEngine.Random.insideUnitCircle;
+            float directionLengthSquared = direction.sqrMagnitude;
+            direction = directionLengthSquared > 0.000001f
+                ? direction / Mathf.Sqrt(directionLengthSquared)
+                : Vector2.right;
 
-        Vector3 spawnPosition = center + (Vector3)(direction * spawnRadius);
-        GameObject spawnedEnemy = Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
-        livingEnemies.Add(spawnedEnemy);
+            Vector3 spawnPosition = center + (Vector3)(direction * spawnRadius);
+            if (!CombatObjectPool.TryAcquire(
+                    enemyPrefab,
+                    spawnPosition,
+                    Quaternion.identity,
+                    0f,
+                    out PooledObject pooledObject)
+                || pooledObject.Enemy == null)
+            {
+                return;
+            }
+
+            Enemy enemy = pooledObject.Enemy;
+            livingEnemies.Add(enemy);
+            CombatObjectPool.Activate(pooledObject);
+        }
     }
 
-    private static void Shuffle(List<GameObject> spawnPool)
+    private static void Shuffle(List<GameObject> items)
     {
-        for (int i = spawnPool.Count - 1; i > 0; i--)
+        for (int i = items.Count - 1; i > 0; i--)
         {
             int swapIndex = UnityEngine.Random.Range(0, i + 1);
-            GameObject temporary = spawnPool[i];
-            spawnPool[i] = spawnPool[swapIndex];
-            spawnPool[swapIndex] = temporary;
+            GameObject temporary = items[i];
+            items[i] = items[swapIndex];
+            items[swapIndex] = temporary;
         }
     }
 

@@ -54,7 +54,9 @@ public class SawBlade : MonoBehaviour
 
         if (other.CompareTag("Enemy"))
         {
-            Enemy enemy = other.GetComponentInParent<Enemy>();
+            Enemy enemy = EnemySimulationManager.InstanceOrNull != null
+                ? EnemySimulationManager.InstanceOrNull.FindEnemy(other)
+                : null;
             if (enemy != null)
             {
                 enemy.health -= damage;
