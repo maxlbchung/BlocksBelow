@@ -25,6 +25,10 @@ public class SquarePlacement : MonoBehaviour
     [SerializeField] private Collider2D placementBase;
     [SerializeField, Min(0.001f)] private float adjacencyTolerance = 0.05f;
 
+    [Header("Pre Placed Towers")]
+    [SerializeField] private Transform[] prePlacedTowersPosition;
+    [SerializeField] private TowerShopUI.TowerOffer[] prePlacedTowers;
+
     private Camera mainCamera;
     private float groundSurfaceY = float.NegativeInfinity;
     private GameObject ghostObject;
@@ -50,6 +54,11 @@ public class SquarePlacement : MonoBehaviour
         }
 
         CreateGhost();
+
+        for (int i = 0; i < prePlacedTowersPosition.Length; i++)
+        {
+            towerShop.CreateTower(prePlacedTowers[i], SnapToGrid(prePlacedTowersPosition[i].position), cellSize, CurrentRotation);
+        }
     }
 
     private void Update()
