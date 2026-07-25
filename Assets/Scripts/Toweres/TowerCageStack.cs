@@ -12,6 +12,17 @@ public class TowerCageStack : MonoBehaviour
     public int PowerLevel => towerValue;
     public IReadOnlyList<CageTower> CagesBelow => cagesBelow;
 
+    private void Awake()
+    {
+        // Every powered tower shows the same energy flow, so it is attached here
+        // instead of on each tower prefab. One added by hand wins, keeping whatever
+        // was tuned on it in the Inspector.
+        if (GetComponent<TowerPowerFlow>() == null)
+        {
+            gameObject.AddComponent<TowerPowerFlow>();
+        }
+    }
+
     public void Initialize(float gridCellSize)
     {
         cellSize = Mathf.Max(0.01f, gridCellSize);

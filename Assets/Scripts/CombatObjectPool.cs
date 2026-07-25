@@ -70,7 +70,6 @@ public sealed class PooledObject : MonoBehaviour
             if (animator != null)
             {
                 animator.Rebind();
-                animator.Update(0f);
             }
         }
 
@@ -84,6 +83,28 @@ public sealed class PooledObject : MonoBehaviour
 
         RemainingLifetime = lifetime;
         InPool = false;
+    }
+
+    /// <summary>
+    /// Applies the rebound default pose immediately so the object never shows a
+    /// stale frame from its previous life. Must run after the object is active:
+    /// Animator.Update throws on inactive objects.
+    /// </summary>
+    internal void ApplyAnimatorPose()
+    {
+        if (animators == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < animators.Length; i++)
+        {
+            Animator animator = animators[i];
+            if (animator != null && animator.isActiveAndEnabled)
+            {
+                animator.Update(0f);
+            }
+        }
     }
 
     internal void PrepareForRelease()
@@ -325,6 +346,7 @@ public sealed class CombatObjectPool : MonoBehaviour
         }
 
         item.gameObject.SetActive(true);
+        item.ApplyAnimatorPose();
     }
 
     public static bool Release(GameObject instanceObject)

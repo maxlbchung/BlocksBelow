@@ -51,6 +51,10 @@ public class SawBladeTower : MonoBehaviour
     {
         if (sawOrbit != null)
         {
+            // Destroy is deferred to end of frame, so the outgoing blades would otherwise sit on
+            // top of the replacements and land a second hit this frame. Deactivating kills their
+            // triggers immediately.
+            sawOrbit.gameObject.SetActive(false);
             Destroy(sawOrbit.gameObject);
             sawOrbit = null;
         }
