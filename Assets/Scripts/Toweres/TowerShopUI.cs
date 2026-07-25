@@ -1013,15 +1013,17 @@ public class TowerShopUI : MonoBehaviour
         listFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         enemyListRoot = list.transform;
 
-        // Healing belongs with the round preview: you top up after seeing what is coming.
-        potionButton = CreatePotionButton(page.transform);
-
         CreateSpacer(page.transform);
 
         // Sits below the spacer so it reads off the bottom of the menu, the way the
         // Build tab's description box does under the tower list.
         BuildDescriptionBox(page.transform, out enemyTitle, out enemyBody, out enemyHint);
         ClearEnemyDescription();
+
+        // Under the description rather than up with the preview: reading what is coming
+        // is what decides whether to heal, so the offer sits between that and the button
+        // that starts the round.
+        potionButton = CreatePotionButton(page.transform);
 
         StartRoundButton = CreateStartRoundButton(page.transform);
         return page;
