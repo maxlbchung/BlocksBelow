@@ -4,12 +4,20 @@ public class SawBlade : MonoBehaviour
 {
     [SerializeField, Min(0f)] private float pushForce = 12f;
     [SerializeField] private float damage = 1f;
+    // Degrees per second the blade spins on its own axis, on top of the tower's orbit. Purely
+    // visual — the trigger is a centered circle, so spinning can't change what it hits.
+    [SerializeField] private float spinSpeed = -1080f;
     [SerializeField] private AudioClip hitSfx;
 
     public void Configure(AudioClip newHitSfx, float newDamage)
     {
         hitSfx = newHitSfx;
         damage = newDamage;
+    }
+
+    private void Update()
+    {
+        transform.Rotate(0f, 0f, spinSpeed * Time.deltaTime);
     }
 
     // The blade is a trigger, so it never physically pushes or blocks anything;

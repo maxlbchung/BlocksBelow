@@ -110,6 +110,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   health: 5
+  hitSfx: {fileID: 0}
+  hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
+  hitFlashDuration: 0.06
+  hitFlashCount: 2
+  hitParticleCount: 8
+  invincibilityTime: 0.75
   moveSpeed: 8
   acceleration: 15
   deceleration: 12
@@ -127,15 +133,23 @@ MonoBehaviour:
   jumpBufferTime: 0.1
   groundCheckLength: 0.26
   platformCheckRadius: 2
+  platformContactDistance: 0.15
+  platformDropGraceTime: 0.05
+  runDustInterval: 0.18
+  runDustMinSpeed: 1.5
+  jumpDustCount: 6
+  landDustMinFallSpeed: 4
+  landDustMaxCount: 12
   animator: {fileID: 464871150817697749}
   spriteRenderer: {fileID: 7912393881069136176}
   walkAnimationThreshold: 0.1
+  gameOverDelay: 2.5
+  deathParticleCount: 40
   healthBarSize: {x: 2, y: 0.25}
   healthBarHeight: 0.6
   healthBarColor: {r: 0.2, g: 0.85, b: 0.25, a: 1}
   healthBarBackgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 0.9}
   healthBarSortingOrder: 100
-  invincibilityTime: 0.75
   maxHealth: 15
 --- !u!50 &8186934828032893683
 Rigidbody2D:
@@ -198,7 +212,7 @@ CircleCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: 0, y: -0.49}
   m_Radius: 0.5
 --- !u!95 &464871150817697749
 Animator:
@@ -398,5 +412,3 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   playerController: {fileID: 3000397879216909440}
-  baseKnockbackForce: 10
-  fastestDeathTime: 0.5

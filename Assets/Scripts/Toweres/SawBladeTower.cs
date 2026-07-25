@@ -11,7 +11,8 @@ public class SawBladeTower : MonoBehaviour
     // One chain sprite stretched along the whole tether. Must be its own texture (not packed in
     // an atlas or sheet), since the tether samples the full texture. Empty = plain line.
     [SerializeField] private Sprite chainSprite;
-    [SerializeField, Min(0.001f)] private float lineWidth = 0.05f;
+    // Tether thickness, for both the chain sprite and the plain line.
+    [SerializeField, Min(0.001f)] private float lineWidth = 0.5f;
     [SerializeField] private Color lineColor = Color.gray;
     [SerializeField] private AudioClip hitSfx;
 
@@ -124,9 +125,10 @@ public class SawBladeTower : MonoBehaviour
         line.endWidth = lineWidth;
         line.startColor = lineColor;
         line.endColor = lineColor;
-        line.numCapVertices = 2;
+        // Rounded caps would bulge past the ends of the chain art, so a sprite gets flat ends.
+        line.numCapVertices = chainSprite != null ? 0 : 2;
         line.sortingLayerName = "Towers";
-        line.sortingOrder = 1;
+        line.sortingOrder = 5;
         // Per-tether color comes from the LineRenderer's vertex colors, so every tether can
         // share one material. Avoids a Material clone per saw (draw-call batching + no leak).
         line.sharedMaterial = GetTetherMaterial();

@@ -28,9 +28,9 @@ public class SquarePlacement : MonoBehaviour
 
     [Header("Repair")]
     [Tooltip("Overlay drawn on every broken cage while repair mode is active.")]
-    [SerializeField] private Color repairHighlightColor = new Color(0.3f, 0.9f, 0.45f, 0.45f);
+    [SerializeField] private Color repairHighlightColor = new Color(0.3f, 0.9f, 0.45f, 0.25f);
     [Tooltip("Overlay drawn on the broken cage the cursor is over, i.e. the one a click repairs.")]
-    [SerializeField] private Color repairHoverColor = new Color(0.45f, 1f, 0.6f, 0.8f);
+    [SerializeField] private Color repairHoverColor = new Color(0.45f, 1f, 0.6f, 0.5f);
     [Tooltip("Pulses per second for the markers on the broken cages the cursor is not over.")]
     [SerializeField, Min(0f)] private float repairPulseSpeed = 1.5f;
 

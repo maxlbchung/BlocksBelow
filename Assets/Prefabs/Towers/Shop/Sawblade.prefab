@@ -79,9 +79,9 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingLayerID: 1473641201
+  m_SortingLayer: 1
+  m_SortingOrder: 5
   m_MaskInteraction: 0
   m_Sprite: {fileID: -5722404333649338582, guid: a55fe731e9349fe4f9f27b5c2b271523, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -143,4 +143,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SawBlade
   pushForce: 12
   damage: 1
+  spinSpeed: -1080
   hitSfx: {fileID: 0}

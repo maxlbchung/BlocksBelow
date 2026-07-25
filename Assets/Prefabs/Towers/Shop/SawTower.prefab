@@ -158,7 +158,7 @@ MonoBehaviour:
   orbitRadius: 2
   orbitSpeed: 180
   chainSprite: {fileID: 5546860700157396188, guid: de325a79ff9c3d64195ffbabc0e4d5bc, type: 3}
-  lineWidth: 0.05
+  lineWidth: 0.5
   lineColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   hitSfx: {fileID: 0}
 --- !u!114 &231729858184923547
