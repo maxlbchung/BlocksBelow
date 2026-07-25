@@ -8,6 +8,9 @@ public class SawBladeTower : MonoBehaviour
     [SerializeField, Min(0f)] private float orbitRadius = 3f;
     [SerializeField] private float orbitSpeed = 90f;
     [Header("Saw Tethers")]
+    // One chain sprite stretched along the whole tether. Must be its own texture (not packed in
+    // an atlas or sheet), since the tether samples the full texture. Empty = plain line.
+    [SerializeField] private Sprite chainSprite;
     [SerializeField, Min(0.001f)] private float lineWidth = 0.05f;
     [SerializeField] private Color lineColor = Color.gray;
     [SerializeField] private AudioClip hitSfx;
@@ -18,6 +21,7 @@ public class SawBladeTower : MonoBehaviour
     private readonly List<Transform> saws = new List<Transform>();
     private readonly List<LineRenderer> sawLines = new List<LineRenderer>();
 
+    private Material chainMaterial;
     private static Material sharedTetherMaterial;
 
     private void Start()
@@ -121,12 +125,42 @@ public class SawBladeTower : MonoBehaviour
         line.startColor = lineColor;
         line.endColor = lineColor;
         line.numCapVertices = 2;
-        line.sortingOrder = -1;
+        line.sortingLayerName = "Towers";
+        line.sortingOrder = 1;
         // Per-tether color comes from the LineRenderer's vertex colors, so every tether can
         // share one material. Avoids a Material clone per saw (draw-call batching + no leak).
-        line.sharedMaterial = GetSharedTetherMaterial();
+        line.sharedMaterial = GetTetherMaterial();
+        line.textureMode = LineTextureMode.Stretch;
 
         return line;
+    }
+
+    private Material GetTetherMaterial()
+    {
+        if (chainSprite == null)
+        {
+            return GetSharedTetherMaterial();
+        }
+
+        if (chainMaterial == null)
+        {
+            Shader spriteShader = Shader.Find("Sprites/Default");
+            if (spriteShader == null)
+            {
+                return GetSharedTetherMaterial();
+            }
+
+            // One material per tower rather than per saw: all of this tower's tethers show the
+            // same chain, so they still batch together.
+            chainMaterial = new Material(spriteShader)
+            {
+                name = $"{name} Chain Material",
+                hideFlags = HideFlags.HideAndDontSave,
+                mainTexture = chainSprite.texture
+            };
+        }
+
+        return chainMaterial;
     }
 
     private static Material GetSharedTetherMaterial()
@@ -147,6 +181,15 @@ public class SawBladeTower : MonoBehaviour
         }
 
         return sharedTetherMaterial;
+    }
+
+    private void OnDestroy()
+    {
+        if (chainMaterial != null)
+        {
+            Destroy(chainMaterial);
+            chainMaterial = null;
+        }
     }
 
     private void UpdateSawLines()

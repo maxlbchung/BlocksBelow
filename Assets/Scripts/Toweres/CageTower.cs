@@ -10,6 +10,9 @@ public class CageTower : MonoBehaviour
         Broken
     }
 
+    [Tooltip("Art shown while the cage is whole. Left empty, the renderer's own sprite is used.")]
+    [SerializeField] private Sprite intactSprite;
+    [Tooltip("Art shown once the cage is broken. Left empty, the cage keeps its intact art.")]
     [SerializeField] private Sprite brokenSprite;
     [SerializeField, Min(0.1f)] private float captureRadius = 1.25f;
     [SerializeField] private CageState state = CageState.Empty;
@@ -20,7 +23,6 @@ public class CageTower : MonoBehaviour
     private readonly List<MonoBehaviour> disabledEnemyScripts = new List<MonoBehaviour>();
     private readonly List<Collider2D> disabledEnemyColliders = new List<Collider2D>();
     private SpriteRenderer cageRenderer;
-    private Sprite intactSprite;
     private GameObject capturedEnemy;
     private Rigidbody2D capturedBody;
     private RigidbodyType2D originalBodyType;
@@ -36,6 +38,7 @@ public class CageTower : MonoBehaviour
         // A cage spawned from a prefab never goes through Configure, so the sprite
         // and the capture trigger have to be resolved here instead.
         CacheRenderer();
+        RefreshSprite();
         EnsureCaptureTrigger();
     }
 
@@ -204,9 +207,19 @@ public class CageTower : MonoBehaviour
     private void SetBroken(bool broken)
     {
         state = broken ? CageState.Broken : CageState.Empty;
-        if (cageRenderer != null)
+        RefreshSprite();
+    }
+
+    /// <summary>
+    /// Puts the renderer on the art matching the current state. A sprite left unassigned
+    /// means "keep what is already showing", so a cage with no broken art still works.
+    /// </summary>
+    private void RefreshSprite()
+    {
+        Sprite stateSprite = IsBroken ? brokenSprite : intactSprite;
+        if (cageRenderer != null && stateSprite != null)
         {
-            cageRenderer.sprite = broken && brokenSprite != null ? brokenSprite : intactSprite;
+            cageRenderer.sprite = stateSprite;
         }
     }
 

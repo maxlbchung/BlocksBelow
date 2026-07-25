@@ -192,6 +192,23 @@ public static class TowerGrid
         return TryGet(cell, centreTolerance, out Occupant occupant) ? occupant.Cage : null;
     }
 
+    /// <summary>
+    /// Fills <paramref name="results"/> with every registered cage. Order is unspecified, so
+    /// callers that care about position should read it from the cage itself.
+    /// </summary>
+    public static void CollectCages(List<CageTower> results)
+    {
+        results.Clear();
+
+        foreach (KeyValuePair<Vector2Int, Occupant> entry in cells)
+        {
+            if (entry.Value.Cage != null)
+            {
+                results.Add(entry.Value.Cage);
+            }
+        }
+    }
+
     public static bool IsOccupied(Vector2Int cell, float centreTolerance)
     {
         return TryGet(cell, centreTolerance, out _);

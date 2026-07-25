@@ -161,7 +161,8 @@ public static class TowerPrefabBuilder
             Kind = TowerKind.Cage,
             Sprite = new AssetRef("8ed378ed21fe6ea4fb3b2358aa60f9c3", 5817013890515777238L),
             SupportPiece = true,
-            BrokenSprite = new AssetRef("93da9deb12fdbc4419fa4822f9b15681", 6675669677758570782L),
+            // Sprites/towers/IMG_1180 - the same cage with its bars bent apart.
+            BrokenSprite = new AssetRef("617ba9ddc793cc441b1e0bb2ae2e3dee", -4290933271646154427L),
         },
         new TowerSpec
         {
@@ -327,6 +328,7 @@ public static class TowerPrefabBuilder
                 behaviour = tower.AddComponent<CageTower>();
                 Apply(behaviour, settings =>
                 {
+                    settings.FindProperty("intactSprite").objectReferenceValue = Load<Sprite>(spec.Sprite);
                     settings.FindProperty("brokenSprite").objectReferenceValue = Load<Sprite>(spec.BrokenSprite);
                     settings.FindProperty("captureRadius").floatValue = CageCaptureRadius;
                 });
