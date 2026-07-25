@@ -53,7 +53,7 @@ public class Entity : MonoBehaviour
     /// </summary>
     protected void PlayHitFeedback(Vector2 hitPosition)
     {
-        lastHitTime = Time.time;
+        OpenHitInvincibilityWindow();
 
         if (hitSfx != null)
         {
@@ -74,6 +74,15 @@ public class Entity : MonoBehaviour
         }
 
         flashRoutine = StartCoroutine(FlashRoutine());
+    }
+
+    /// <summary>
+    /// Opens the normal hit cooldown without flashing this entity's sprites.
+    /// Specialized defenses can use this when they provide their own feedback.
+    /// </summary>
+    protected void OpenHitInvincibilityWindow()
+    {
+        lastHitTime = Time.time;
     }
 
     /// <summary>
