@@ -3,9 +3,22 @@ using UnityEngine;
 
 public class Bird : Enemy
 {
+    public enum BirdState
+    {
+        Sneaking,
+        Attacking
+    }
+
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 8f;
     [SerializeField] private float acceleration = 5f;
+
+    [Header("States")]
+    [SerializeField, Min(0f), Tooltip("The bird attacks once it is this close to the player.")]
+    private float attackDistance = 4f;
+    [SerializeField, Min(0f), Tooltip("How long the bird remains attacking after leaving attack distance.")]
+    private float attackExitDelay = 1f;
+    [SerializeField, Range(0f, 1f)] private float sneakingOpacity = 0.25f;
 
     [Header("Countdown")]
     [SerializeField, Min(0f)] private float countdownDuration = 10f;
@@ -37,18 +50,27 @@ public class Bird : Enemy
     private float nextDamageThreshold;
     private float cageableAgainTime;
     private float escapeTimeRemaining;
+    private float attackExitTimeRemaining;
+    private SpriteRenderer[] spriteRenderers;
+    private BirdState state;
     private bool escaping;
 
+    public BirdState State => state;
     public float CountdownRemaining => countdownRemaining;
     public override bool CanBeCaged =>
-        base.CanBeCaged && Time.time >= cageableAgainTime && !escaping;
+        base.CanBeCaged
+        && state == BirdState.Attacking
+        && Time.time >= cageableAgainTime
+        && !escaping;
 
     // A bird rushing for the sky is done with the player, so its escape run is harmless.
-    public override int ContactDamage => escaping ? 0 : contactDamage;
+    public override int ContactDamage =>
+        !escaping && state == BirdState.Attacking ? contactDamage : 0;
 
     protected override void Awake()
     {
         base.Awake();
+        spriteRenderers = GetComponentsInChildren<SpriteRenderer>(true);
         EnsureCountdownText();
         ResetBirdState();
     }
@@ -71,6 +93,7 @@ public class Bird : Enemy
 
         currentSpeed = Mathf.Clamp(currentSpeed + acceleration * Time.deltaTime, 0f, moveSpeed);
         countdownRemaining = Mathf.Max(0f, countdownRemaining - Time.deltaTime);
+        UpdateCombatState();
         UpdateCountdownText();
 
         if (countdownRemaining <= 0f)
@@ -114,7 +137,10 @@ public class Bird : Enemy
 
     public override bool TryTakeDamage(float damage)
     {
-        if (!CanTakeDamage || IsInvincible || damage <= 0f)
+        // Sneaking birds do not catch projectiles. Returning false lets Projectile keep
+        // flying through them; attacking birds still register hits for the countdown
+        // mechanic, but never lose health.
+        if (state != BirdState.Attacking || escaping || IsInvincible || damage <= 0f)
         {
             return false;
         }
@@ -155,7 +181,10 @@ public class Bird : Enemy
         nextDamageThreshold = Mathf.Max(0.01f, firstDamageThreshold);
         cageableAgainTime = 0f;
         escapeTimeRemaining = 0f;
+        attackExitTimeRemaining = 0f;
+        state = BirdState.Sneaking;
         escaping = false;
+        SetSpriteOpacity(sneakingOpacity);
         if (countdownText != null)
         {
             countdownText.gameObject.SetActive(true);
@@ -171,6 +200,82 @@ public class Bird : Enemy
         if (countdownText != null)
         {
             countdownText.gameObject.SetActive(false);
+        }
+    }
+
+    private void UpdateCombatState()
+    {
+        Transform player = EnemySimulationManager.InstanceOrNull?.Player;
+        if (player == null)
+        {
+            EnterSneakingState();
+            return;
+        }
+
+        float range = Mathf.Max(0f, attackDistance);
+        bool playerInRange =
+            ((Vector2)player.position - Position).sqrMagnitude <= range * range;
+        if (playerInRange)
+        {
+            attackExitTimeRemaining = Mathf.Max(0f, attackExitDelay);
+            EnterAttackingState();
+            return;
+        }
+
+        if (state != BirdState.Attacking)
+        {
+            return;
+        }
+
+        attackExitTimeRemaining -= Time.deltaTime;
+        if (attackExitTimeRemaining <= 0f)
+        {
+            EnterSneakingState();
+        }
+    }
+
+    private void EnterSneakingState()
+    {
+        if (state == BirdState.Sneaking)
+        {
+            return;
+        }
+
+        state = BirdState.Sneaking;
+        attackExitTimeRemaining = 0f;
+        SetSpriteOpacity(sneakingOpacity);
+    }
+
+    private void EnterAttackingState()
+    {
+        if (state == BirdState.Attacking)
+        {
+            return;
+        }
+
+        state = BirdState.Attacking;
+        SetSpriteOpacity(1f);
+    }
+
+    private void SetSpriteOpacity(float opacity)
+    {
+        if (spriteRenderers == null)
+        {
+            return;
+        }
+
+        float alpha = Mathf.Clamp01(opacity);
+        for (int i = 0; i < spriteRenderers.Length; i++)
+        {
+            SpriteRenderer spriteRenderer = spriteRenderers[i];
+            if (spriteRenderer == null)
+            {
+                continue;
+            }
+
+            Color color = spriteRenderer.color;
+            color.a = alpha;
+            spriteRenderer.color = color;
         }
     }
 

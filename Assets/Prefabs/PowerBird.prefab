@@ -196,6 +196,9 @@ MonoBehaviour:
   isCagable: 1
   moveSpeed: 8
   acceleration: 5
+  attackDistance: 4
+  attackExitDelay: 1
+  sneakingOpacity: 0.05
   countdownDuration: 10
   escapeSpeed: 14
   escapeDuration: 2
@@ -207,6 +210,7 @@ MonoBehaviour:
   damageThresholdMultiplier: 2
   secondsAddedPerThreshold: 1
   uncageableDurationAfterRelease: 2
+  contactDamage: 1
   currentSpeed: 0
 --- !u!95 &-6427052699367552961
 Animator:
