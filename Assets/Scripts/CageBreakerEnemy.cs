@@ -31,6 +31,18 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField] private SpriteRenderer countdownBackground;
     [SerializeField] private float startExplosionAnimationTime = 0.5f;
 
+    [Header("Explosion Effect")]
+    [SerializeField, Min(0f), Tooltip("How long the white blast takes to swell to the explosion radius and fade. 0 turns it off.")]
+    private float explosionFlashDuration = 0.3f;
+    [SerializeField, Min(0), Tooltip("White sparks thrown out by the blast. 0 turns them off.")]
+    private int explosionSparkCount = 32;
+
+    // One shared blast system for every breaker, the same way HitParticles pools its
+    // bursts: the flash has to outlive the breaker, which is released to the pool in
+    // the same frame it explodes.
+    private static ParticleSystem flashSystem;
+    private static Material flashMaterial;
+
     private readonly List<CageTower> cagesInExplosion = new List<CageTower>(16);
     private SpriteRenderer[] spriteRenderers;
     private CageTower targetCage;
@@ -336,6 +348,8 @@ public sealed class CageBreakerEnemy : Enemy
 
     private void Explode()
     {
+        PlayExplosionEffect();
+
         cagesInExplosion.Clear();
         CageTower[] cages = FindObjectsByType<CageTower>(FindObjectsSortMode.None);
         float radiusSquared = Mathf.Max(0f, explosionRadius);
@@ -358,6 +372,149 @@ public sealed class CageBreakerEnemy : Enemy
         }
 
         ReleaseOrDestroy();
+    }
+
+    /// <summary>
+    /// The white blast: a disc that swells out to the explosion radius and fades, plus a
+    /// spray of white sparks. The disc is sized off the radius, so it shows exactly which
+    /// cages the breaker just took with it.
+    /// </summary>
+    private void PlayExplosionEffect()
+    {
+        HitParticles.EmitDeathBurst(Position, explosionSparkCount);
+
+        float radius = Mathf.Max(0f, explosionRadius);
+        if (radius <= 0f || explosionFlashDuration <= 0f)
+        {
+            return;
+        }
+
+        // A scene change destroys the system; the next explosion just rebuilds it.
+        if (flashSystem == null)
+        {
+            flashSystem = CreateFlashSystem();
+        }
+
+        ParticleSystem.EmitParams emitParams = new ParticleSystem.EmitParams
+        {
+            position = Position,
+            applyShapeToPosition = true,
+            startSize = radius * 2f,
+            startLifetime = explosionFlashDuration
+        };
+        flashSystem.Emit(emitParams, 1);
+    }
+
+    private static ParticleSystem CreateFlashSystem()
+    {
+        GameObject systemObject = new GameObject("Cage Break Flash");
+        ParticleSystem system = systemObject.AddComponent<ParticleSystem>();
+
+        // Size and lifetime come from the emitting breaker, so one system serves breakers
+        // with different explosion radii.
+        ParticleSystem.MainModule main = system.main;
+        main.loop = true;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startSpeed = 0f;
+        main.startColor = Color.white;
+        main.gravityModifier = 0f;
+
+        // Bursts come only from Emit(); nothing trickles out between explosions.
+        ParticleSystem.EmissionModule emission = system.emission;
+        emission.enabled = false;
+
+        // The disc is placed by EmitParams alone; the shape is only here to carry the
+        // position through, so it has no spread of its own.
+        ParticleSystem.ShapeModule shape = system.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 0.0001f;
+
+        // Snaps most of the way open on the first frames and eases into the full radius,
+        // which reads as a blast rather than a circle growing.
+        ParticleSystem.SizeOverLifetimeModule sizeOverLifetime = system.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(
+            1f,
+            new AnimationCurve(
+                new Keyframe(0f, 0.25f, 4f, 4f),
+                new Keyframe(1f, 1f, 0f, 0f)));
+
+        ParticleSystem.ColorOverLifetimeModule colorOverLifetime = system.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(0.85f, 0.3f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOverLifetime.color = gradient;
+
+        ParticleSystemRenderer particleRenderer =
+            systemObject.GetComponent<ParticleSystemRenderer>();
+        particleRenderer.renderMode = ParticleSystemRenderMode.Billboard;
+        particleRenderer.sortingLayerName = "Foreground";
+        // One under the hit sparks, so the debris reads on top of the flash.
+        particleRenderer.sortingOrder = 9;
+        particleRenderer.sharedMaterial = GetFlashMaterial();
+
+        return system;
+    }
+
+    /// <summary>A white disc with a soft rim, so the blast has an edge instead of a hard cut.</summary>
+    private static Material GetFlashMaterial()
+    {
+        if (flashMaterial != null)
+        {
+            return flashMaterial;
+        }
+
+        Shader spriteShader = Shader.Find("Sprites/Default");
+        if (spriteShader == null)
+        {
+            return null;
+        }
+
+        const int Resolution = 64;
+        Texture2D texture = new Texture2D(Resolution, Resolution, TextureFormat.RGBA32, false)
+        {
+            name = "Cage Break Flash Texture",
+            hideFlags = HideFlags.HideAndDontSave,
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear
+        };
+
+        Color32[] pixels = new Color32[Resolution * Resolution];
+        float centre = (Resolution - 1) * 0.5f;
+        for (int y = 0; y < Resolution; y++)
+        {
+            for (int x = 0; x < Resolution; x++)
+            {
+                float distance = new Vector2(x - centre, y - centre).magnitude / centre;
+                // Square-rooting the falloff holds the disc near solid white across most
+                // of its width and spends the fade on the outer rim.
+                float alpha = Mathf.Sqrt(Mathf.Clamp01(1f - distance));
+                pixels[y * Resolution + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+
+        texture.SetPixels32(pixels);
+        texture.Apply();
+
+        flashMaterial = new Material(spriteShader)
+        {
+            name = "Shared Cage Break Flash Material",
+            mainTexture = texture,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        return flashMaterial;
     }
 
     private void EnsureCountdownText()

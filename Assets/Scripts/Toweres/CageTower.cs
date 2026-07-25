@@ -14,7 +14,7 @@ public class CageTower : MonoBehaviour
     [SerializeField] private Sprite intactSprite;
     [Tooltip("Art shown once the cage is broken. Left empty, the cage keeps its intact art.")]
     [SerializeField] private Sprite brokenSprite;
-    [SerializeField, Min(0.1f)] private float captureRadius = 1.25f;
+    [SerializeField, Min(0.1f)] private float captureRadius = 0.75f;
     [SerializeField] private CageState state = CageState.Empty;
     [SerializeField] private AudioClip captureSfx;
     [SerializeField] private AudioClip breakSfx;

@@ -77,6 +77,12 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField, AudioClipDropdown] private AudioClip placementSfx;
     [SerializeField, AudioClipDropdown] private AudioClip cageRepairSfx;
 
+    /// <summary>
+    /// Width of the menu column in reference pixels, before <see cref="menuScaleX"/> and
+    /// the screen fit are applied.
+    /// </summary>
+    private const float MenuWidth = 375f;
+
     private readonly List<Button> towerButtons = new List<Button>();
     private readonly List<Text> towerLabels = new List<Text>();
     private readonly List<Image> towerIcons = new List<Image>();
@@ -105,8 +111,6 @@ public class TowerShopUI : MonoBehaviour
 
     private GameObject buildPage;
     private GameObject roundPage;
-    private RectTransform menuPanelRect;
-    private LayoutElement menuPanelSize;
     private Text buildTabLabel;
     private Text roundTabLabel;
     private UIWireframeBox buildTabOutline;
@@ -394,7 +398,7 @@ public class TowerShopUI : MonoBehaviour
             yield break;
         }
 
-        Text payoutText = CreateText("Energy Payout", canvasObject.transform, 34, TextAnchor.MiddleCenter);
+        Text payoutText = CreateText("Energy Payout", canvasObject.transform, 40, TextAnchor.MiddleCenter);
         payoutText.text = "+" + amount;
         payoutText.color = energyPayoutColor;
         payoutText.fontStyle = FontStyle.Bold;
@@ -694,11 +698,14 @@ public class TowerShopUI : MonoBehaviour
         GameObject root = CreateUIObject("Tower Shop", canvasObject.transform);
 
         shopRootRect = root.GetComponent<RectTransform>();
-        shopRootRect.anchorMin = new Vector2(0f, 0.5f);
-        shopRootRect.anchorMax = new Vector2(0f, 0.5f);
+        // Stretched down the full height of the canvas rather than sized to its contents,
+        // so the menu is a column running from the top of the screen to the bottom. The
+        // edge padding is taken off both ends by the negative height in sizeDelta.
+        shopRootRect.anchorMin = new Vector2(0f, 0f);
+        shopRootRect.anchorMax = new Vector2(0f, 1f);
         shopRootRect.pivot = new Vector2(0f, 0.5f);
         shopRootRect.anchoredPosition = new Vector2(screenEdgePadding, 0f);
-        shopRootRect.sizeDelta = new Vector2(250f, 0f);
+        shopRootRect.sizeDelta = new Vector2(MenuWidth, -screenEdgePadding * 2f);
 
         VerticalLayoutGroup rootLayout = root.AddComponent<VerticalLayoutGroup>();
         rootLayout.spacing = 0f;
@@ -707,79 +714,40 @@ public class TowerShopUI : MonoBehaviour
         rootLayout.childControlWidth = true;
         rootLayout.childForceExpandHeight = false;
 
-        // Each page is a different height, so the shop measures itself instead of
-        // using the old hand-computed height.
-        ContentSizeFitter rootFitter = root.AddComponent<ContentSizeFitter>();
-        rootFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        rootFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
         BuildTabBar(root.transform);
 
         GameObject panel = CreateMenuPanel(root.transform, "Menu Panel");
+
+        // The tab bar takes its band off the top and the box below it takes everything
+        // that is left, which is what carries the menu down to the bottom of the screen
+        // however much - or little - the open page has to show.
+        panel.AddComponent<LayoutElement>().flexibleHeight = 1f;
+
         GameObject energyRow = CreateUIObject("Energy Row", panel.transform);
         // Tall enough that the total is not crowded against the tabs above it.
-        energyRow.AddComponent<LayoutElement>().preferredHeight = 66f;
-        energyText = CreateText("Energy", energyRow.transform, 28, TextAnchor.MiddleCenter);
+        energyRow.AddComponent<LayoutElement>().preferredHeight = 74f;
+        energyText = CreateText("Energy", energyRow.transform, 34, TextAnchor.MiddleCenter);
         energyText.color = labelColor;
         StretchLabel(energyText, 0f);
         energyText.rectTransform.anchoredPosition = energyTextOffset;
         buildPage = BuildBuildPage(panel.transform);
         roundPage = BuildRoundPage(panel.transform);
 
-        menuPanelRect = panel.GetComponent<RectTransform>();
-        menuPanelSize = panel.AddComponent<LayoutElement>();
-
-        // Filled in before the first measurement, so the panel is sized against the wave
-        // preview the Round tab will actually hold rather than against an empty page.
-        RefreshRoundPage();
         ShowTab(false);
         FitMenuToScreen();
-    }
-
-    /// <summary>
-    /// Pins the shared panel to whichever page needs the most room, so switching tabs
-    /// never resizes the box the two tabs are drawn on top of. Re-measured whenever the
-    /// pages change - a round releases another tower, or a new wave preview is written -
-    /// rather than frozen at startup, which would leave round 1's short list of pieces
-    /// sitting in a box sized for the full one.
-    /// </summary>
-    private void ResizeMenuPanel()
-    {
-        if (menuPanelRect == null || menuPanelSize == null)
-        {
-            return;
-        }
-
-        // -1 is LayoutElement's "no opinion", which takes the previous measurement back
-        // out of the numbers the pages are about to be measured against.
-        menuPanelSize.minHeight = -1f;
-        menuPanelSize.preferredHeight = -1f;
-
-        float panelHeight = Mathf.Max(MeasurePageHeight(buildPage), MeasurePageHeight(roundPage));
-
-        // The measuring passes showed each page in turn; put the open one back.
-        buildPage.SetActive(!showingRoundTab);
-        roundPage.SetActive(showingRoundTab);
-
-        menuPanelSize.minHeight = panelHeight;
-        menuPanelSize.preferredHeight = panelHeight;
-    }
-
-    /// <summary>How tall the panel wants to be with only <paramref name="page"/> shown.</summary>
-    private float MeasurePageHeight(GameObject page)
-    {
-        buildPage.SetActive(page == buildPage);
-        roundPage.SetActive(page == roundPage);
-
-        Canvas.ForceUpdateCanvases();
-        LayoutRebuilder.ForceRebuildLayoutImmediate(menuPanelRect);
-        return LayoutUtility.GetPreferredHeight(menuPanelRect);
     }
 
     private void BuildTabBar(Transform parent)
     {
         GameObject bar = CreateUIObject("Tabs", parent);
-        bar.AddComponent<LayoutElement>().preferredHeight = 50f;
+
+        // The bar keeps its band and nothing more. Without the explicit 0 the row layout
+        // added below reports a flexible height of its own, and the tabs would take half
+        // of the space the full-height menu leaves over instead of all of it going to
+        // the box underneath.
+        LayoutElement barSize = bar.AddComponent<LayoutElement>();
+        barSize.preferredHeight = 56f;
+        barSize.flexibleHeight = 0f;
 
         HorizontalLayoutGroup row = bar.AddComponent<HorizontalLayoutGroup>();
         row.spacing = 6f;
@@ -798,7 +766,7 @@ public class TowerShopUI : MonoBehaviour
         out UIWireframeBox outline,
         out Text label)
     {
-        Button button = CreateBareButton(tabName + " Tab", parent, 50f);
+        Button button = CreateBareButton(tabName + " Tab", parent, 56f);
         button.onClick.AddListener(() => ShowTab(opensRoundTab));
 
         // Open at the bottom: the top line of the box below closes the tab off, so the
@@ -806,7 +774,7 @@ public class TowerShopUI : MonoBehaviour
         outline = AddOutline(button.gameObject, drawBottom: false);
 
         label = CreateText(
-            "Label", button.transform, ScaledFontSize(22), TextAnchor.MiddleCenter);
+            "Label", button.transform, ScaledFontSize(26), TextAnchor.MiddleCenter);
         label.text = tabName;
         label.color = labelColor;
         StretchLabel(label, 4f);
@@ -835,7 +803,12 @@ public class TowerShopUI : MonoBehaviour
         colors.disabledColor = new Color(1f, 1f, 1f, 0f);
         button.colors = colors;
 
-        buttonObject.AddComponent<LayoutElement>().preferredHeight = preferredHeight;
+        // Buttons are a fixed size wherever they appear. The tower rows carry a layout
+        // group of their own, which would otherwise offer to grow and leave the list
+        // stretched across the menu instead of the spacer taking up the slack.
+        LayoutElement buttonSize = buttonObject.AddComponent<LayoutElement>();
+        buttonSize.preferredHeight = preferredHeight;
+        buttonSize.flexibleHeight = 0f;
         return button;
     }
 
@@ -879,6 +852,9 @@ public class TowerShopUI : MonoBehaviour
         }
 
         Canvas.ForceUpdateCanvases();
+        // Re-stated rather than left from construction, so an edge padding edited in the
+        // Inspector still leaves the column reaching both screen edges.
+        shopRootRect.sizeDelta = new Vector2(MenuWidth, -screenEdgePadding * 2f);
         LayoutRebuilder.ForceRebuildLayoutImmediate(shopRootRect);
 
         Vector2 canvasSize = canvasRect.rect.size;
@@ -916,6 +892,10 @@ public class TowerShopUI : MonoBehaviour
         GameObject page = CreateUIObject("Build Page", parent);
         AddPageLayout(page).padding = new RectOffset(0, 0, 0, 0);
 
+        // Fills the full-height box the way the Round page does, so the description and
+        // the repair button ride the bottom edge instead of trailing the tower list.
+        page.AddComponent<LayoutElement>().flexibleHeight = 1f;
+
         for (int i = 0; i < towers.Count; i++)
         {
             int capturedIndex = i;
@@ -925,6 +905,7 @@ public class TowerShopUI : MonoBehaviour
             towerButtons.Add(button);
         }
 
+        CreateSpacer(page.transform);
         BuildDescriptionBox(
             page.transform, out descriptionTitle, out descriptionBody, out descriptionHint);
         repairButton = CreateRepairButton(page.transform);
@@ -939,12 +920,15 @@ public class TowerShopUI : MonoBehaviour
     /// </summary>
     private void BuildDescriptionBox(Transform parent, out Text title, out Text body, out Text hint)
     {
-        const float boxHeight = 132f;
+        const float boxHeight = 158f;
 
         GameObject box = CreateUIObject("Description Box", parent);
         LayoutElement boxSize = box.AddComponent<LayoutElement>();
         boxSize.minHeight = boxHeight;
         boxSize.preferredHeight = boxHeight;
+        // The body text inside is free to grow into the box, but the box itself is not:
+        // the slack in a full-height menu belongs to the spacer above it.
+        boxSize.flexibleHeight = 0f;
 
         // Drawn thinner and dimmer than the menu box, so it reads as a section inside
         // the menu instead of competing with it.
@@ -961,26 +945,26 @@ public class TowerShopUI : MonoBehaviour
         layout.childForceExpandHeight = false;
 
         title = CreateText(
-            "Title", box.transform, ScaledFontSize(18), TextAnchor.UpperLeft);
+            "Title", box.transform, ScaledFontSize(22), TextAnchor.UpperLeft);
         title.fontStyle = FontStyle.Bold;
         title.color = highlightColor;
-        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 24f;
+        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 28f;
 
         body = CreateText(
-            "Body", box.transform, ScaledFontSize(15), TextAnchor.UpperLeft);
+            "Body", box.transform, ScaledFontSize(18), TextAnchor.UpperLeft);
         body.color = labelColor;
         body.horizontalOverflow = HorizontalWrapMode.Wrap;
         body.verticalOverflow = VerticalWrapMode.Truncate;
         // A wordy tower shrinks its text to fit rather than being cut off mid-sentence.
         body.resizeTextForBestFit = true;
-        body.resizeTextMinSize = 10;
-        body.resizeTextMaxSize = Mathf.Max(10, ScaledFontSize(15));
+        body.resizeTextMinSize = 12;
+        body.resizeTextMaxSize = Mathf.Max(12, ScaledFontSize(18));
         body.gameObject.AddComponent<LayoutElement>().flexibleHeight = 1f;
 
         hint = CreateText(
-            "Hint", box.transform, ScaledFontSize(13), TextAnchor.LowerLeft);
+            "Hint", box.transform, ScaledFontSize(16), TextAnchor.LowerLeft);
         hint.color = DimmedLabelColor;
-        hint.gameObject.AddComponent<LayoutElement>().preferredHeight = 18f;
+        hint.gameObject.AddComponent<LayoutElement>().preferredHeight = 22f;
     }
 
     private GameObject BuildRoundPage(Transform parent)
@@ -992,10 +976,10 @@ public class TowerShopUI : MonoBehaviour
         // leftover space instead of ending halfway down it.
         page.AddComponent<LayoutElement>().flexibleHeight = 1f;
 
-        roundTitleText = CreateText("Round Title", page.transform, 26, TextAnchor.MiddleCenter);
+        roundTitleText = CreateText("Round Title", page.transform, 32, TextAnchor.MiddleCenter);
         roundTitleText.fontStyle = FontStyle.Bold;
         roundTitleText.color = labelColor;
-        roundTitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 56f;
+        roundTitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 62f;
 
         // "Coming next" labels the list, so the two are one block with its own tight
         // spacing. The page's row spacing then applies around the pair rather than
@@ -1009,11 +993,11 @@ public class TowerShopUI : MonoBehaviour
         blockLayout.childForceExpandHeight = false;
 
         GameObject subtitleRow = CreateUIObject("Round Subtitle Row", nextWaveBlock.transform);
-        subtitleRow.AddComponent<LayoutElement>().preferredHeight = 20f;
+        subtitleRow.AddComponent<LayoutElement>().preferredHeight = 26f;
         // Sits on the bottom of its row, so the label rests on the first enemy rather
         // than being centred in a band of empty space.
         roundSubtitleText = CreateText(
-            "Round Subtitle", subtitleRow.transform, 16, TextAnchor.LowerLeft);
+            "Round Subtitle", subtitleRow.transform, 20, TextAnchor.LowerLeft);
         roundSubtitleText.color = new Color(0.75f, 0.8f, 0.88f, 1f);
         StretchLabel(roundSubtitleText, 0f);
         roundSubtitleText.rectTransform.anchoredPosition = comingNextTextOffset;
@@ -1032,13 +1016,7 @@ public class TowerShopUI : MonoBehaviour
         // Healing belongs with the round preview: you top up after seeing what is coming.
         potionButton = CreatePotionButton(page.transform);
 
-        // Takes whatever height the page above it does not use, which keeps Start Round
-        // on the bottom edge of the box however short the wave preview turns out to be.
-        GameObject spacer = CreateUIObject("Spacer", page.transform);
-        LayoutElement spacerLayout = spacer.AddComponent<LayoutElement>();
-        spacerLayout.minHeight = 0f;
-        spacerLayout.preferredHeight = 0f;
-        spacerLayout.flexibleHeight = 1f;
+        CreateSpacer(page.transform);
 
         // Sits below the spacer so it reads off the bottom of the menu, the way the
         // Build tab's description box does under the tower list.
@@ -1047,6 +1025,20 @@ public class TowerShopUI : MonoBehaviour
 
         StartRoundButton = CreateStartRoundButton(page.transform);
         return page;
+    }
+
+    /// <summary>
+    /// An empty row that swallows whatever height the rows around it do not use. It is
+    /// what holds the description box and the button under it against the bottom of the
+    /// menu while the content above stays at the top.
+    /// </summary>
+    private static void CreateSpacer(Transform parent)
+    {
+        GameObject spacer = CreateUIObject("Spacer", parent);
+        LayoutElement spacerLayout = spacer.AddComponent<LayoutElement>();
+        spacerLayout.minHeight = 0f;
+        spacerLayout.preferredHeight = 0f;
+        spacerLayout.flexibleHeight = 1f;
     }
 
     /// <summary>The shared vertical stack used by the panel and by each tab page.</summary>
@@ -1075,7 +1067,6 @@ public class TowerShopUI : MonoBehaviour
         }
 
         RefreshUI();
-        ResizeMenuPanel();
         FitMenuToScreen();
     }
 
@@ -1140,56 +1131,61 @@ public class TowerShopUI : MonoBehaviour
     }
 
     /// <summary>
-    /// One enemy in the next wave: its name on a line of its own, with the art below
-    /// spanning the menu box. Aspect is preserved, so the art reaches both edges whenever
-    /// the row is tall enough to let it.
+    /// One enemy in the next wave, read across rather than down: the art in a square cell
+    /// on the left with the name and count beside it, so a wave of several types stays a
+    /// short list instead of a column of full-width pictures.
     /// </summary>
     private void CreateEnemyPreviewRow(WaveSpawner.WavePreviewEntry entry, float maxRowHeight)
     {
-        // The name owns a band at the top of the row and the art starts below the gap,
-        // so the two never overlap however tall the art ends up.
-        const float labelHeight = 22f;
-        const float labelGap = 6f;
+        // Padding around the art inside its cell, and the gap between cell and name.
+        const float artInset = 4f;
+        const float labelGap = 12f;
 
-        Sprite sprite = GetEnemySprite(entry.prefab);
-        float artHeight = Mathf.Max(
-            20f,
-            Mathf.Min(GetFullWidthPreviewHeight(sprite), maxRowHeight - labelHeight - labelGap));
+        float rowHeight = Mathf.Clamp(maxRowHeight, 34f, 84f);
+        float artCellSize = rowHeight;
 
         GameObject rowObject = CreateUIObject(entry.prefab.name + " Preview", enemyListRoot);
-        rowObject.AddComponent<LayoutElement>().preferredHeight =
-            labelHeight + labelGap + artHeight;
+        rowObject.AddComponent<LayoutElement>().preferredHeight = rowHeight;
 
         // The row itself is what the pointer hits: an invisible graphic behind the name
         // and the art, both of which stay raycast-free so the whole row is one target.
         Image hoverWash = rowObject.AddComponent<Image>();
         hoverWash.color = RowWashColor(false);
 
+        GameObject artObject = CreateUIObject("Art", rowObject.transform);
+        Image art = artObject.AddComponent<Image>();
+        art.sprite = GetEnemySprite(entry.prefab);
+        art.preserveAspect = true;
+        art.raycastTarget = false;
+        art.enabled = art.sprite != null;
+
+        // A square cell pinned to the left edge. Aspect is preserved inside it, so a wide
+        // enemy and a tall one both sit on the same left margin and the same baseline.
+        RectTransform artRect = art.rectTransform;
+        artRect.anchorMin = new Vector2(0f, 0f);
+        artRect.anchorMax = new Vector2(0f, 1f);
+        artRect.pivot = new Vector2(0f, 0.5f);
+        artRect.sizeDelta = new Vector2(artCellSize, -artInset * 2f);
+        artRect.anchoredPosition = new Vector2(artInset, 0f);
+
         Text label = CreateText(
-            "Label", rowObject.transform, ScaledFontSize(18), TextAnchor.MiddleCenter);
+            "Label", rowObject.transform, ScaledFontSize(22), TextAnchor.MiddleLeft);
         label.text = entry.prefab.name + "   x" + entry.count;
         label.color = labelColor;
         label.fontStyle = FontStyle.Bold;
         label.raycastTarget = false;
+        // A long enemy name shrinks to stay inside the column rather than running out
+        // past the edge of the menu box.
+        label.resizeTextForBestFit = true;
+        label.resizeTextMinSize = 12;
+        label.resizeTextMaxSize = Mathf.Max(12, ScaledFontSize(22));
 
+        // Starts where the art cell ends, so a long enemy name never runs under the art.
         RectTransform labelRect = label.rectTransform;
-        labelRect.anchorMin = new Vector2(0f, 1f);
+        labelRect.anchorMin = Vector2.zero;
         labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = new Vector2(6f, -labelHeight);
+        labelRect.offsetMin = new Vector2(artCellSize + labelGap, 0f);
         labelRect.offsetMax = new Vector2(-6f, 0f);
-
-        GameObject artObject = CreateUIObject("Art", rowObject.transform);
-        Image art = artObject.AddComponent<Image>();
-        art.sprite = sprite;
-        art.preserveAspect = true;
-        art.raycastTarget = false;
-        art.enabled = sprite != null;
-
-        RectTransform artRect = art.rectTransform;
-        artRect.anchorMin = Vector2.zero;
-        artRect.anchorMax = Vector2.one;
-        artRect.offsetMin = Vector2.zero;
-        artRect.offsetMax = new Vector2(0f, -(labelHeight + labelGap));
 
         // Captured now rather than read back off the row, since the row is destroyed and
         // rebuilt whenever the upcoming wave changes.
@@ -1279,31 +1275,14 @@ public class TowerShopUI : MonoBehaviour
     }
 
     /// <summary>
-    /// How tall a row has to be for this art to reach both edges of the menu box. Rows
-    /// taller than this would only add empty space, since aspect is preserved.
-    /// </summary>
-    private float GetFullWidthPreviewHeight(Sprite sprite)
-    {
-        if (sprite == null || sprite.rect.width <= 0f)
-        {
-            return 30f;
-        }
-
-        float boxWidth = shopRootRect != null ? shopRootRect.rect.width : 250f;
-        // Both page padding columns, which the row does not cover.
-        float rowWidth = Mathf.Max(1f, boxWidth - 24f);
-        return rowWidth * (sprite.rect.height / sprite.rect.width);
-    }
-
-    /// <summary>
     /// The height each preview may take. The list as a whole is capped so the round page
     /// cannot outgrow the box, which means a wave of one enemy type spends the lot on it
-    /// and four types share it.
+    /// and four types share it. The row itself clamps this, so a short list is a list of
+    /// readable rows rather than a few enormous ones.
     /// </summary>
     private static float GetEnemyPreviewRowBudget(int entryCount)
     {
-        // Room for the name band above each piece of art as well as the art itself.
-        const float listHeight = 260f;
+        const float listHeight = 300f;
         const float rowSpacing = 2f;
 
         if (entryCount <= 0)
@@ -1331,11 +1310,11 @@ public class TowerShopUI : MonoBehaviour
 
     private Button CreateRepairButton(Transform parent)
     {
-        Button button = CreateBareButton("Repair Cage", parent, 62f);
+        Button button = CreateBareButton("Repair Cage", parent, 68f);
         button.onClick.AddListener(ToggleRepairMode);
 
         repairLabel = CreateText(
-            "Label", button.transform, ScaledFontSize(20), TextAnchor.MiddleCenter);
+            "Label", button.transform, ScaledFontSize(24), TextAnchor.MiddleCenter);
         repairLabel.color = labelColor;
         StretchLabel(repairLabel, 8f);
         return button;
@@ -1343,11 +1322,11 @@ public class TowerShopUI : MonoBehaviour
 
     private Button CreatePotionButton(Transform parent)
     {
-        Button button = CreateBareButton("Health Potion", parent, 62f);
+        Button button = CreateBareButton("Health Potion", parent, 68f);
         button.onClick.AddListener(BuyHealthPotion);
 
         potionLabel = CreateText(
-            "Label", button.transform, ScaledFontSize(20), TextAnchor.MiddleCenter);
+            "Label", button.transform, ScaledFontSize(24), TextAnchor.MiddleCenter);
         potionLabel.text = "Health Potion (+" + potionHealAmount + ")  " + potionPrice;
         potionLabel.color = labelColor;
         StretchLabel(potionLabel, 8f);
@@ -1356,10 +1335,10 @@ public class TowerShopUI : MonoBehaviour
 
     private Button CreateStartRoundButton(Transform parent)
     {
-        Button button = CreateBareButton("Start Round", parent, 62f);
+        Button button = CreateBareButton("Start Round", parent, 68f);
 
         Text label = CreateText(
-            "Label", button.transform, ScaledFontSize(24), TextAnchor.MiddleCenter);
+            "Label", button.transform, ScaledFontSize(28), TextAnchor.MiddleCenter);
         label.text = "Start Round";
         label.color = startRoundLabelColor;
         StretchLabel(label, 0f);
@@ -1368,7 +1347,7 @@ public class TowerShopUI : MonoBehaviour
 
     private Button CreateButton(Transform parent, TowerOffer offer, int index)
     {
-        Button button = CreateBareButton("Tower " + index, parent, 62f);
+        Button button = CreateBareButton("Tower " + index, parent, 66f);
         GameObject buttonObject = button.gameObject;
 
         HorizontalLayoutGroup row = buttonObject.AddComponent<HorizontalLayoutGroup>();
@@ -1383,16 +1362,16 @@ public class TowerShopUI : MonoBehaviour
         icon.sprite = GetOfferSprite(offer);
         icon.preserveAspect = true;
         LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
-        iconLayout.preferredWidth = 48f * buttonContentScale;
-        iconLayout.preferredHeight = 48f * buttonContentScale;
+        iconLayout.preferredWidth = 52f * buttonContentScale;
+        iconLayout.preferredHeight = 52f * buttonContentScale;
 
         Text label = CreateText(
-            "Label", buttonObject.transform, ScaledFontSize(20), TextAnchor.MiddleLeft);
+            "Label", buttonObject.transform, ScaledFontSize(24), TextAnchor.MiddleLeft);
         label.text = offer.displayName + "  " + offer.price;
         label.color = labelColor;
         LayoutElement labelLayout = label.gameObject.AddComponent<LayoutElement>();
         labelLayout.flexibleWidth = 1f;
-        labelLayout.preferredHeight = 48f;
+        labelLayout.preferredHeight = 52f;
 
         // Recorded so the selected offer can be lit up without a button background.
         towerLabels.Add(label);
@@ -1605,7 +1584,6 @@ public class TowerShopUI : MonoBehaviour
         if (healingWouldHelp != potionButton.gameObject.activeSelf)
         {
             RefreshUI();
-            ResizeMenuPanel();
             FitMenuToScreen();
         }
     }

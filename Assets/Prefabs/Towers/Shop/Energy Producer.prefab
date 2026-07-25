@@ -153,7 +153,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e918ad696351b75439bc29ef27224498, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MoneyTower
-  coinsPerPower: 100
+  energyPerPower: 100
   towerShop: {fileID: 0}
   paymentSfx: {fileID: 0}
   unpoweredSprite: {fileID: 2244537257139846633, guid: 0cce292fa3659e94ea2060b87b0cd5ac, type: 3}
@@ -179,9 +179,7 @@ MonoBehaviour:
   aimDirection: {x: -1, y: 0}
   supportPiece: 0
   walkThrough: 0
-  description: 'Gives 100 Energy per powered cage.
-
-    + Energy Per Round'
+  description: Gives 100 Energy per powered cage. + Energy Per Round
 --- !u!114 &6402893465600897724
 MonoBehaviour:
   m_ObjectHideFlags: 0
