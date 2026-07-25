@@ -162,32 +162,32 @@ MonoBehaviour:
       spawnCredits: 1
     tokens: 0
     targetEnemyCount: 1
-    birdCount: 3
-    breakerCount: 3
+    birdCount: 2
+    breakerCount: 0
     targetTime: 3
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
     tokens: 4
     targetEnemyCount: 4
-    birdCount: 1
-    breakerCount: 1
+    birdCount: 0
+    breakerCount: 0
     targetTime: 9
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
-    tokens: 5
-    targetEnemyCount: 5
-    birdCount: 1
+    tokens: 3
+    targetEnemyCount: 3
+    birdCount: 0
     breakerCount: 1
-    targetTime: 10
+    targetTime: 3
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
     - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
       spawnCredits: 3
     tokens: 11
-    targetEnemyCount: 7
+    targetEnemyCount: 3
     birdCount: 1
     breakerCount: 1
     targetTime: 11
@@ -209,7 +209,7 @@ MonoBehaviour:
     tokens: 20
     targetEnemyCount: 12
     birdCount: 2
-    breakerCount: 2
+    breakerCount: 1
     targetTime: 13
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -220,7 +220,7 @@ MonoBehaviour:
       spawnCredits: 5
     tokens: 31
     targetEnemyCount: 17
-    birdCount: 2
+    birdCount: 1
     breakerCount: 2
     targetTime: 14
   - enemiesEnabled:
@@ -268,8 +268,8 @@ MonoBehaviour:
       spawnCredits: 5
     tokens: 123
     targetEnemyCount: 51
-    birdCount: 2
-    breakerCount: 2
+    birdCount: 3
+    breakerCount: 3
     targetTime: 18
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -280,7 +280,7 @@ MonoBehaviour:
       spawnCredits: 5
     tokens: 172
     targetEnemyCount: 68
-    birdCount: 3
+    birdCount: 2
     breakerCount: 3
     targetTime: 19
   - enemiesEnabled:
@@ -292,7 +292,7 @@ MonoBehaviour:
       spawnCredits: 5
     tokens: 243
     targetEnemyCount: 91
-    birdCount: 3
+    birdCount: 2
     breakerCount: 3
     targetTime: 20
   - enemiesEnabled:
@@ -305,7 +305,7 @@ MonoBehaviour:
     tokens: 339
     targetEnemyCount: 121
     birdCount: 3
-    breakerCount: 3
+    breakerCount: 4
     targetTime: 20
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -317,7 +317,7 @@ MonoBehaviour:
     tokens: 472
     targetEnemyCount: 160
     birdCount: 3
-    breakerCount: 3
+    breakerCount: 4
     targetTime: 21
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -329,7 +329,7 @@ MonoBehaviour:
     tokens: 657
     targetEnemyCount: 213
     birdCount: 3
-    breakerCount: 3
+    breakerCount: 4
     targetTime: 21
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -340,8 +340,8 @@ MonoBehaviour:
       spawnCredits: 5
     tokens: 913
     targetEnemyCount: 283
-    birdCount: 3
-    breakerCount: 3
+    birdCount: 4
+    breakerCount: 4
     targetTime: 22
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -353,7 +353,7 @@ MonoBehaviour:
     tokens: 1264
     targetEnemyCount: 376
     birdCount: 3
-    breakerCount: 3
+    breakerCount: 4
     targetTime: 22
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -364,8 +364,8 @@ MonoBehaviour:
       spawnCredits: 5
     tokens: 1730
     targetEnemyCount: 494
-    birdCount: 3
-    breakerCount: 3
+    birdCount: 4
+    breakerCount: 5
     targetTime: 23
   player: {fileID: 0}
   spawnRadius: 12
@@ -393,30 +393,38 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TowerShopUI
   startingEnergy: 0
   towers:
-  - displayName: Generator
-    prefab: {fileID: 8755736338420080416, guid: 94d6126dbfd7c0941a9e2fdc9bc27c6e, type: 3}
-    price: 100
-  - displayName: Cannon
-    prefab: {fileID: 6895232330752811065, guid: 93489eb75e09dd24db7c21c7b4c97a4a, type: 3}
-    price: 50
   - displayName: Shotgun
     prefab: {fileID: 4207048639629459165, guid: 113d84a8722d4104fa90cf1e65367424, type: 3}
-    price: 75
+    price: 100
+    unlockRound: 0
+  - displayName: Generator
+    prefab: {fileID: 8755736338420080416, guid: 94d6126dbfd7c0941a9e2fdc9bc27c6e, type: 3}
+    price: 500
+    unlockRound: 0
+  - displayName: Cannon
+    prefab: {fileID: 6895232330752811065, guid: 93489eb75e09dd24db7c21c7b4c97a4a, type: 3}
+    price: 400
+    unlockRound: 0
   - displayName: Blade
     prefab: {fileID: 689768124312060714, guid: 57bb0c77f467e394ca86e4bc504b76fe, type: 3}
-    price: 100
+    price: 1000
+    unlockRound: 0
   - displayName: Lightning
     prefab: {fileID: 5157854673919590627, guid: f37d943d75669644d82ff8f9695e8822, type: 3}
     price: 200
+    unlockRound: 0
   - displayName: Gust
     prefab: {fileID: 5158665762915999829, guid: 1fd7ea4f4e2419a4c9239231c0912635, type: 3}
     price: 100
+    unlockRound: 0
   - displayName: Cage
     prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
-    price: 25
+    price: 50
+    unlockRound: 0
   - displayName: Scaffold
     prefab: {fileID: 8012409773836190367, guid: 9d1dad1ac33d16f4e9012becf684be94, type: 3}
     price: 5
+    unlockRound: 0
   placement: {fileID: 0}
   potionHealAmount: 5
   potionPrice: 25
@@ -469,15 +477,19 @@ MonoBehaviour:
   - displayName: Scaffolding
     prefab: {fileID: 8012409773836190367, guid: 9d1dad1ac33d16f4e9012becf684be94, type: 3}
     price: 0
+    unlockRound: 0
   - displayName: Cage
     prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
     price: 0
+    unlockRound: 0
   - displayName: Cage
     prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
     price: 0
+    unlockRound: 0
   - displayName: MoneyFarm
     prefab: {fileID: 8755736338420080416, guid: 94d6126dbfd7c0941a9e2fdc9bc27c6e, type: 3}
     price: 0
+    unlockRound: 0
 --- !u!4 &265706328
 Transform:
   m_ObjectHideFlags: 0
