@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 73be1159b06cb124d86751fe6ee01099
+guid: a987720924f595e4ea2f9811755c68d1
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 2145780263115915209
-    second: IMG_1187_0
+      213: -9041374231342658063
+    second: Breaker3_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -51,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 100
+  spritePixelsToUnits: 1000
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -109,30 +109,17 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
-  - serializedVersion: 4
-    buildTarget: WindowsStoreApps
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    ignorePlatformSupport: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: IMG_1187_0
+      name: Breaker3_0
       rect:
         serializedVersion: 2
-        x: 1
-        y: 5
-        width: 1494
-        height: 1015
+        x: 2
+        y: 0
+        width: 1503
+        height: 1024
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 9cf711dc7c757cd10800000000000000
-      internalID: 2145780263115915209
+      spriteID: 1fd43733a06968280800000000000000
+      internalID: -9041374231342658063
       vertices: []
       indices: 
       edges: []
@@ -161,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      IMG_1187_0: 2145780263115915209
+      Breaker3_0: -9041374231342658063
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

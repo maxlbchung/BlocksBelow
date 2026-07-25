@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: f9f41998007c29e4a8bfe84c8c13c75e
+guid: 98009e8e6af793648a254ca5fd79cb9f
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8396249770993432654
-    second: IMG_1189_0
+      213: -728488644960612398
+    second: HealthPotion_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -109,30 +109,17 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
-  - serializedVersion: 4
-    buildTarget: WindowsStoreApps
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    ignorePlatformSupport: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: IMG_1189_0
+      name: HealthPotion_0
       rect:
         serializedVersion: 2
-        x: 15
-        y: 116
-        width: 1454
-        height: 789
+        x: 132
+        y: 81
+        width: 141
+        height: 217
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 2b74b7a81578a7b80800000000000000
-      internalID: -8396249770993432654
+      spriteID: 2df8736ef63e3e5f0800000000000000
+      internalID: -728488644960612398
       vertices: []
       indices: 
       edges: []
@@ -161,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      IMG_1189_0: -8396249770993432654
+      HealthPotion_0: -728488644960612398
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -29,12 +29,14 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField, Min(0f)] private float countdownScreenEdgeInset = 48f;
     [SerializeField] private TextMeshPro countdownText;
     [SerializeField] private SpriteRenderer countdownBackground;
+    [SerializeField] private float startExplosionAnimationTime = 0.5f;
 
     private readonly List<CageTower> cagesInExplosion = new List<CageTower>(16);
     private SpriteRenderer[] spriteRenderers;
     private CageTower targetCage;
     private BreakerState state;
     private float countdownRemaining;
+    private Animator animator;
 
     public BreakerState State => state;
     public CageTower TargetCage => targetCage;
@@ -57,6 +59,7 @@ public sealed class CageBreakerEnemy : Enemy
     {
         base.Awake();
         spriteRenderers = GetComponentsInChildren<SpriteRenderer>(true);
+        animator = GetComponent<Animator>();
         EnsureCountdownText();
     }
 
@@ -93,6 +96,8 @@ public sealed class CageBreakerEnemy : Enemy
 
         countdownRemaining -= Time.deltaTime;
         UpdateCountdownText();
+        if (countdownRemaining <= startExplosionAnimationTime)
+            animator.SetBool("DoExplosionEffect", true);
         if (countdownRemaining < 0f)
         {
             Explode();
@@ -323,7 +328,7 @@ public sealed class CageBreakerEnemy : Enemy
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (IsPlayerCollider(other))
+        if (state == BreakerState.Breaking && IsPlayerCollider(other))
         {
             ReleaseOrDestroy();
         }
