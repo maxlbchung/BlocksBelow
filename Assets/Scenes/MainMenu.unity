@@ -423,6 +423,7 @@ MonoBehaviour:
   audioMixer: {fileID: 24100000, guid: c06ee77f558d7e7458083183ac3fe289, type: 2}
   sfxVolume: 0.85
   musicVolume: 0.7
+  sfxVoiceCount: 24
 --- !u!1 &145116275
 GameObject:
   m_ObjectHideFlags: 0
@@ -2518,10 +2519,10 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 50
+    m_FontSize: 5
     m_FontStyle: 0
     m_BestFit: 0
-    m_MinSize: 10
+    m_MinSize: 5
     m_MaxSize: 50
     m_Alignment: 3
     m_AlignByGeometry: 0
@@ -2529,7 +2530,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: A puzzle platformer
+  m_Text: not A puzzle platformer
 --- !u!222 &852534707
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -4706,6 +4707,7 @@ MonoBehaviour:
   audioMixer: {fileID: 24100000, guid: c06ee77f558d7e7458083183ac3fe289, type: 2}
   sfxVolume: 1
   musicVolume: 1
+  sfxVoiceCount: 24
 --- !u!1 &1835723558
 GameObject:
   m_ObjectHideFlags: 0
