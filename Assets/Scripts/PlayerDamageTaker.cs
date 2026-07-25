@@ -30,6 +30,7 @@ public class PlayerDamageTaker : MonoBehaviour
             playerController.DamagePlayer(
                 bullet.damage,
                 CalculateKnockbackDirection(transform.position, other.transform.position));
+            Destroy(bullet.gameObject);
         }
     }
 
