@@ -1,11 +1,17 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class BasicTower : MonoBehaviour
 {
     [SerializeField] private Projectile projectilePrefab;
-    [SerializeField, Min(0f), Tooltip("Shots per second granted by each full cage below.")]
-    private float fireRatePerPower = 1f;
-    [SerializeField] private float damage = 1f;
+    [SerializeField, Min(0f), FormerlySerializedAs("fireRatePerPower"),
+     Tooltip("Shots per second. Constant: power changes the shot, not the cadence.")]
+    private float fireRate = 1f;
+    [SerializeField, FormerlySerializedAs("damage"),
+     Tooltip("Damage granted by each full cage below. Power 2 hits twice as hard as power 1.")]
+    private float damagePerPower = 1f;
+    [SerializeField, Min(0f), Tooltip("Extra bullet size per power above the first. 0.35 makes a power 3 shot 1.7x as wide.")]
+    private float bulletSizePerPower = 0.35f;
     [SerializeField] private AudioClip shootSfx;
     [SerializeField, Min(0), Tooltip("Projectiles prepared before this tower starts firing.")]
     private int projectilePrewarmCount = 30;
@@ -39,8 +45,8 @@ public class BasicTower : MonoBehaviour
 
     private void Update()
     {
-        float fireRate = (cageStack != null ? cageStack.PowerLevel : 0) * fireRatePerPower;
-        if (fireRate <= 0f || !WaveSpawner.IsWaveActive)
+        int power = cageStack != null ? cageStack.PowerLevel : 0;
+        if (power <= 0 || fireRate <= 0f || !WaveSpawner.IsWaveActive)
         {
             return;
         }
@@ -50,11 +56,11 @@ public class BasicTower : MonoBehaviour
             return;
         }
 
-        Shoot();
+        Shoot(power);
         nextShotTime = Time.time + 1f / fireRate;
     }
 
-    private void Shoot()
+    private void Shoot(int power)
     {
         if (projectilePrefab == null)
         {
@@ -68,7 +74,8 @@ public class BasicTower : MonoBehaviour
             transform.position,
             Quaternion.identity,
             direction,
-            damage);
+            power * damagePerPower,
+            1f + (power - 1) * bulletSizePerPower);
         if (projectile != null)
         {
             PlaySfx();

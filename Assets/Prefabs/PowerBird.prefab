@@ -81,8 +81,8 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: -1220049041
+  m_SortingLayer: 2
   m_SortingOrder: 45
   m_MaskInteraction: 0
   m_Sprite: {fileID: 1966655184685947929, guid: 59fd63417efbcb44780395cc61bbcc27, type: 3}
@@ -194,6 +194,7 @@ MonoBehaviour:
   groundApproachBand: 1.5
   groundRecoverySpeed: 4
   isCagable: 1
+  description: Drifts in faded out, then dives once it is close. Only catchable while it is attacking, and a bird in a cage is what powers every tower stacked above it. Shooting it buys you time before it gives up and flies off.
   moveSpeed: 8
   acceleration: 5
   attackDistance: 4

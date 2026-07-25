@@ -121,6 +121,7 @@ MonoBehaviour:
   groundApproachBand: 1.5
   groundRecoverySpeed: 4
   isCagable: 0
+  description: Fades in almost invisible and cannot be shot at all. It picks a full cage, settles on it, counts down, then explodes and breaks every cage around it. Nothing stops it - rebuild or repair once it is gone.
   moveSpeed: 4
   sneakingOpacity: 0.25
   spawnRadius: 12

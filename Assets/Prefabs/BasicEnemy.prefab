@@ -108,10 +108,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BasicEnemy
   health: 3
+  hitSfx: {fileID: 0}
+  hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
+  hitFlashDuration: 0.06
+  hitFlashCount: 2
+  hitParticleCount: 8
+  invincibilityTime: 0.1
   repulsionForce: 1
   repulsionRadius: 1
   exponentialFalloff: 3
+  groundClearance: 0.5
+  groundApproachBand: 1.5
+  groundRecoverySpeed: 4
   isCagable: 0
+  description: Dives at you with great speed, dealing damage on contact.
   moveSpeed: 5
   damage: 1
 --- !u!50 &4573768113491351581

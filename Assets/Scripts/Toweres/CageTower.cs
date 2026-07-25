@@ -79,6 +79,10 @@ public class CageTower : MonoBehaviour
         GameObject enemy = FindTaggedEnemy(other);
         if (enemy != null
             && enemy.TryGetComponent(out Enemy enemyComponent)
+            // Neighboring cages' capture circles overlap, so one enemy can trip two
+            // triggers in the same physics step. Capture disables the enemy's scripts,
+            // so a disabled Enemy here is one another cage has already taken.
+            && enemyComponent.isActiveAndEnabled
             && enemyComponent.CanBeCaged)
         {
             Capture(enemy);

@@ -302,6 +302,7 @@ public class PlayerController : Entity
         SpriteRenderer renderer = barObject.AddComponent<SpriteRenderer>();
         renderer.sprite = healthBarSprite;
         renderer.color = color;
+        renderer.sortingLayerName = "Foreground";
         renderer.sortingOrder = sortingOrder;
 
         return barObject;

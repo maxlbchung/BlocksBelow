@@ -19,6 +19,14 @@ public class TowerShopUI : MonoBehaviour
         public GameObject prefab;
 
         [Min(0)] public int price = 10;
+
+        [Tooltip("The round this piece is released in. It first appears in the shop that "
+            + "opens once that round has been reached, and stays available afterwards. "
+            + "Leave at 0 to take the round from this entry's position in the list - first "
+            + "tower round 1, second tower round 2, and so on. Pieces that stand on their "
+            + "own, like cages and scaffolding, default to round 1 instead, since nothing "
+            + "else can be built without them.")]
+        [Min(0)] public int unlockRound;
     }
 
     [Header("Shop")]
@@ -93,15 +101,21 @@ public class TowerShopUI : MonoBehaviour
     private Coroutine energyTickRoutine;
     private int selectedIndex = -1;
     private bool repairMode;
+    private int[] unlockRounds;
 
     private GameObject buildPage;
     private GameObject roundPage;
+    private RectTransform menuPanelRect;
+    private LayoutElement menuPanelSize;
     private Text buildTabLabel;
     private Text roundTabLabel;
     private UIWireframeBox buildTabOutline;
     private UIWireframeBox roundTabOutline;
     private Text roundTitleText;
     private Text roundSubtitleText;
+    private Text enemyTitle;
+    private Text enemyBody;
+    private Text enemyHint;
     private Transform enemyListRoot;
     private WaveSpawner waveSpawner;
     private bool showingRoundTab;
@@ -114,6 +128,14 @@ public class TowerShopUI : MonoBehaviour
 
     /// <summary>True while clicking a broken cage should repair it instead of placing a tower.</summary>
     public bool RepairMode => repairMode;
+
+    /// <summary>
+    /// The highest round the player has reached, which is what pieces are released by.
+    /// A scene with no spawner - the stress test, the prefab builder - has no rounds to
+    /// gate on, so everything in the list is offered.
+    /// </summary>
+    private int ReleasedThroughRound =>
+        waveSpawner != null ? waveSpawner.CurrentRoundNumber : int.MaxValue;
 
     /// <summary>Label colour of an offer the player cannot pay for.</summary>
     private Color DimmedLabelColor =>
@@ -141,17 +163,77 @@ public class TowerShopUI : MonoBehaviour
             player = FindFirstObjectByType<PlayerController>();
         }
 
+        // Which pieces the shop may show depends on the round, so the spawner has to be
+        // known before the first list is built rather than when the Round tab first opens.
+        if (waveSpawner == null)
+        {
+            waveSpawner = FindFirstObjectByType<WaveSpawner>();
+        }
+
+        CacheUnlockRounds();
         BuildShopUI();
         RefreshUI();
 
+        SelectFirstAvailableTower();
+    }
+
+    /// <summary>
+    /// Puts the cursor on something buildable, so a build phase never opens with nothing
+    /// selected. Skips pieces that are still locked or out of reach on the current energy.
+    /// </summary>
+    private void SelectFirstAvailableTower()
+    {
         for (int i = 0; i < towers.Count; i++)
         {
-            if (CanAfford(towers[i].price))
+            if (IsReleased(i) && CanAfford(towers[i].price))
             {
                 SelectTower(i);
-                break;
+                return;
             }
         }
+    }
+
+    /// <summary>The round an offer joins the shop in.</summary>
+    public int GetUnlockRound(int index)
+    {
+        if (unlockRounds == null || index < 0 || index >= unlockRounds.Length)
+        {
+            return int.MaxValue;
+        }
+
+        return unlockRounds[index];
+    }
+
+    /// <summary>
+    /// Works out when each offer is released, once, since none of it changes during a run.
+    /// An entry carrying its own <see cref="TowerOffer.unlockRound"/> keeps it. The rest
+    /// come out one tower per round in list order - except the pieces that stand on their
+    /// own, which are there from round 1: cages and scaffolding are what everything else
+    /// is built on, so holding them back would leave the player nowhere to place a tower.
+    /// </summary>
+    private void CacheUnlockRounds()
+    {
+        unlockRounds = new int[towers.Count];
+
+        int towerPosition = 0;
+        for (int i = 0; i < towers.Count; i++)
+        {
+            bool support = IsSupportPiece(towers[i]);
+            if (!support)
+            {
+                towerPosition++;
+            }
+
+            unlockRounds[i] = towers[i].unlockRound > 0
+                ? towers[i].unlockRound
+                : (support ? 1 : towerPosition);
+        }
+    }
+
+    /// <summary>True once the player has reached the round that releases this offer.</summary>
+    public bool IsReleased(int index)
+    {
+        return ReleasedThroughRound >= GetUnlockRound(index);
     }
 
     public bool CanAfford(int price)
@@ -377,7 +459,7 @@ public class TowerShopUI : MonoBehaviour
         }
 
         TowerOffer offer = towers[index];
-        if (GetOfferSprite(offer) == null || !CanAfford(offer.price))
+        if (GetOfferSprite(offer) == null || !CanAfford(offer.price) || !IsReleased(index))
         {
             return;
         }
@@ -644,20 +726,54 @@ public class TowerShopUI : MonoBehaviour
         buildPage = BuildBuildPage(panel.transform);
         roundPage = BuildRoundPage(panel.transform);
 
-        // The Build page is the taller page. Use its fully calculated height for the
-        // shared panel so changing to the shorter Round page never shrinks the box
-        // the two tabs are drawn on top of.
-        roundPage.SetActive(false);
-        Canvas.ForceUpdateCanvases();
-        RectTransform panelRect = panel.GetComponent<RectTransform>();
-        LayoutRebuilder.ForceRebuildLayoutImmediate(panelRect);
-        float buildPanelHeight = LayoutUtility.GetPreferredHeight(panelRect);
-        LayoutElement fixedPanelSize = panel.AddComponent<LayoutElement>();
-        fixedPanelSize.minHeight = buildPanelHeight;
-        fixedPanelSize.preferredHeight = buildPanelHeight;
+        menuPanelRect = panel.GetComponent<RectTransform>();
+        menuPanelSize = panel.AddComponent<LayoutElement>();
 
+        // Filled in before the first measurement, so the panel is sized against the wave
+        // preview the Round tab will actually hold rather than against an empty page.
+        RefreshRoundPage();
         ShowTab(false);
         FitMenuToScreen();
+    }
+
+    /// <summary>
+    /// Pins the shared panel to whichever page needs the most room, so switching tabs
+    /// never resizes the box the two tabs are drawn on top of. Re-measured whenever the
+    /// pages change - a round releases another tower, or a new wave preview is written -
+    /// rather than frozen at startup, which would leave round 1's short list of pieces
+    /// sitting in a box sized for the full one.
+    /// </summary>
+    private void ResizeMenuPanel()
+    {
+        if (menuPanelRect == null || menuPanelSize == null)
+        {
+            return;
+        }
+
+        // -1 is LayoutElement's "no opinion", which takes the previous measurement back
+        // out of the numbers the pages are about to be measured against.
+        menuPanelSize.minHeight = -1f;
+        menuPanelSize.preferredHeight = -1f;
+
+        float panelHeight = Mathf.Max(MeasurePageHeight(buildPage), MeasurePageHeight(roundPage));
+
+        // The measuring passes showed each page in turn; put the open one back.
+        buildPage.SetActive(!showingRoundTab);
+        roundPage.SetActive(showingRoundTab);
+
+        menuPanelSize.minHeight = panelHeight;
+        menuPanelSize.preferredHeight = panelHeight;
+    }
+
+    /// <summary>How tall the panel wants to be with only <paramref name="page"/> shown.</summary>
+    private float MeasurePageHeight(GameObject page)
+    {
+        buildPage.SetActive(page == buildPage);
+        roundPage.SetActive(page == roundPage);
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(menuPanelRect);
+        return LayoutUtility.GetPreferredHeight(menuPanelRect);
     }
 
     private void BuildTabBar(Transform parent)
@@ -809,16 +925,19 @@ public class TowerShopUI : MonoBehaviour
             towerButtons.Add(button);
         }
 
-        BuildDescriptionBox(page.transform);
+        BuildDescriptionBox(
+            page.transform, out descriptionTitle, out descriptionBody, out descriptionHint);
         repairButton = CreateRepairButton(page.transform);
         return page;
     }
 
     /// <summary>
-    /// The box under the tower list that explains whatever is selected. Its height is
-    /// fixed, so a short description and a long one leave the menu the same size.
+    /// The box at the bottom of a page that explains whatever is selected or hovered.
+    /// Its height is fixed, so a short description and a long one leave the menu the
+    /// same size. Both tabs get one: the Build page describes the selected piece, the
+    /// Round page the enemy under the cursor.
     /// </summary>
-    private void BuildDescriptionBox(Transform parent)
+    private void BuildDescriptionBox(Transform parent, out Text title, out Text body, out Text hint)
     {
         const float boxHeight = 132f;
 
@@ -841,27 +960,27 @@ public class TowerShopUI : MonoBehaviour
         layout.childControlWidth = true;
         layout.childForceExpandHeight = false;
 
-        descriptionTitle = CreateText(
+        title = CreateText(
             "Title", box.transform, ScaledFontSize(18), TextAnchor.UpperLeft);
-        descriptionTitle.fontStyle = FontStyle.Bold;
-        descriptionTitle.color = highlightColor;
-        descriptionTitle.gameObject.AddComponent<LayoutElement>().preferredHeight = 24f;
+        title.fontStyle = FontStyle.Bold;
+        title.color = highlightColor;
+        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 24f;
 
-        descriptionBody = CreateText(
+        body = CreateText(
             "Body", box.transform, ScaledFontSize(15), TextAnchor.UpperLeft);
-        descriptionBody.color = labelColor;
-        descriptionBody.horizontalOverflow = HorizontalWrapMode.Wrap;
-        descriptionBody.verticalOverflow = VerticalWrapMode.Truncate;
+        body.color = labelColor;
+        body.horizontalOverflow = HorizontalWrapMode.Wrap;
+        body.verticalOverflow = VerticalWrapMode.Truncate;
         // A wordy tower shrinks its text to fit rather than being cut off mid-sentence.
-        descriptionBody.resizeTextForBestFit = true;
-        descriptionBody.resizeTextMinSize = 10;
-        descriptionBody.resizeTextMaxSize = Mathf.Max(10, ScaledFontSize(15));
-        descriptionBody.gameObject.AddComponent<LayoutElement>().flexibleHeight = 1f;
+        body.resizeTextForBestFit = true;
+        body.resizeTextMinSize = 10;
+        body.resizeTextMaxSize = Mathf.Max(10, ScaledFontSize(15));
+        body.gameObject.AddComponent<LayoutElement>().flexibleHeight = 1f;
 
-        descriptionHint = CreateText(
+        hint = CreateText(
             "Hint", box.transform, ScaledFontSize(13), TextAnchor.LowerLeft);
-        descriptionHint.color = DimmedLabelColor;
-        descriptionHint.gameObject.AddComponent<LayoutElement>().preferredHeight = 18f;
+        hint.color = DimmedLabelColor;
+        hint.gameObject.AddComponent<LayoutElement>().preferredHeight = 18f;
     }
 
     private GameObject BuildRoundPage(Transform parent)
@@ -921,6 +1040,11 @@ public class TowerShopUI : MonoBehaviour
         spacerLayout.preferredHeight = 0f;
         spacerLayout.flexibleHeight = 1f;
 
+        // Sits below the spacer so it reads off the bottom of the menu, the way the
+        // Build tab's description box does under the tower list.
+        BuildDescriptionBox(page.transform, out enemyTitle, out enemyBody, out enemyHint);
+        ClearEnemyDescription();
+
         StartRoundButton = CreateStartRoundButton(page.transform);
         return page;
     }
@@ -951,6 +1075,7 @@ public class TowerShopUI : MonoBehaviour
         }
 
         RefreshUI();
+        ResizeMenuPanel();
         FitMenuToScreen();
     }
 
@@ -974,6 +1099,10 @@ public class TowerShopUI : MonoBehaviour
             oldRow.transform.SetParent(null, false);
             Destroy(oldRow);
         }
+
+        // A destroyed row never reports the pointer leaving it, so the description of
+        // whatever was hovered when the list was rebuilt is cleared here instead.
+        ClearEnemyDescription();
 
         if (waveSpawner == null)
         {
@@ -1031,6 +1160,11 @@ public class TowerShopUI : MonoBehaviour
         rowObject.AddComponent<LayoutElement>().preferredHeight =
             labelHeight + labelGap + artHeight;
 
+        // The row itself is what the pointer hits: an invisible graphic behind the name
+        // and the art, both of which stay raycast-free so the whole row is one target.
+        Image hoverWash = rowObject.AddComponent<Image>();
+        hoverWash.color = RowWashColor(false);
+
         Text label = CreateText(
             "Label", rowObject.transform, ScaledFontSize(18), TextAnchor.MiddleCenter);
         label.text = entry.prefab.name + "   x" + entry.count;
@@ -1056,6 +1190,92 @@ public class TowerShopUI : MonoBehaviour
         artRect.anchorMax = Vector2.one;
         artRect.offsetMin = Vector2.zero;
         artRect.offsetMax = new Vector2(0f, -(labelHeight + labelGap));
+
+        // Captured now rather than read back off the row, since the row is destroyed and
+        // rebuilt whenever the upcoming wave changes.
+        GameObject enemyPrefab = entry.prefab;
+        int enemyCount = entry.count;
+        EventTrigger hover = rowObject.AddComponent<EventTrigger>();
+        AddPointerTrigger(hover, EventTriggerType.PointerEnter, () =>
+        {
+            hoverWash.color = RowWashColor(true);
+            label.color = highlightColor;
+            ShowEnemyDescription(enemyPrefab, enemyCount);
+        });
+        AddPointerTrigger(hover, EventTriggerType.PointerExit, () =>
+        {
+            hoverWash.color = RowWashColor(false);
+            label.color = labelColor;
+            ClearEnemyDescription();
+        });
+    }
+
+    /// <summary>Wires one pointer event on <paramref name="trigger"/> to <paramref name="response"/>.</summary>
+    private static void AddPointerTrigger(EventTrigger trigger, EventTriggerType eventID, Action response)
+    {
+        EventTrigger.Entry entry = new EventTrigger.Entry { eventID = eventID };
+        entry.callback.AddListener(_ => response());
+        trigger.triggers.Add(entry);
+    }
+
+    /// <summary>The faint wash that marks the enemy row under the cursor.</summary>
+    private static Color RowWashColor(bool hovered)
+    {
+        return new Color(1f, 1f, 1f, hovered ? 0.1f : 0f);
+    }
+
+    /// <summary>
+    /// Fills the round tab's description box from the hovered enemy's own prefab, so the
+    /// text and the numbers cannot fall out of step with how that enemy actually plays.
+    /// </summary>
+    private void ShowEnemyDescription(GameObject enemyPrefab, int count)
+    {
+        if (enemyTitle == null || enemyPrefab == null)
+        {
+            return;
+        }
+
+        enemyTitle.text = enemyPrefab.name + "   x" + count;
+
+        Enemy enemy = enemyPrefab.GetComponent<Enemy>();
+        string description = enemy != null ? enemy.Description : string.Empty;
+        enemyBody.text = string.IsNullOrWhiteSpace(description)
+            ? "No description yet. Add one on this prefab's Enemy component."
+            : description;
+        enemyHint.text = BuildEnemyHint(enemy);
+    }
+
+    /// <summary>What the box says with the cursor off the list, and after a rebuild.</summary>
+    private void ClearEnemyDescription()
+    {
+        if (enemyTitle == null)
+        {
+            return;
+        }
+
+        enemyTitle.text = "Enemies";
+        enemyBody.text = "Hover an enemy above to read what it does.";
+        enemyHint.text = string.Empty;
+    }
+
+    /// <summary>
+    /// The stat line under an enemy's description. Read off the prefab rather than a live
+    /// enemy, so only traits that are settled before it spawns belong here.
+    /// </summary>
+    private static string BuildEnemyHint(Enemy enemy)
+    {
+        if (enemy == null)
+        {
+            return string.Empty;
+        }
+
+        // A breaker's prefab health stands in for "cannot be shot down", so the number is
+        // only worth showing for enemies that can be damaged as they arrive.
+        string hint = enemy.CanTakeDamage
+            ? Mathf.Max(1, Mathf.RoundToInt(enemy.health)) + " HP"
+            : "Cannot be shot down";
+
+        return enemy.isCagable ? hint + "   |   Can be caged" : hint;
     }
 
     /// <summary>
@@ -1191,6 +1411,15 @@ public class TowerShopUI : MonoBehaviour
         // the label and icon instead of by a panel colour.
         for (int i = 0; i < towerButtons.Count; i++)
         {
+            // A piece the round has not released yet leaves the list entirely rather than
+            // sitting in it greyed out, so the menu only ever lists what can be built now.
+            bool released = IsReleased(i);
+            towerButtons[i].gameObject.SetActive(released);
+            if (!released)
+            {
+                continue;
+            }
+
             TowerOffer offer = towers[i];
             bool available = GetOfferSprite(offer) != null && CanAfford(offer.price);
             towerButtons[i].interactable = available;
@@ -1376,6 +1605,7 @@ public class TowerShopUI : MonoBehaviour
         if (healingWouldHelp != potionButton.gameObject.activeSelf)
         {
             RefreshUI();
+            ResizeMenuPanel();
             FitMenuToScreen();
         }
     }

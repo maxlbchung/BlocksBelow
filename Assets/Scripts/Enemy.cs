@@ -66,6 +66,13 @@ public class Enemy : Entity, IPoolable
     [Header("Cage")]
     public bool isCagable = false;
 
+    [Header("Description")]
+    [Tooltip("What this enemy does, shown in the shop's round tab while it is hovered.")]
+    [SerializeField, TextArea(2, 5)] private string description;
+
+    /// <summary>What this enemy does, as written on its prefab. Empty when none was set.</summary>
+    public string Description => description;
+
     /// <summary>
     /// World-space top of the terrain, or negative infinity in scenes without a
     /// Ground-tagged collider (the stress-test scenes), where avoidance is skipped.
