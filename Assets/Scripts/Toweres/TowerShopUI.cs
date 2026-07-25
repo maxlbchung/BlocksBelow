@@ -34,14 +34,28 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField, Min(0)] private int cageRepairPrice = 10;
 
     [Header("Appearance")]
+    [SerializeField] private Sprite buildMenuBackground;
+    [SerializeField] private Sprite roundMenuBackground;
+    [SerializeField] private Sprite buttonSprite;
+    [Tooltip("Manual horizontal scale applied before the menu is fitted to the screen.")]
+    [SerializeField, Min(0.1f)] private float menuScaleX = 1f;
+    [Tooltip("Manual vertical scale applied before the menu is fitted to the screen.")]
+    [SerializeField, Min(0.1f)] private float menuScaleY = 1f;
+    [Tooltip("Scales button icons and text without changing the button background.")]
+    [SerializeField, Range(0.25f, 2f)] private float buttonContentScale = 1f;
+    [Tooltip("Pixel offset for the Money label inside the menu.")]
+    [SerializeField] private Vector2 moneyTextOffset = Vector2.zero;
+    [Tooltip("Pixel offset for the Coming next label inside the Round tab.")]
+    [SerializeField] private Vector2 comingNextTextOffset = Vector2.zero;
+    [Tooltip("Vertical spacing between menu rows and buttons.")]
+    [SerializeField, Min(0f)] private float menuItemSpacing = 10f;
+    [Tooltip("Empty space kept between the menu and the edges of the screen.")]
+    [SerializeField, Min(0f)] private float screenEdgePadding = 20f;
     [SerializeField] private Color panelColor = new Color(0.08f, 0.1f, 0.14f, 0.92f);
     [SerializeField] private Color buttonColor = new Color(0.2f, 0.24f, 0.3f, 1f);
     [SerializeField] private Color selectedColor = new Color(0.25f, 0.55f, 0.3f, 1f);
     [SerializeField] private Color startRoundColor = new Color(0.16f, 0.45f, 0.22f, 1f);
     [SerializeField] private Color coinPayoutColor = new Color(1f, 0.84f, 0.25f, 1f);
-    [Tooltip("Fill for the tab currently being shown. Deliberately not the tower "
-        + "selection colour, so an open tab does not read as a selected piece.")]
-    [SerializeField] private Color activeTabColor = new Color(0.32f, 0.38f, 0.48f, 1f);
 
     [Header("Shop SFX")]
     [Tooltip("Per-tower sounds live on the tower prefabs; these two are shop actions.")]
@@ -57,6 +71,8 @@ public class TowerShopUI : MonoBehaviour
     private Button repairButton;
     private Text repairLabel;
     private RectTransform canvasRect;
+    private RectTransform shopRootRect;
+    private Vector2 lastCanvasSize;
     private int money;
     private float displayedMoney;
     private Coroutine moneyTickRoutine;
@@ -503,16 +519,15 @@ public class TowerShopUI : MonoBehaviour
 
         canvasRect = canvasObject.GetComponent<RectTransform>();
 
-        // The root holds the tab strip above the panel, so the tabs sit outside the
-        // container they switch rather than inside it.
+        // The background belongs to the whole menu and stays unchanged between tabs.
         GameObject root = CreateUIObject("Tower Shop", canvasObject.transform);
 
-        RectTransform rootRect = root.GetComponent<RectTransform>();
-        rootRect.anchorMin = new Vector2(0f, 0.5f);
-        rootRect.anchorMax = new Vector2(0f, 0.5f);
-        rootRect.pivot = new Vector2(0f, 0.5f);
-        rootRect.anchoredPosition = new Vector2(20f, 0f);
-        rootRect.sizeDelta = new Vector2(250f, 0f);
+        shopRootRect = root.GetComponent<RectTransform>();
+        shopRootRect.anchorMin = new Vector2(0f, 0.5f);
+        shopRootRect.anchorMax = new Vector2(0f, 0.5f);
+        shopRootRect.pivot = new Vector2(0f, 0.5f);
+        shopRootRect.anchoredPosition = new Vector2(screenEdgePadding, 0f);
+        shopRootRect.sizeDelta = new Vector2(250f, 0f);
 
         VerticalLayoutGroup rootLayout = root.AddComponent<VerticalLayoutGroup>();
         rootLayout.spacing = 0f;
@@ -529,19 +544,29 @@ public class TowerShopUI : MonoBehaviour
 
         BuildTabBar(root.transform);
 
-        GameObject panel = CreateUIObject("Shop Panel", root.transform);
-        Image panelImage = panel.AddComponent<Image>();
-        panelImage.color = panelColor;
-        AddPageLayout(panel);
-
-        // Money stays outside the pages: it is what both tabs are spent against.
-        moneyText = CreateText("Money", panel.transform, 28, TextAnchor.MiddleCenter);
-        moneyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 48f;
-
+        GameObject panel = CreateMenuPanel(root.transform, "Menu Panel", buildMenuBackground);
+        GameObject moneyRow = CreateUIObject("Money Row", panel.transform);
+        moneyRow.AddComponent<LayoutElement>().preferredHeight = 48f;
+        moneyText = CreateText("Money", moneyRow.transform, 28, TextAnchor.MiddleCenter);
+        StretchLabel(moneyText, 0f);
+        moneyText.rectTransform.anchoredPosition = moneyTextOffset;
         buildPage = BuildBuildPage(panel.transform);
         roundPage = BuildRoundPage(panel.transform);
 
+        // The Build page is the taller page. Use its fully calculated height for the
+        // shared panel so changing to the shorter Round page never shrinks the
+        // unchanged background artwork.
+        roundPage.SetActive(false);
+        Canvas.ForceUpdateCanvases();
+        RectTransform panelRect = panel.GetComponent<RectTransform>();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(panelRect);
+        float buildPanelHeight = LayoutUtility.GetPreferredHeight(panelRect);
+        LayoutElement fixedPanelSize = panel.AddComponent<LayoutElement>();
+        fixedPanelSize.minHeight = buildPanelHeight;
+        fixedPanelSize.preferredHeight = buildPanelHeight;
+
         ShowTab(false);
+        FitMenuToScreen();
     }
 
     private void BuildTabBar(Transform parent)
@@ -563,15 +588,80 @@ public class TowerShopUI : MonoBehaviour
     {
         GameObject buttonObject = CreateUIObject(tabName + " Tab", parent);
         Image background = buttonObject.AddComponent<Image>();
+        background.sprite = buttonSprite;
+        background.preserveAspect = buttonSprite != null;
         background.color = buttonColor;
+
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = background;
         button.onClick.AddListener(() => ShowTab(opensRoundTab));
 
-        Text label = CreateText("Label", buttonObject.transform, 22, TextAnchor.MiddleCenter);
+        Text label = CreateText(
+            "Label", buttonObject.transform, ScaledFontSize(22), TextAnchor.MiddleCenter);
         label.text = tabName;
         StretchLabel(label, 4f);
         return button;
+    }
+
+    /// <summary>
+    /// Applies the editable X/Y scale, then uniformly reduces both axes further if
+    /// either dimension would leave the canvas. Uniform fitting preserves the chosen
+    /// relationship between the two manual scale values.
+    /// </summary>
+    private void FitMenuToScreen()
+    {
+        if (shopRootRect == null || canvasRect == null)
+        {
+            return;
+        }
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(shopRootRect);
+
+        Vector2 canvasSize = canvasRect.rect.size;
+        float availableWidth = Mathf.Max(1f, canvasSize.x - screenEdgePadding * 2f);
+        float availableHeight = Mathf.Max(1f, canvasSize.y - screenEdgePadding * 2f);
+        float preferredWidth = Mathf.Max(1f, shopRootRect.rect.width) * menuScaleX;
+        float preferredHeight = Mathf.Max(1f, shopRootRect.rect.height) * menuScaleY;
+        float fitMultiplier = Mathf.Min(
+            1f,
+            availableWidth / preferredWidth,
+            availableHeight / preferredHeight);
+
+        shopRootRect.localScale = new Vector3(
+            menuScaleX * fitMultiplier,
+            menuScaleY * fitMultiplier,
+            1f);
+        shopRootRect.anchoredPosition = new Vector2(screenEdgePadding, 0f);
+        lastCanvasSize = canvasSize;
+    }
+
+    private GameObject CreateMenuPanel(Transform parent, string panelName, Sprite backgroundSprite)
+    {
+        GameObject panel = CreateUIObject(panelName, parent);
+
+        // Keep the artwork out of Unity's layout calculations. Otherwise the source
+        // sprite's tall native size becomes the panel's preferred height and creates
+        // large gaps between otherwise compact rows.
+        GameObject backgroundObject = CreateUIObject("Background", panel.transform);
+        Image background = backgroundObject.AddComponent<Image>();
+        background.sprite = backgroundSprite;
+        background.color = backgroundSprite != null ? Color.white : panelColor;
+        background.type = Image.Type.Simple;
+        background.preserveAspect = backgroundSprite != null;
+        background.raycastTarget = false;
+
+        RectTransform backgroundRect = background.rectTransform;
+        backgroundRect.anchorMin = Vector2.zero;
+        backgroundRect.anchorMax = Vector2.one;
+        backgroundRect.offsetMin = Vector2.zero;
+        backgroundRect.offsetMax = Vector2.zero;
+
+        LayoutElement backgroundLayout = backgroundObject.AddComponent<LayoutElement>();
+        backgroundLayout.ignoreLayout = true;
+
+        AddPageLayout(panel);
+        return panel;
     }
 
     private GameObject BuildBuildPage(Transform parent)
@@ -601,9 +691,13 @@ public class TowerShopUI : MonoBehaviour
         roundTitleText.fontStyle = FontStyle.Bold;
         roundTitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 40f;
 
-        roundSubtitleText = CreateText("Round Subtitle", page.transform, 18, TextAnchor.MiddleLeft);
+        GameObject subtitleRow = CreateUIObject("Round Subtitle Row", page.transform);
+        subtitleRow.AddComponent<LayoutElement>().preferredHeight = 26f;
+        roundSubtitleText = CreateText(
+            "Round Subtitle", subtitleRow.transform, 18, TextAnchor.MiddleLeft);
         roundSubtitleText.color = new Color(0.75f, 0.8f, 0.88f, 1f);
-        roundSubtitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 26f;
+        StretchLabel(roundSubtitleText, 0f);
+        roundSubtitleText.rectTransform.anchoredPosition = comingNextTextOffset;
 
         GameObject list = CreateUIObject("Enemy List", page.transform);
         VerticalLayoutGroup listLayout = list.AddComponent<VerticalLayoutGroup>();
@@ -612,6 +706,8 @@ public class TowerShopUI : MonoBehaviour
         listLayout.childControlHeight = true;
         listLayout.childControlWidth = true;
         listLayout.childForceExpandHeight = false;
+        ContentSizeFitter listFitter = list.AddComponent<ContentSizeFitter>();
+        listFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         enemyListRoot = list.transform;
 
         // Healing belongs with the round preview: you top up after seeing what is coming.
@@ -621,11 +717,11 @@ public class TowerShopUI : MonoBehaviour
     }
 
     /// <summary>The shared vertical stack used by the panel and by each tab page.</summary>
-    private static VerticalLayoutGroup AddPageLayout(GameObject target)
+    private VerticalLayoutGroup AddPageLayout(GameObject target)
     {
         VerticalLayoutGroup layout = target.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(12, 12, 12, 12);
-        layout.spacing = 10f;
+        layout.spacing = menuItemSpacing;
         layout.childAlignment = TextAnchor.UpperCenter;
         layout.childControlHeight = true;
         layout.childControlWidth = true;
@@ -633,20 +729,12 @@ public class TowerShopUI : MonoBehaviour
         return layout;
     }
 
-    /// <summary>Shows one of the two tabs and hides the other.</summary>
+    /// <summary>Switches content while leaving the panel background unchanged.</summary>
     public void ShowTab(bool roundTab)
     {
         showingRoundTab = roundTab;
-
-        if (buildPage != null)
-        {
-            buildPage.SetActive(!roundTab);
-        }
-
-        if (roundPage != null)
-        {
-            roundPage.SetActive(roundTab);
-        }
+        buildPage?.SetActive(!roundTab);
+        roundPage?.SetActive(roundTab);
 
         if (roundTab)
         {
@@ -654,6 +742,7 @@ public class TowerShopUI : MonoBehaviour
         }
 
         RefreshUI();
+        FitMenuToScreen();
     }
 
     /// <summary>
@@ -757,13 +846,16 @@ public class TowerShopUI : MonoBehaviour
     {
         GameObject buttonObject = CreateUIObject("Repair Cage", parent);
         Image background = buttonObject.AddComponent<Image>();
+        background.sprite = buttonSprite;
+        background.preserveAspect = buttonSprite != null;
         background.color = buttonColor;
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = background;
         button.onClick.AddListener(ToggleRepairMode);
         buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
 
-        repairLabel = CreateText("Label", buttonObject.transform, 20, TextAnchor.MiddleCenter);
+        repairLabel = CreateText(
+            "Label", buttonObject.transform, ScaledFontSize(20), TextAnchor.MiddleCenter);
         StretchLabel(repairLabel, 8f);
         return button;
     }
@@ -772,13 +864,16 @@ public class TowerShopUI : MonoBehaviour
     {
         GameObject buttonObject = CreateUIObject("Health Potion", parent);
         Image background = buttonObject.AddComponent<Image>();
+        background.sprite = buttonSprite;
+        background.preserveAspect = buttonSprite != null;
         background.color = buttonColor;
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = background;
         button.onClick.AddListener(BuyHealthPotion);
         buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
 
-        Text label = CreateText("Label", buttonObject.transform, 20, TextAnchor.MiddleCenter);
+        Text label = CreateText(
+            "Label", buttonObject.transform, ScaledFontSize(20), TextAnchor.MiddleCenter);
         label.text = "Health Potion (+" + potionHealAmount + ")  $" + potionPrice;
         StretchLabel(label, 8f);
         return button;
@@ -788,12 +883,15 @@ public class TowerShopUI : MonoBehaviour
     {
         GameObject buttonObject = CreateUIObject("Start Round", parent);
         Image background = buttonObject.AddComponent<Image>();
+        background.sprite = buttonSprite;
+        background.preserveAspect = buttonSprite != null;
         background.color = startRoundColor;
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = background;
         buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
 
-        Text label = CreateText("Label", buttonObject.transform, 24, TextAnchor.MiddleCenter);
+        Text label = CreateText(
+            "Label", buttonObject.transform, ScaledFontSize(24), TextAnchor.MiddleCenter);
         label.text = "Start Round";
         StretchLabel(label, 0f);
         return button;
@@ -803,6 +901,8 @@ public class TowerShopUI : MonoBehaviour
     {
         GameObject buttonObject = CreateUIObject("Tower " + index, parent);
         Image background = buttonObject.AddComponent<Image>();
+        background.sprite = buttonSprite;
+        background.preserveAspect = buttonSprite != null;
         background.color = buttonColor;
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = background;
@@ -820,10 +920,11 @@ public class TowerShopUI : MonoBehaviour
         icon.sprite = GetOfferSprite(offer);
         icon.preserveAspect = true;
         LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
-        iconLayout.preferredWidth = 48f;
-        iconLayout.preferredHeight = 48f;
+        iconLayout.preferredWidth = 48f * buttonContentScale;
+        iconLayout.preferredHeight = 48f * buttonContentScale;
 
-        Text label = CreateText("Label", buttonObject.transform, 20, TextAnchor.MiddleLeft);
+        Text label = CreateText(
+            "Label", buttonObject.transform, ScaledFontSize(20), TextAnchor.MiddleLeft);
         label.text = offer.displayName + "  $" + offer.price;
         LayoutElement labelLayout = label.gameObject.AddComponent<LayoutElement>();
         labelLayout.flexibleWidth = 1f;
@@ -866,13 +967,20 @@ public class TowerShopUI : MonoBehaviour
 
         if (buildTabButton != null)
         {
-            buildTabButton.GetComponent<Image>().color = showingRoundTab ? buttonColor : activeTabColor;
+            buildTabButton.GetComponent<Image>().color =
+                showingRoundTab ? buttonColor : selectedColor;
         }
 
         if (roundTabButton != null)
         {
-            roundTabButton.GetComponent<Image>().color = showingRoundTab ? activeTabColor : buttonColor;
+            roundTabButton.GetComponent<Image>().color =
+                showingRoundTab ? selectedColor : buttonColor;
         }
+    }
+
+    private int ScaledFontSize(int baseSize)
+    {
+        return Mathf.Max(1, Mathf.RoundToInt(baseSize * buttonContentScale));
     }
 
     /// <summary>Makes a label fill its button, inset by <paramref name="horizontalPadding"/>.</summary>
@@ -921,6 +1029,11 @@ public class TowerShopUI : MonoBehaviour
     /// </summary>
     private void Update()
     {
+        if (canvasRect != null && canvasRect.rect.size != lastCanvasSize)
+        {
+            FitMenuToScreen();
+        }
+
         if (potionButton == null)
         {
             return;
@@ -930,6 +1043,7 @@ public class TowerShopUI : MonoBehaviour
         if (healingWouldHelp != potionButton.gameObject.activeSelf)
         {
             RefreshUI();
+            FitMenuToScreen();
         }
     }
 
@@ -944,8 +1058,7 @@ public class TowerShopUI : MonoBehaviour
         if (canvasObject != null)
             canvasObject.SetActive(true);
 
-        // Each build phase starts out of repair mode, on the build tab, and with a
-        // preview of the round that just became the next one.
+        // Each build phase returns to Build with the next-round preview ready.
         if (repairMode)
         {
             SetRepairMode(false);
@@ -957,4 +1070,20 @@ public class TowerShopUI : MonoBehaviour
             ShowTab(false);
         }
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        menuScaleX = Mathf.Max(0.1f, menuScaleX);
+        menuScaleY = Mathf.Max(0.1f, menuScaleY);
+        buttonContentScale = Mathf.Clamp(buttonContentScale, 0.25f, 2f);
+        menuItemSpacing = Mathf.Max(0f, menuItemSpacing);
+        screenEdgePadding = Mathf.Max(0f, screenEdgePadding);
+
+        if (Application.isPlaying)
+        {
+            FitMenuToScreen();
+        }
+    }
+#endif
 }

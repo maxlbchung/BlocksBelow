@@ -421,6 +421,16 @@ MonoBehaviour:
   potionPrice: 25
   player: {fileID: 1877898232}
   cageRepairPrice: 10
+  buildMenuBackground: {fileID: 8598254438150139404, guid: 6eab6d8de881e8445b598347bdab082f, type: 3}
+  roundMenuBackground: {fileID: -6240207712288181009, guid: 5a40706dccbf9e4469aa907b51202788, type: 3}
+  buttonSprite: {fileID: 1696691750799859457, guid: 2b8b233f024eaf445b3759fb87178f02, type: 3}
+  menuScaleX: 1
+  menuScaleY: 1
+  buttonContentScale: 1
+  moneyTextOffset: {x: 0, y: 0}
+  comingNextTextOffset: {x: 0, y: 0}
+  menuItemSpacing: 10
+  screenEdgePadding: 20
   panelColor: {r: 0.08, g: 0.1, b: 0.14, a: 0.92}
   buttonColor: {r: 0.2, g: 0.24, b: 0.3, a: 1}
   selectedColor: {r: 0.25, g: 0.55, b: 0.3, a: 1}
