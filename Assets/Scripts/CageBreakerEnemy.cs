@@ -26,7 +26,10 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField] private bool takesDamageInBreakingState = true;
     [SerializeField] private Vector2 countdownOffset = new Vector2(0f, 1.2f);
     [SerializeField, Min(1f)] private float countdownFontSize = 10f;
+    [SerializeField] private Sprite countdownBackgroundSprite;
+    [SerializeField, Min(0f)] private float countdownScreenEdgeInset = 48f;
     [SerializeField] private TextMeshPro countdownText;
+    [SerializeField] private SpriteRenderer countdownBackground;
 
     private readonly List<CageTower> cagesInExplosion = new List<CageTower>(16);
     private SpriteRenderer[] spriteRenderers;
@@ -85,6 +88,14 @@ public sealed class CageBreakerEnemy : Enemy
         }
     }
 
+    private void LateUpdate()
+    {
+        if (state == BreakerState.Breaking)
+        {
+            UpdateCountdownPosition();
+        }
+    }
+
     protected override Vector2 CalculateDesiredVelocity(Transform player, float elapsed)
     {
         if (state != BreakerState.Sneaking || !IsValidTarget(targetCage))
@@ -122,6 +133,11 @@ public sealed class CageBreakerEnemy : Enemy
         if (countdownText != null)
         {
             countdownText.gameObject.SetActive(false);
+        }
+
+        if (countdownBackground != null)
+        {
+            countdownBackground.gameObject.SetActive(false);
         }
     }
 
@@ -197,6 +213,10 @@ public sealed class CageBreakerEnemy : Enemy
         countdownRemaining = 0f;
         SetSpriteOpacity(sneakingOpacity);
         countdownText.gameObject.SetActive(false);
+        if (countdownBackground != null)
+        {
+            countdownBackground.gameObject.SetActive(false);
+        }
     }
 
     private void EnterBreakingState()
@@ -211,7 +231,14 @@ public sealed class CageBreakerEnemy : Enemy
         rb.linearVelocity = Vector2.zero;
         SetSpriteOpacity(1f);
         countdownText.gameObject.SetActive(true);
+        if (countdownBackground != null)
+        {
+            countdownBackground.gameObject.SetActive(
+                countdownBackgroundSprite != null);
+        }
+
         UpdateCountdownText();
+        UpdateCountdownPosition();
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -270,6 +297,32 @@ public sealed class CageBreakerEnemy : Enemy
         countdownText.textWrappingMode = TextWrappingModes.NoWrap;
         countdownText.sortingOrder = 100;
         countdownText.gameObject.SetActive(false);
+
+        EnsureCountdownBackground();
+    }
+
+    private void EnsureCountdownBackground()
+    {
+        if (countdownBackground == null)
+        {
+            Transform existingBackground = transform.Find("Break Countdown Background");
+            if (existingBackground != null)
+            {
+                countdownBackground = existingBackground.GetComponent<SpriteRenderer>();
+            }
+        }
+
+        if (countdownBackground == null)
+        {
+            GameObject backgroundObject = new GameObject("Break Countdown Background");
+            backgroundObject.transform.SetParent(transform, false);
+            countdownBackground = backgroundObject.AddComponent<SpriteRenderer>();
+        }
+
+        countdownBackground.sprite = countdownBackgroundSprite;
+        countdownBackground.sortingLayerID = countdownText.sortingLayerID;
+        countdownBackground.sortingOrder = countdownText.sortingOrder - 1;
+        countdownBackground.gameObject.SetActive(false);
     }
 
     private void UpdateCountdownText()
@@ -278,6 +331,78 @@ public sealed class CageBreakerEnemy : Enemy
         {
             countdownText.text =
                 Mathf.Max(0, Mathf.CeilToInt(countdownRemaining)).ToString();
+        }
+    }
+
+    private void UpdateCountdownPosition()
+    {
+        if (countdownText == null)
+        {
+            return;
+        }
+
+        Vector3 normalWorldPosition = transform.position + (Vector3)countdownOffset;
+        Vector3 displayWorldPosition = normalWorldPosition;
+        Camera worldCamera = Camera.main;
+
+        if (worldCamera != null)
+        {
+            Vector3 breakerViewportPosition =
+                worldCamera.WorldToViewportPoint(transform.position);
+            bool breakerIsOnScreen =
+                breakerViewportPosition.z > 0f
+                && breakerViewportPosition.x >= 0f
+                && breakerViewportPosition.x <= 1f
+                && breakerViewportPosition.y >= 0f
+                && breakerViewportPosition.y <= 1f;
+
+            if (!breakerIsOnScreen)
+            {
+                Vector3 breakerScreenPosition =
+                    worldCamera.WorldToScreenPoint(transform.position);
+                Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+                Vector2 direction =
+                    (Vector2)breakerScreenPosition - screenCenter;
+
+                if (breakerScreenPosition.z < 0f)
+                {
+                    direction = -direction;
+                }
+
+                if (direction.sqrMagnitude <= 0.0001f)
+                {
+                    direction = Vector2.up;
+                }
+
+                float inset = Mathf.Clamp(
+                    countdownScreenEdgeInset,
+                    0f,
+                    Mathf.Min(Screen.width, Screen.height) * 0.5f);
+                Vector2 halfBounds = new Vector2(
+                    Mathf.Max(0f, Screen.width * 0.5f - inset),
+                    Mathf.Max(0f, Screen.height * 0.5f - inset));
+                float scaleToEdge = Mathf.Min(
+                    direction.x == 0f
+                        ? float.PositiveInfinity
+                        : halfBounds.x / Mathf.Abs(direction.x),
+                    direction.y == 0f
+                        ? float.PositiveInfinity
+                        : halfBounds.y / Mathf.Abs(direction.y));
+                Vector2 clampedScreenPosition =
+                    screenCenter + direction * scaleToEdge;
+                Vector3 screenPosition = new Vector3(
+                    clampedScreenPosition.x,
+                    clampedScreenPosition.y,
+                    worldCamera.WorldToScreenPoint(normalWorldPosition).z);
+                displayWorldPosition =
+                    worldCamera.ScreenToWorldPoint(screenPosition);
+            }
+        }
+
+        countdownText.transform.position = displayWorldPosition;
+        if (countdownBackground != null)
+        {
+            countdownBackground.transform.position = displayWorldPosition;
         }
     }
 

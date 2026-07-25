@@ -155,7 +155,7 @@ MonoBehaviour:
     tokens: 0
     targetEnemyCount: 0
     birdCount: 1
-    breakerCount: 0
+    breakerCount: 1
     targetTime: 1
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -163,7 +163,7 @@ MonoBehaviour:
     tokens: 3
     targetEnemyCount: 3
     birdCount: 1
-    breakerCount: 0
+    breakerCount: 1
     targetTime: 8
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -179,18 +179,8 @@ MonoBehaviour:
     tokens: 5
     targetEnemyCount: 5
     birdCount: 1
-    breakerCount: 0
+    breakerCount: 1
     targetTime: 10
-  - enemiesEnabled:
-    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
-      spawnCredits: 1
-    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
-      spawnCredits: 3
-    tokens: 8
-    targetEnemyCount: 6
-    birdCount: 1
-    breakerCount: 0
-    targetTime: 11
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
@@ -199,17 +189,27 @@ MonoBehaviour:
     tokens: 11
     targetEnemyCount: 7
     birdCount: 1
-    breakerCount: 0
+    breakerCount: 1
+    targetTime: 11
+  - enemiesEnabled:
+    - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
+      spawnCredits: 1
+    - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
+      spawnCredits: 3
+    tokens: 15
+    targetEnemyCount: 9
+    birdCount: 1
+    breakerCount: 1
     targetTime: 12
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
     - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
       spawnCredits: 3
-    tokens: 14
-    targetEnemyCount: 8
+    tokens: 20
+    targetEnemyCount: 12
     birdCount: 2
-    breakerCount: 0
+    breakerCount: 2
     targetTime: 13
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -218,10 +218,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 15
-    targetEnemyCount: 9
+    tokens: 31
+    targetEnemyCount: 17
     birdCount: 2
-    breakerCount: 0
+    breakerCount: 2
     targetTime: 14
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -230,10 +230,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 18
-    targetEnemyCount: 10
+    tokens: 44
+    targetEnemyCount: 22
     birdCount: 2
-    breakerCount: 0
+    breakerCount: 2
     targetTime: 15
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -242,10 +242,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 21
-    targetEnemyCount: 11
+    tokens: 61
+    targetEnemyCount: 29
     birdCount: 2
-    breakerCount: 0
+    breakerCount: 2
     targetTime: 16
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -254,10 +254,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 24
-    targetEnemyCount: 12
+    tokens: 89
+    targetEnemyCount: 39
     birdCount: 2
-    breakerCount: 0
+    breakerCount: 2
     targetTime: 17
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -266,10 +266,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 29
-    targetEnemyCount: 13
+    tokens: 123
+    targetEnemyCount: 51
     birdCount: 2
-    breakerCount: 0
+    breakerCount: 2
     targetTime: 18
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -278,10 +278,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 34
-    targetEnemyCount: 14
+    tokens: 172
+    targetEnemyCount: 68
     birdCount: 3
-    breakerCount: 0
+    breakerCount: 3
     targetTime: 19
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -290,10 +290,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 39
-    targetEnemyCount: 15
+    tokens: 243
+    targetEnemyCount: 91
     birdCount: 3
-    breakerCount: 0
+    breakerCount: 3
     targetTime: 20
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -302,10 +302,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 44
-    targetEnemyCount: 16
+    tokens: 339
+    targetEnemyCount: 121
     birdCount: 3
-    breakerCount: 0
+    breakerCount: 3
     targetTime: 20
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -314,10 +314,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 49
-    targetEnemyCount: 17
+    tokens: 472
+    targetEnemyCount: 160
     birdCount: 3
-    breakerCount: 0
+    breakerCount: 3
     targetTime: 21
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -326,10 +326,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 54
-    targetEnemyCount: 18
+    tokens: 657
+    targetEnemyCount: 213
     birdCount: 3
-    breakerCount: 0
+    breakerCount: 3
     targetTime: 21
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -338,10 +338,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 59
-    targetEnemyCount: 19
+    tokens: 913
+    targetEnemyCount: 283
     birdCount: 3
-    breakerCount: 0
+    breakerCount: 3
     targetTime: 22
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -350,10 +350,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 64
-    targetEnemyCount: 20
+    tokens: 1264
+    targetEnemyCount: 376
     birdCount: 3
-    breakerCount: 0
+    breakerCount: 3
     targetTime: 22
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
@@ -362,10 +362,10 @@ MonoBehaviour:
       spawnCredits: 3
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       spawnCredits: 5
-    tokens: 74
-    targetEnemyCount: 22
+    tokens: 1730
+    targetEnemyCount: 494
     birdCount: 3
-    breakerCount: 0
+    breakerCount: 3
     targetTime: 23
   player: {fileID: 0}
   spawnRadius: 12

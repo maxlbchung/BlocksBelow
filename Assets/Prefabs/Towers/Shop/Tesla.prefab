@@ -153,17 +153,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5b018942bb314d1393225e6d49030b68, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TeslaTower
+  damage: 1
+  zapInterval: 1
   initialTargetRadius: 5
   chainRadius: 5
-  chainCount: 0
-  zapInterval: 1
   lightningDuration: 0.4
   pointsPerBolt: 7
   jitterAmount: 0.12
+  reshapeInterval: 0.055
   lineWidth: 0.14
   lightningColor: {r: 1, g: 0.9, b: 0.3, a: 1}
-  damage: 3
   zapSfx: {fileID: 0}
+  sparksPerHit: 10
+  orbSize: 0.6
+  orbFlareDuration: 0.35
 --- !u!114 &6812341387223973171
 MonoBehaviour:
   m_ObjectHideFlags: 0
