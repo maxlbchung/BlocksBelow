@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class SawBlade : MonoBehaviour
 {
@@ -7,7 +8,14 @@ public class SawBlade : MonoBehaviour
     // Degrees per second the blade spins on its own axis, on top of the tower's orbit. Purely
     // visual — the trigger is a centered circle, so spinning can't change what it hits.
     [SerializeField] private float spinSpeed = -1080f;
+    [SerializeField, Min(0f), Tooltip("Seconds before this blade can damage the same enemy again. Must outlast one sweep across an enemy, or the blade's own knockback bounces the enemy back into the trigger for extra hits.")]
+    private float hitCooldown = 0.5f;
     [SerializeField] private AudioClip hitSfx;
+
+    // Time each enemy becomes hittable by THIS blade again. Entity's own 0.1s invincibility is
+    // shorter than one sweep, so it cannot stop a bounced enemy from being hit twice per pass.
+    // Enemies are pooled, so the key set stays bounded by the pool size.
+    private readonly Dictionary<Enemy, float> nextHitTimes = new Dictionary<Enemy, float>();
 
     public void Configure(AudioClip newHitSfx, float newDamage)
     {
@@ -33,10 +41,14 @@ public class SawBlade : MonoBehaviour
         Enemy enemy = EnemySimulationManager.InstanceOrNull != null
             ? EnemySimulationManager.InstanceOrNull.FindEnemy(other)
             : null;
-        if (enemy == null || !enemy.TryTakeDamage(damage))
+        // Keyed by the enemy, not the collider, so an enemy with several colliders still takes one
+        // hit. Checked before TryTakeDamage so a blocked hit doesn't burn the cooldown.
+        if (enemy == null || !CanHit(enemy) || !enemy.TryTakeDamage(damage))
         {
             return;
         }
+
+        nextHitTimes[enemy] = Time.time + hitCooldown;
 
         SawBladeHit();
         if (enemyBody == null)
@@ -51,6 +63,16 @@ public class SawBlade : MonoBehaviour
         }
 
         enemyBody.AddForce(pushDirection * pushForce, ForceMode2D.Impulse);
+    }
+
+    private bool CanHit(Enemy enemy)
+    {
+        return !nextHitTimes.TryGetValue(enemy, out float nextTime) || Time.time >= nextTime;
+    }
+
+    private void OnDisable()
+    {
+        nextHitTimes.Clear();
     }
 
     public void SawBladeHit()

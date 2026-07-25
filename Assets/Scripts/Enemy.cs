@@ -26,6 +26,7 @@ public class Enemy : Entity, IPoolable
     protected Collider2D enemyCollider;
 
     private float initialHealth;
+    private bool initialHealthCaptured;
     private Vector2 desiredVelocity;
     private Vector2 separationForce;
     private bool deathHandled;
@@ -106,8 +107,26 @@ public class Enemy : Entity, IPoolable
         base.Awake();
         rb = GetComponent<Rigidbody2D>();
         enemyCollider = GetComponent<Collider2D>();
-        initialHealth = health;
+        CaptureInitialHealth();
         ConfigureBody();
+    }
+
+    /// <summary>
+    /// Records the prefab's health the first time it is seen, from whichever of Awake or
+    /// OnPoolAcquire runs first. The pool instantiates items under an inactive root, so Awake is
+    /// deferred until the first acquire activates them - it lands *after* OnPoolAcquire. Capturing
+    /// only in Awake meant the first acquire restored health from a still-zero initialHealth,
+    /// zeroing the enemy's health for the rest of its life and letting any hit kill it.
+    /// </summary>
+    private void CaptureInitialHealth()
+    {
+        if (initialHealthCaptured)
+        {
+            return;
+        }
+
+        initialHealth = health;
+        initialHealthCaptured = true;
     }
 
     protected virtual void OnEnable()
@@ -142,7 +161,9 @@ public class Enemy : Entity, IPoolable
 
     internal void ApplySimulationStep(float fixedDeltaTime)
     {
-        if (health < 0f)
+        // Dead at zero, matching the player's threshold. "< 0" let an enemy survive on empty
+        // health, so 3 health took four hits of 1 damage.
+        if (health <= 0f)
         {
             // Only counted here: the other ReleaseOrDestroy callers are despawns
             // (a breaker reaching the player, a lost target), not kills.
@@ -234,6 +255,7 @@ public class Enemy : Entity, IPoolable
 
     public void OnPoolAcquire()
     {
+        CaptureInitialHealth();
         ResetHitFeedback();
         health = initialHealth;
         desiredVelocity = Vector2.zero;
