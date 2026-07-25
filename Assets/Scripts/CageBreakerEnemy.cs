@@ -6,12 +6,11 @@ public sealed class CageBreakerEnemy : Enemy
 {
     public enum BreakerState
     {
+        /// <summary>On the field with no cage worth attacking yet, holding position until one appears.</summary>
+        Waiting,
         Sneaking,
         Breaking
     }
-
-    private static readonly Dictionary<CageTower, CageBreakerEnemy> TargetClaims =
-        new Dictionary<CageTower, CageBreakerEnemy>();
 
     [Header("Sneaking")]
     [SerializeField, Min(0f)] private float moveSpeed = 4f;
@@ -39,10 +38,18 @@ public sealed class CageBreakerEnemy : Enemy
 
     public BreakerState State => state;
     public CageTower TargetCage => targetCage;
+    // Waiting looks the same as sneaking - faded out, no countdown - so it follows the
+    // sneaking damage rule rather than the breaking one.
     public override bool CanTakeDamage =>
-        state == BreakerState.Sneaking
-            ? takesDamageInSneakingState
-            : takesDamageInBreakingState;
+        state == BreakerState.Breaking
+            ? takesDamageInBreakingState
+            : takesDamageInSneakingState;
+
+    /// <summary>
+    /// A waiting breaker has nothing to do and may well be invincible, so the round is
+    /// not held open for it. It still spawned, which is what the wave's count promises.
+    /// </summary>
+    public override bool BlocksWaveCompletion => state != BreakerState.Waiting;
 
     internal override bool UsesSeparation => false;
 
@@ -57,14 +64,18 @@ public sealed class CageBreakerEnemy : Enemy
     {
         base.OnEnable();
 
-        if (!TryClaimTarget())
+        // Spawning is unconditional: a wave that asks for three breakers gets three, even
+        // with nothing to break yet. Without a cage the breaker waits on the field instead
+        // of despawning, and picks one up as soon as the player fills a cage.
+        if (TryClaimTarget())
         {
-            ReleaseOrDestroy();
-            return;
+            PositionForAmbush();
+            EnterSneakingState();
         }
-
-        PositionForAmbush();
-        EnterSneakingState();
+        else
+        {
+            EnterWaitingState();
+        }
     }
 
     protected override void OnDisable()
@@ -98,6 +109,7 @@ public sealed class CageBreakerEnemy : Enemy
 
     protected override Vector2 CalculateDesiredVelocity(Transform player, float elapsed)
     {
+        // Waiting breakers fall through to zero here, so they hover where they spawned.
         if (state != BreakerState.Sneaking || !IsValidTarget(targetCage))
         {
             return Vector2.zero;
@@ -117,16 +129,29 @@ public sealed class CageBreakerEnemy : Enemy
 
     protected override void OnStrategicTick(Transform player, float elapsed)
     {
-        if (state == BreakerState.Sneaking && !IsValidTarget(targetCage))
+        // A countdown already running is committed; it explodes wherever it stands.
+        if (state == BreakerState.Breaking
+            || (state == BreakerState.Sneaking && IsValidTarget(targetCage)))
         {
-            ReleaseOrDestroy();
+            return;
+        }
+
+        // Losing a cage mid-flight drops the breaker back to waiting rather than
+        // despawning it, so it can pick up the next cage the player fills.
+        if (TryClaimTarget())
+        {
+            EnterSneakingState();
+        }
+        else
+        {
+            EnterWaitingState();
         }
     }
 
     protected override void ResetEnemyState()
     {
         ReleaseTarget();
-        state = BreakerState.Sneaking;
+        state = BreakerState.Waiting;
         countdownRemaining = 0f;
         SetSpriteOpacity(1f);
 
@@ -141,31 +166,46 @@ public sealed class CageBreakerEnemy : Enemy
         }
     }
 
+    /// <summary>
+    /// Picks the cage the fewest other breakers are already going for, and the farthest
+    /// from the player among those. Breakers spread out while there are cages to go round
+    /// and double up on one only once every cage is spoken for.
+    /// </summary>
     private bool TryClaimTarget()
     {
         ReleaseTarget();
 
         Transform player = EnemySimulationManager.Instance.Player;
         Vector2 playerPosition = player != null ? player.position : Position;
+        int fewestClaims = int.MaxValue;
         float farthestDistanceSquared = float.NegativeInfinity;
         CageTower bestCage = null;
         CageTower[] cages = FindObjectsByType<CageTower>(FindObjectsSortMode.None);
+        CageBreakerEnemy[] breakers =
+            FindObjectsByType<CageBreakerEnemy>(FindObjectsSortMode.None);
 
         for (int i = 0; i < cages.Length; i++)
         {
             CageTower cage = cages[i];
-            if (!IsValidTarget(cage) || IsClaimedByAnother(cage))
+            if (!IsValidTarget(cage))
             {
                 continue;
             }
 
+            int claims = CountClaims(cage, breakers);
             float distanceSquared =
                 ((Vector2)cage.transform.position - playerPosition).sqrMagnitude;
-            if (distanceSquared > farthestDistanceSquared)
+
+            // Fewer claims always wins; distance only breaks ties within the same tier.
+            if (claims > fewestClaims
+                || (claims == fewestClaims && distanceSquared <= farthestDistanceSquared))
             {
-                farthestDistanceSquared = distanceSquared;
-                bestCage = cage;
+                continue;
             }
+
+            fewestClaims = claims;
+            farthestDistanceSquared = distanceSquared;
+            bestCage = cage;
         }
 
         if (bestCage == null)
@@ -174,8 +214,30 @@ public sealed class CageBreakerEnemy : Enemy
         }
 
         targetCage = bestCage;
-        TargetClaims[bestCage] = this;
         return true;
+    }
+
+    /// <summary>
+    /// How many other live breakers are heading for <paramref name="cage"/>. Counted from
+    /// the breakers themselves rather than a claim table, so a breaker that dies, despawns
+    /// or is pooled mid-run cannot leave a phantom claim behind.
+    /// </summary>
+    private int CountClaims(CageTower cage, CageBreakerEnemy[] breakers)
+    {
+        int claims = 0;
+        for (int i = 0; i < breakers.Length; i++)
+        {
+            CageBreakerEnemy breaker = breakers[i];
+            if (breaker != null
+                && breaker != this
+                && breaker.isActiveAndEnabled
+                && breaker.targetCage == cage)
+            {
+                claims++;
+            }
+        }
+
+        return claims;
     }
 
     private void PositionForAmbush()
@@ -209,10 +271,28 @@ public sealed class CageBreakerEnemy : Enemy
 
     private void EnterSneakingState()
     {
-        state = BreakerState.Sneaking;
+        EnterHiddenState(BreakerState.Sneaking);
+    }
+
+    private void EnterWaitingState()
+    {
+        EnterHiddenState(BreakerState.Waiting);
+    }
+
+    /// <summary>
+    /// Shared setup for the two pre-explosion states. They look identical - faded out with
+    /// no countdown - and differ only in whether a cage has been claimed yet.
+    /// </summary>
+    private void EnterHiddenState(BreakerState hiddenState)
+    {
+        state = hiddenState;
         countdownRemaining = 0f;
         SetSpriteOpacity(sneakingOpacity);
-        countdownText.gameObject.SetActive(false);
+        if (countdownText != null)
+        {
+            countdownText.gameObject.SetActive(false);
+        }
+
         if (countdownBackground != null)
         {
             countdownBackground.gameObject.SetActive(false);
@@ -449,30 +529,7 @@ public sealed class CageBreakerEnemy : Enemy
 
     private void ReleaseTarget()
     {
-        if (targetCage != null
-            && TargetClaims.TryGetValue(targetCage, out CageBreakerEnemy owner)
-            && owner == this)
-        {
-            TargetClaims.Remove(targetCage);
-        }
-
         targetCage = null;
-    }
-
-    private bool IsClaimedByAnother(CageTower cage)
-    {
-        if (!TargetClaims.TryGetValue(cage, out CageBreakerEnemy owner))
-        {
-            return false;
-        }
-
-        if (owner == null || !owner.isActiveAndEnabled)
-        {
-            TargetClaims.Remove(cage);
-            return false;
-        }
-
-        return owner != this;
     }
 
     private static bool IsValidTarget(CageTower cage)

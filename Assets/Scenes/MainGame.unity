@@ -154,17 +154,17 @@ MonoBehaviour:
   - enemiesEnabled: []
     tokens: 0
     targetEnemyCount: 0
-    birdCount: 1
-    breakerCount: 1
+    birdCount: 2
+    breakerCount: 0
     targetTime: 1
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
-    tokens: 3
-    targetEnemyCount: 3
-    birdCount: 1
-    breakerCount: 1
-    targetTime: 8
+    tokens: 0
+    targetEnemyCount: 1
+    birdCount: 3
+    breakerCount: 3
+    targetTime: 3
   - enemiesEnabled:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       spawnCredits: 1
@@ -377,6 +377,7 @@ MonoBehaviour:
   strictPrewarmedPools: 0
   towerShop: {fileID: 265706326}
   squarePlacement: {fileID: 265706327}
+  startFirstWaveImmediately: 1
   gameState: 0
 --- !u!114 &265706326
 MonoBehaviour:
@@ -390,30 +391,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd21c34430a6b1844aa4c6842a5a8c7d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TowerShopUI
-  startingMoney: 0
+  startingEnergy: 0
   towers:
   - displayName: Generator
     prefab: {fileID: 8755736338420080416, guid: 94d6126dbfd7c0941a9e2fdc9bc27c6e, type: 3}
     price: 100
-  - displayName: Basic
+  - displayName: Cannon
     prefab: {fileID: 6895232330752811065, guid: 93489eb75e09dd24db7c21c7b4c97a4a, type: 3}
     price: 50
   - displayName: Shotgun
     prefab: {fileID: 4207048639629459165, guid: 113d84a8722d4104fa90cf1e65367424, type: 3}
     price: 75
-  - displayName: Sawblade
+  - displayName: Blade
     prefab: {fileID: 689768124312060714, guid: 57bb0c77f467e394ca86e4bc504b76fe, type: 3}
     price: 100
   - displayName: Lightning
     prefab: {fileID: 5157854673919590627, guid: f37d943d75669644d82ff8f9695e8822, type: 3}
     price: 200
-  - displayName: Fan
+  - displayName: Gust
     prefab: {fileID: 5158665762915999829, guid: 1fd7ea4f4e2419a4c9239231c0912635, type: 3}
     price: 100
   - displayName: Cage
     prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
     price: 25
-  - displayName: Scaffolding
+  - displayName: Scaffold
     prefab: {fileID: 8012409773836190367, guid: 9d1dad1ac33d16f4e9012becf684be94, type: 3}
     price: 5
   placement: {fileID: 0}
@@ -421,21 +422,19 @@ MonoBehaviour:
   potionPrice: 25
   player: {fileID: 1877898232}
   cageRepairPrice: 10
-  buildMenuBackground: {fileID: 8598254438150139404, guid: 6eab6d8de881e8445b598347bdab082f, type: 3}
-  roundMenuBackground: {fileID: -6240207712288181009, guid: 5a40706dccbf9e4469aa907b51202788, type: 3}
-  buttonSprite: {fileID: 1696691750799859457, guid: 2b8b233f024eaf445b3759fb87178f02, type: 3}
   menuScaleX: 1
   menuScaleY: 1
   buttonContentScale: 1
-  moneyTextOffset: {x: 0, y: 0}
+  energyTextOffset: {x: 0, y: 0}
   comingNextTextOffset: {x: 0, y: 0}
   menuItemSpacing: 10
   screenEdgePadding: 20
-  panelColor: {r: 0.08, g: 0.1, b: 0.14, a: 0.92}
-  buttonColor: {r: 0.2, g: 0.24, b: 0.3, a: 1}
-  selectedColor: {r: 0.25, g: 0.55, b: 0.3, a: 1}
-  startRoundColor: {r: 0.16, g: 0.45, b: 0.22, a: 1}
-  coinPayoutColor: {r: 1, g: 0.84, b: 0.25, a: 1}
+  outlineColor: {r: 0.78, g: 0.88, b: 1, a: 0.85}
+  outlineThickness: 3
+  labelColor: {r: 0.9, g: 0.94, b: 1, a: 1}
+  highlightColor: {r: 0.45, g: 0.95, b: 0.6, a: 1}
+  startRoundLabelColor: {r: 0.55, g: 1, b: 0.65, a: 1}
+  energyPayoutColor: {r: 1, g: 1, b: 1, a: 1}
   placementSfx: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
   cageRepairSfx: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
 --- !u!114 &265706327
@@ -464,10 +463,14 @@ MonoBehaviour:
   prePlacedTowersPosition:
   - {fileID: 916670754}
   - {fileID: 773855572}
+  - {fileID: 1510130195}
   - {fileID: 839863293}
   prePlacedTowers:
   - displayName: Scaffolding
     prefab: {fileID: 8012409773836190367, guid: 9d1dad1ac33d16f4e9012becf684be94, type: 3}
+    price: 0
+  - displayName: Cage
+    prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
     price: 0
   - displayName: Cage
     prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
@@ -867,7 +870,7 @@ Transform:
   m_GameObject: {fileID: 773855571}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.05, y: -1.5600001, z: 0}
+  m_LocalPosition: {x: 3, y: -2, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -993,7 +996,7 @@ Transform:
   m_GameObject: {fileID: 839863292}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.05, y: -0.96, z: 0}
+  m_LocalPosition: {x: 3, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1024,7 +1027,7 @@ Transform:
   m_GameObject: {fileID: 916670753}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.11, y: -2.68, z: 0}
+  m_LocalPosition: {x: 3, y: -3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1339,7 +1342,7 @@ PrefabInstance:
       objectReference: {fileID: 1877898233}
     - target: {fileID: 3000397879216909440, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: groundCheckLength
-      value: 0.95
+      value: 0.85
       objectReference: {fileID: 0}
     - target: {fileID: 4233762903127814040, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
       propertyPath: m_Offset.y
@@ -1419,6 +1422,37 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
+--- !u!1 &1510130194
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1510130195}
+  m_Layer: 0
+  m_Name: Cage2
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1510130195
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1510130194}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3, y: -1, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1670426444}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1670426443
 GameObject:
   m_ObjectHideFlags: 0
@@ -1450,6 +1484,7 @@ Transform:
   m_Children:
   - {fileID: 916670754}
   - {fileID: 773855572}
+  - {fileID: 1510130195}
   - {fileID: 839863293}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

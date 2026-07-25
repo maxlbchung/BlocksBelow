@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class TowerShopUI : MonoBehaviour
@@ -21,7 +22,8 @@ public class TowerShopUI : MonoBehaviour
     }
 
     [Header("Shop")]
-    [SerializeField, Min(0)] private int startingMoney = 100;
+    [FormerlySerializedAs("startingMoney")]
+    [SerializeField, Min(0)] private int startingEnergy = 100;
     [SerializeField] private List<TowerOffer> towers = new List<TowerOffer>();
     [SerializeField] private SquarePlacement placement;
 
@@ -34,28 +36,33 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField, Min(0)] private int cageRepairPrice = 10;
 
     [Header("Appearance")]
-    [SerializeField] private Sprite buildMenuBackground;
-    [SerializeField] private Sprite roundMenuBackground;
-    [SerializeField] private Sprite buttonSprite;
     [Tooltip("Manual horizontal scale applied before the menu is fitted to the screen.")]
     [SerializeField, Min(0.1f)] private float menuScaleX = 1f;
     [Tooltip("Manual vertical scale applied before the menu is fitted to the screen.")]
     [SerializeField, Min(0.1f)] private float menuScaleY = 1f;
-    [Tooltip("Scales button icons and text without changing the button background.")]
+    [Tooltip("Scales button icons and text without changing the size of the button itself.")]
     [SerializeField, Range(0.25f, 2f)] private float buttonContentScale = 1f;
-    [Tooltip("Pixel offset for the Money label inside the menu.")]
-    [SerializeField] private Vector2 moneyTextOffset = Vector2.zero;
+    [Tooltip("Pixel offset for the Energy label inside the menu.")]
+    [FormerlySerializedAs("moneyTextOffset")]
+    [SerializeField] private Vector2 energyTextOffset = Vector2.zero;
     [Tooltip("Pixel offset for the Coming next label inside the Round tab.")]
     [SerializeField] private Vector2 comingNextTextOffset = Vector2.zero;
     [Tooltip("Vertical spacing between menu rows and buttons.")]
     [SerializeField, Min(0f)] private float menuItemSpacing = 10f;
     [Tooltip("Empty space kept between the menu and the edges of the screen.")]
     [SerializeField, Min(0f)] private float screenEdgePadding = 20f;
-    [SerializeField] private Color panelColor = new Color(0.08f, 0.1f, 0.14f, 0.92f);
-    [SerializeField] private Color buttonColor = new Color(0.2f, 0.24f, 0.3f, 1f);
-    [SerializeField] private Color selectedColor = new Color(0.25f, 0.55f, 0.3f, 1f);
-    [SerializeField] private Color startRoundColor = new Color(0.16f, 0.45f, 0.22f, 1f);
-    [SerializeField] private Color coinPayoutColor = new Color(1f, 0.84f, 0.25f, 1f);
+    [Tooltip("Line colour of the wireframe boxes the menu is drawn as.")]
+    [SerializeField] private Color outlineColor = new Color(0.78f, 0.88f, 1f, 0.85f);
+    [Tooltip("Line width of those boxes, in reference pixels.")]
+    [SerializeField, Min(1f)] private float outlineThickness = 3f;
+    [Tooltip("Text colour of an idle button. Buttons have no background of their own.")]
+    [SerializeField] private Color labelColor = new Color(0.9f, 0.94f, 1f, 1f);
+    [Tooltip("Text colour of the selected tower, the open tab and armed repair mode.")]
+    [SerializeField] private Color highlightColor = new Color(0.45f, 0.95f, 0.6f, 1f);
+    [SerializeField] private Color startRoundLabelColor = new Color(0.55f, 1f, 0.65f, 1f);
+    [Tooltip("The \"+N\" that rises off an energy tower when it pays out. The text carries a "
+        + "black outline, so white stays readable over the shop panel and the sky alike.")]
+    [SerializeField] private Color energyPayoutColor = Color.white;
 
     [Header("Shop SFX")]
     [Tooltip("Per-tower sounds live on the tower prefabs; these two are shop actions.")]
@@ -63,33 +70,43 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField, AudioClipDropdown] private AudioClip cageRepairSfx;
 
     private readonly List<Button> towerButtons = new List<Button>();
+    private readonly List<Text> towerLabels = new List<Text>();
+    private readonly List<Image> towerIcons = new List<Image>();
     private readonly List<WaveSpawner.WavePreviewEntry> wavePreview =
         new List<WaveSpawner.WavePreviewEntry>(8);
-    private static Sprite aimIndicatorSprite;
-    private Text moneyText;
+    private static Sprite aimArrowSprite;
+    private Text energyText;
     private Button potionButton;
+    private Text potionLabel;
     private Button repairButton;
     private Text repairLabel;
+    private Text descriptionTitle;
+    private Text descriptionBody;
+    private Text descriptionHint;
+    private int describedIndex = int.MinValue;
+    private bool describedRepairMode;
     private RectTransform canvasRect;
     private RectTransform shopRootRect;
     private Vector2 lastCanvasSize;
-    private int money;
-    private float displayedMoney;
-    private Coroutine moneyTickRoutine;
+    private int energy;
+    private float displayedEnergy;
+    private Coroutine energyTickRoutine;
     private int selectedIndex = -1;
     private bool repairMode;
 
     private GameObject buildPage;
     private GameObject roundPage;
-    private Button buildTabButton;
-    private Button roundTabButton;
+    private Text buildTabLabel;
+    private Text roundTabLabel;
+    private UIWireframeBox buildTabOutline;
+    private UIWireframeBox roundTabOutline;
     private Text roundTitleText;
     private Text roundSubtitleText;
     private Transform enemyListRoot;
     private WaveSpawner waveSpawner;
     private bool showingRoundTab;
 
-    public int Money => money;
+    public int Energy => energy;
     public Button StartRoundButton { get; private set; }
 
     /// <summary>The configured offers, exposed for the prefab build tool.</summary>
@@ -98,12 +115,16 @@ public class TowerShopUI : MonoBehaviour
     /// <summary>True while clicking a broken cage should repair it instead of placing a tower.</summary>
     public bool RepairMode => repairMode;
 
+    /// <summary>Label colour of an offer the player cannot pay for.</summary>
+    private Color DimmedLabelColor =>
+        new Color(labelColor.r, labelColor.g, labelColor.b, labelColor.a * 0.35f);
+
     GameObject canvasObject;
 
     private void Awake()
     {
-        money = startingMoney;
-        displayedMoney = money;
+        energy = startingEnergy;
+        displayedEnergy = energy;
 
         if (placement == null)
         {
@@ -135,7 +156,7 @@ public class TowerShopUI : MonoBehaviour
 
     public bool CanAfford(int price)
     {
-        return money >= Mathf.Max(0, price);
+        return energy >= Mathf.Max(0, price);
     }
 
     public bool TrySpend(int price)
@@ -146,16 +167,16 @@ public class TowerShopUI : MonoBehaviour
             return false;
         }
 
-        money -= price;
-        SyncDisplayedMoney();
+        energy -= price;
+        SyncDisplayedEnergy();
         RefreshUI();
         return true;
     }
 
-    public void AddMoney(int amount)
+    public void AddEnergy(int amount)
     {
-        money = Mathf.Max(0, money + amount);
-        SyncDisplayedMoney();
+        energy = Mathf.Max(0, energy + amount);
+        SyncDisplayedEnergy();
         RefreshUI();
     }
 
@@ -225,83 +246,83 @@ public class TowerShopUI : MonoBehaviour
         return true;
     }
 
-    /// <summary>Adds money and rolls the displayed counter up to the new total.</summary>
-    public void AddMoneyAnimated(int amount)
+    /// <summary>Adds energy and rolls the displayed counter up to the new total.</summary>
+    public void AddEnergyAnimated(int amount)
     {
-        money = Mathf.Max(0, money + amount);
-        if (moneyTickRoutine == null)
+        energy = Mathf.Max(0, energy + amount);
+        if (energyTickRoutine == null)
         {
-            moneyTickRoutine = StartCoroutine(TickDisplayedMoney());
+            energyTickRoutine = StartCoroutine(TickDisplayedEnergy());
         }
 
         RefreshUI();
     }
 
-    private void SyncDisplayedMoney()
+    private void SyncDisplayedEnergy()
     {
         // While a count-up is running it converges to the new total on its own.
-        if (moneyTickRoutine == null)
+        if (energyTickRoutine == null)
         {
-            displayedMoney = money;
+            displayedEnergy = energy;
         }
     }
 
-    private IEnumerator TickDisplayedMoney()
+    private IEnumerator TickDisplayedEnergy()
     {
-        while (!Mathf.Approximately(displayedMoney, money))
+        while (!Mathf.Approximately(displayedEnergy, energy))
         {
-            float gap = Mathf.Abs(money - displayedMoney);
+            float gap = Mathf.Abs(energy - displayedEnergy);
             float speed = Mathf.Max(60f, gap * 4f);
-            displayedMoney = Mathf.MoveTowards(displayedMoney, money, speed * Time.deltaTime);
+            displayedEnergy = Mathf.MoveTowards(displayedEnergy, energy, speed * Time.deltaTime);
             RefreshUI();
             yield return null;
         }
 
-        displayedMoney = money;
-        moneyTickRoutine = null;
+        displayedEnergy = energy;
+        energyTickRoutine = null;
         RefreshUI();
     }
 
     /// <summary>
-    /// Shows coins earned above a tower, flies the text to the money display,
+    /// Shows the energy earned above a tower, flies the number to the energy display,
     /// then adds the amount with an animated count-up.
     /// </summary>
-    public void ShowCoinPayout(Vector3 worldPosition, int amount)
+    public void ShowEnergyPayout(Vector3 worldPosition, int amount)
     {
         if (amount <= 0)
         {
             return;
         }
 
-        if (canvasObject == null || canvasRect == null || moneyText == null)
+        if (canvasObject == null || canvasRect == null || energyText == null)
         {
-            AddMoneyAnimated(amount);
+            AddEnergyAnimated(amount);
             return;
         }
 
-        StartCoroutine(CoinPayoutRoutine(worldPosition, amount));
+        StartCoroutine(EnergyPayoutRoutine(worldPosition, amount));
     }
 
-    private IEnumerator CoinPayoutRoutine(Vector3 worldPosition, int amount)
+    private IEnumerator EnergyPayoutRoutine(Vector3 worldPosition, int amount)
     {
         Camera worldCamera = Camera.main;
         if (worldCamera == null)
         {
-            AddMoneyAnimated(amount);
+            AddEnergyAnimated(amount);
             yield break;
         }
 
-        Text coinText = CreateText("Coin Payout", canvasObject.transform, 34, TextAnchor.MiddleCenter);
-        coinText.text = "+$" + amount;
-        coinText.color = coinPayoutColor;
-        coinText.fontStyle = FontStyle.Bold;
-        coinText.raycastTarget = false;
-        coinText.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.9f);
+        Text payoutText = CreateText("Energy Payout", canvasObject.transform, 34, TextAnchor.MiddleCenter);
+        payoutText.text = "+" + amount;
+        payoutText.color = energyPayoutColor;
+        payoutText.fontStyle = FontStyle.Bold;
+        payoutText.raycastTarget = false;
+        payoutText.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.9f);
 
-        RectTransform coinRect = coinText.rectTransform;
-        coinRect.sizeDelta = new Vector2(240f, 64f);
+        RectTransform payoutRect = payoutText.rectTransform;
+        payoutRect.sizeDelta = new Vector2(240f, 64f);
         // Last sibling of the canvas root, so the payout number draws on top of the shop panel.
-        coinRect.SetAsLastSibling();
+        payoutRect.SetAsLastSibling();
 
         const float holdDuration = 0.6f;
         const float driftDistance = 0.4f;
@@ -309,21 +330,21 @@ public class TowerShopUI : MonoBehaviour
         {
             Vector3 driftedPosition = worldPosition
                 + Vector3.up * (0.9f + driftDistance * (elapsed / holdDuration));
-            coinRect.anchoredPosition = WorldToCanvasPoint(worldCamera, driftedPosition);
+            payoutRect.anchoredPosition = WorldToCanvasPoint(worldCamera, driftedPosition);
             yield return null;
         }
 
-        Vector2 flightStart = coinRect.anchoredPosition;
+        Vector2 flightStart = payoutRect.anchoredPosition;
         const float flightDuration = 0.45f;
         for (float elapsed = 0f; elapsed < flightDuration; elapsed += Time.deltaTime)
         {
             float t = Mathf.SmoothStep(0f, 1f, elapsed / flightDuration);
-            coinRect.anchoredPosition = Vector2.Lerp(flightStart, GetMoneyTextCanvasPoint(), t);
+            payoutRect.anchoredPosition = Vector2.Lerp(flightStart, GetEnergyTextCanvasPoint(), t);
             yield return null;
         }
 
-        Destroy(coinText.gameObject);
-        AddMoneyAnimated(amount);
+        Destroy(payoutText.gameObject);
+        AddEnergyAnimated(amount);
     }
 
     private Vector2 WorldToCanvasPoint(Camera worldCamera, Vector3 worldPosition)
@@ -337,9 +358,9 @@ public class TowerShopUI : MonoBehaviour
         return localPoint;
     }
 
-    private Vector2 GetMoneyTextCanvasPoint()
+    private Vector2 GetEnergyTextCanvasPoint()
     {
-        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(null, moneyText.rectTransform.position);
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(null, energyText.rectTransform.position);
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
             canvasRect,
             screenPoint,
@@ -377,6 +398,13 @@ public class TowerShopUI : MonoBehaviour
 
         SpriteRenderer prefabRenderer = offer.prefab.GetComponent<SpriteRenderer>();
         return prefabRenderer != null ? prefabRenderer.sprite : null;
+    }
+
+    /// <summary>What this piece does, as written on its prefab. Empty when none was set.</summary>
+    public static string GetDescription(TowerOffer offer)
+    {
+        TowerPlacementInfo info = GetPlacementInfo(offer);
+        return info != null ? info.Description : string.Empty;
     }
 
     /// <summary>Towers that fire or push in a specific direction and may be rotated.</summary>
@@ -431,11 +459,8 @@ public class TowerShopUI : MonoBehaviour
             rotatable ? rotation : Quaternion.identity);
         tower.name = offer.displayName;
 
-        // The indicator's sprite is generated at runtime, so it cannot be stored in the prefab.
-        if (rotatable)
-        {
-            CreateAimIndicator(tower.transform, GetAimDirection(offer), gridCellSize);
-        }
+        // No aim marker on a placed tower: the arrow is a placement-time preview only,
+        // and the tower's own art shows which way it ended up facing.
 
         // Which cages a tower stands on depends on where it was dropped, so it is
         // resolved per placement rather than baked into the asset.
@@ -454,19 +479,19 @@ public class TowerShopUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Adds a small barrel marker showing which way a directional tower aims.
-    /// Rotates with the parent, so it stays accurate after R-key rotations.
+    /// Adds the white arrow that shows which way a directional piece will fire while it
+    /// is still being placed. Parented to the placement ghost, so it turns with the
+    /// R-key rotations. Placed towers get no marker.
     /// </summary>
     public static GameObject CreateAimIndicator(Transform parent, Vector2 aimDirection, float cellSize)
     {
-        GameObject indicator = new GameObject("Aim Indicator");
+        GameObject indicator = new GameObject("Aim Arrow");
         indicator.transform.SetParent(parent, false);
-        indicator.transform.localPosition = aimDirection * (cellSize * 0.55f);
-        indicator.transform.localScale = new Vector3(cellSize * 0.35f, cellSize * 0.1f, 1f);
+        PointAimIndicator(indicator.transform, aimDirection, cellSize);
 
         SpriteRenderer renderer = indicator.AddComponent<SpriteRenderer>();
-        renderer.sprite = GetAimIndicatorSprite();
-        renderer.color = new Color(0.1f, 0.1f, 0.1f, 0.9f);
+        renderer.sprite = GetAimArrowSprite();
+        renderer.color = Color.white;
 
         SpriteRenderer parentRenderer = parent.GetComponent<SpriteRenderer>();
         if (parentRenderer != null)
@@ -478,19 +503,83 @@ public class TowerShopUI : MonoBehaviour
         return indicator;
     }
 
-    private static Sprite GetAimIndicatorSprite()
+    /// <summary>
+    /// Puts the arrow just outside the ghost's edge, turned to point down the aim
+    /// direction. Re-run whenever the selected piece changes, since each one aims
+    /// its own way.
+    /// </summary>
+    public static void PointAimIndicator(Transform indicator, Vector2 aimDirection, float cellSize)
     {
-        if (aimIndicatorSprite == null)
+        if (indicator == null)
         {
-            Texture2D texture = Texture2D.whiteTexture;
-            aimIndicatorSprite = Sprite.Create(
-                texture,
-                new Rect(0f, 0f, texture.width, texture.height),
-                new Vector2(0.5f, 0.5f),
-                texture.width);
+            return;
         }
 
-        return aimIndicatorSprite;
+        Vector2 direction = aimDirection.sqrMagnitude > 0.000001f
+            ? aimDirection.normalized
+            : Vector2.left;
+
+        indicator.localPosition = direction * (cellSize * 0.55f);
+        // The arrow art points along +X, so one turn to the aim direction orients it.
+        indicator.localRotation = Quaternion.Euler(
+            0f,
+            0f,
+            Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
+        indicator.localScale = new Vector3(cellSize * 0.45f, cellSize * 0.45f, 1f);
+    }
+
+    /// <summary>
+    /// Draws the arrow once into a shared texture: a shaft that opens into a head
+    /// tapering to a point at the right edge. Generated rather than imported so the
+    /// marker needs no art asset.
+    /// </summary>
+    private static Sprite GetAimArrowSprite()
+    {
+        if (aimArrowSprite != null)
+        {
+            return aimArrowSprite;
+        }
+
+        const int size = 64;
+        // All measured in pixels of the square texture, along its +X axis.
+        const float shaftEnd = 34f;
+        const float shaftHalfHeight = 7f;
+        const float headHalfHeight = 20f;
+
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            name = "Aim Arrow Texture",
+            wrapMode = TextureWrapMode.Clamp,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        Color32 arrowPixel = new Color32(255, 255, 255, 255);
+        Color32 emptyPixel = new Color32(255, 255, 255, 0);
+        Color32[] pixels = new Color32[size * size];
+        float center = (size - 1) * 0.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            float distanceFromAxis = Mathf.Abs(y - center);
+            for (int x = 0; x < size; x++)
+            {
+                float halfHeight = x < shaftEnd
+                    ? shaftHalfHeight
+                    : Mathf.Lerp(headHalfHeight, 0f, (x - shaftEnd) / (size - shaftEnd));
+                pixels[y * size + x] = distanceFromAxis <= halfHeight ? arrowPixel : emptyPixel;
+            }
+        }
+
+        texture.SetPixels32(pixels);
+        texture.Apply();
+
+        aimArrowSprite = Sprite.Create(
+            texture,
+            new Rect(0f, 0f, size, size),
+            new Vector2(0.5f, 0.5f),
+            size);
+        aimArrowSprite.name = "Aim Arrow";
+        return aimArrowSprite;
     }
 
     private static void PlaySfx(AudioClip clip)
@@ -519,7 +608,7 @@ public class TowerShopUI : MonoBehaviour
 
         canvasRect = canvasObject.GetComponent<RectTransform>();
 
-        // The background belongs to the whole menu and stays unchanged between tabs.
+        // The wireframe box belongs to the whole menu and stays unchanged between tabs.
         GameObject root = CreateUIObject("Tower Shop", canvasObject.transform);
 
         shopRootRect = root.GetComponent<RectTransform>();
@@ -544,18 +633,20 @@ public class TowerShopUI : MonoBehaviour
 
         BuildTabBar(root.transform);
 
-        GameObject panel = CreateMenuPanel(root.transform, "Menu Panel", buildMenuBackground);
-        GameObject moneyRow = CreateUIObject("Money Row", panel.transform);
-        moneyRow.AddComponent<LayoutElement>().preferredHeight = 48f;
-        moneyText = CreateText("Money", moneyRow.transform, 28, TextAnchor.MiddleCenter);
-        StretchLabel(moneyText, 0f);
-        moneyText.rectTransform.anchoredPosition = moneyTextOffset;
+        GameObject panel = CreateMenuPanel(root.transform, "Menu Panel");
+        GameObject energyRow = CreateUIObject("Energy Row", panel.transform);
+        // Tall enough that the total is not crowded against the tabs above it.
+        energyRow.AddComponent<LayoutElement>().preferredHeight = 66f;
+        energyText = CreateText("Energy", energyRow.transform, 28, TextAnchor.MiddleCenter);
+        energyText.color = labelColor;
+        StretchLabel(energyText, 0f);
+        energyText.rectTransform.anchoredPosition = energyTextOffset;
         buildPage = BuildBuildPage(panel.transform);
         roundPage = BuildRoundPage(panel.transform);
 
         // The Build page is the taller page. Use its fully calculated height for the
-        // shared panel so changing to the shorter Round page never shrinks the
-        // unchanged background artwork.
+        // shared panel so changing to the shorter Round page never shrinks the box
+        // the two tabs are drawn on top of.
         roundPage.SetActive(false);
         Canvas.ForceUpdateCanvases();
         RectTransform panelRect = panel.GetComponent<RectTransform>();
@@ -580,27 +671,83 @@ public class TowerShopUI : MonoBehaviour
         row.childControlWidth = true;
         row.childForceExpandWidth = true;
 
-        buildTabButton = CreateTabButton(bar.transform, "Build", false);
-        roundTabButton = CreateTabButton(bar.transform, "Round", true);
+        CreateTabButton(bar.transform, "Build", false, out buildTabOutline, out buildTabLabel);
+        CreateTabButton(bar.transform, "Round", true, out roundTabOutline, out roundTabLabel);
     }
 
-    private Button CreateTabButton(Transform parent, string tabName, bool opensRoundTab)
+    private void CreateTabButton(
+        Transform parent,
+        string tabName,
+        bool opensRoundTab,
+        out UIWireframeBox outline,
+        out Text label)
     {
-        GameObject buttonObject = CreateUIObject(tabName + " Tab", parent);
+        Button button = CreateBareButton(tabName + " Tab", parent, 50f);
+        button.onClick.AddListener(() => ShowTab(opensRoundTab));
+
+        // Open at the bottom: the top line of the box below closes the tab off, so the
+        // tab and the menu it opens read as one shape rather than two stacked boxes.
+        outline = AddOutline(button.gameObject, drawBottom: false);
+
+        label = CreateText(
+            "Label", button.transform, ScaledFontSize(22), TextAnchor.MiddleCenter);
+        label.text = tabName;
+        label.color = labelColor;
+        StretchLabel(label, 4f);
+    }
+
+    /// <summary>
+    /// A button with no artwork of its own. The background image stays fully transparent
+    /// and exists only to take clicks and carry a faint hover wash, so nothing but the
+    /// label and icon show against the wireframe.
+    /// </summary>
+    private Button CreateBareButton(string objectName, Transform parent, float preferredHeight)
+    {
+        GameObject buttonObject = CreateUIObject(objectName, parent);
+
         Image background = buttonObject.AddComponent<Image>();
-        background.sprite = buttonSprite;
-        background.preserveAspect = buttonSprite != null;
-        background.color = buttonColor;
+        background.color = Color.white;
 
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = background;
-        button.onClick.AddListener(() => ShowTab(opensRoundTab));
 
-        Text label = CreateText(
-            "Label", buttonObject.transform, ScaledFontSize(22), TextAnchor.MiddleCenter);
-        label.text = tabName;
-        StretchLabel(label, 4f);
+        ColorBlock colors = ColorBlock.defaultColorBlock;
+        colors.normalColor = new Color(1f, 1f, 1f, 0f);
+        colors.highlightedColor = new Color(1f, 1f, 1f, 0.12f);
+        colors.pressedColor = new Color(1f, 1f, 1f, 0.22f);
+        colors.selectedColor = new Color(1f, 1f, 1f, 0f);
+        colors.disabledColor = new Color(1f, 1f, 1f, 0f);
+        button.colors = colors;
+
+        buttonObject.AddComponent<LayoutElement>().preferredHeight = preferredHeight;
         return button;
+    }
+
+    /// <summary>Traces a wireframe box around <paramref name="target"/> without joining its layout.</summary>
+    private UIWireframeBox AddOutline(GameObject target, bool drawBottom)
+    {
+        GameObject outlineObject = CreateUIObject("Outline", target.transform);
+
+        RectTransform outlineRect = outlineObject.GetComponent<RectTransform>();
+        outlineRect.anchorMin = Vector2.zero;
+        outlineRect.anchorMax = Vector2.one;
+        outlineRect.offsetMin = Vector2.zero;
+        outlineRect.offsetMax = Vector2.zero;
+
+        // Decoration, not content: a layout group on the target must leave it alone.
+        outlineObject.AddComponent<LayoutElement>().ignoreLayout = true;
+
+        UIWireframeBox outline = outlineObject.AddComponent<UIWireframeBox>();
+        outline.Color = outlineColor;
+        outline.Thickness = outlineThickness;
+        outline.SetSides(true, true, true, drawBottom);
+        return outline;
+    }
+
+    /// <summary>The outline colour a closed tab and the description box are drawn in.</summary>
+    private Color FadedOutlineColor(float alphaScale)
+    {
+        return new Color(outlineColor.r, outlineColor.g, outlineColor.b, outlineColor.a * alphaScale);
     }
 
     /// <summary>
@@ -636,30 +783,14 @@ public class TowerShopUI : MonoBehaviour
         lastCanvasSize = canvasSize;
     }
 
-    private GameObject CreateMenuPanel(Transform parent, string panelName, Sprite backgroundSprite)
+    /// <summary>
+    /// The container both tabs open into: a closed wireframe box with the game visible
+    /// through it, rather than a filled background sprite.
+    /// </summary>
+    private GameObject CreateMenuPanel(Transform parent, string panelName)
     {
         GameObject panel = CreateUIObject(panelName, parent);
-
-        // Keep the artwork out of Unity's layout calculations. Otherwise the source
-        // sprite's tall native size becomes the panel's preferred height and creates
-        // large gaps between otherwise compact rows.
-        GameObject backgroundObject = CreateUIObject("Background", panel.transform);
-        Image background = backgroundObject.AddComponent<Image>();
-        background.sprite = backgroundSprite;
-        background.color = backgroundSprite != null ? Color.white : panelColor;
-        background.type = Image.Type.Simple;
-        background.preserveAspect = backgroundSprite != null;
-        background.raycastTarget = false;
-
-        RectTransform backgroundRect = background.rectTransform;
-        backgroundRect.anchorMin = Vector2.zero;
-        backgroundRect.anchorMax = Vector2.one;
-        backgroundRect.offsetMin = Vector2.zero;
-        backgroundRect.offsetMax = Vector2.zero;
-
-        LayoutElement backgroundLayout = backgroundObject.AddComponent<LayoutElement>();
-        backgroundLayout.ignoreLayout = true;
-
+        AddOutline(panel, drawBottom: true);
         AddPageLayout(panel);
         return panel;
     }
@@ -678,8 +809,59 @@ public class TowerShopUI : MonoBehaviour
             towerButtons.Add(button);
         }
 
+        BuildDescriptionBox(page.transform);
         repairButton = CreateRepairButton(page.transform);
         return page;
+    }
+
+    /// <summary>
+    /// The box under the tower list that explains whatever is selected. Its height is
+    /// fixed, so a short description and a long one leave the menu the same size.
+    /// </summary>
+    private void BuildDescriptionBox(Transform parent)
+    {
+        const float boxHeight = 132f;
+
+        GameObject box = CreateUIObject("Description Box", parent);
+        LayoutElement boxSize = box.AddComponent<LayoutElement>();
+        boxSize.minHeight = boxHeight;
+        boxSize.preferredHeight = boxHeight;
+
+        // Drawn thinner and dimmer than the menu box, so it reads as a section inside
+        // the menu instead of competing with it.
+        UIWireframeBox outline = AddOutline(box, drawBottom: true);
+        outline.Color = FadedOutlineColor(0.5f);
+        outline.Thickness = Mathf.Max(1f, outlineThickness * 0.6f);
+
+        VerticalLayoutGroup layout = box.AddComponent<VerticalLayoutGroup>();
+        layout.padding = new RectOffset(10, 10, 8, 8);
+        layout.spacing = 2f;
+        layout.childAlignment = TextAnchor.UpperLeft;
+        layout.childControlHeight = true;
+        layout.childControlWidth = true;
+        layout.childForceExpandHeight = false;
+
+        descriptionTitle = CreateText(
+            "Title", box.transform, ScaledFontSize(18), TextAnchor.UpperLeft);
+        descriptionTitle.fontStyle = FontStyle.Bold;
+        descriptionTitle.color = highlightColor;
+        descriptionTitle.gameObject.AddComponent<LayoutElement>().preferredHeight = 24f;
+
+        descriptionBody = CreateText(
+            "Body", box.transform, ScaledFontSize(15), TextAnchor.UpperLeft);
+        descriptionBody.color = labelColor;
+        descriptionBody.horizontalOverflow = HorizontalWrapMode.Wrap;
+        descriptionBody.verticalOverflow = VerticalWrapMode.Truncate;
+        // A wordy tower shrinks its text to fit rather than being cut off mid-sentence.
+        descriptionBody.resizeTextForBestFit = true;
+        descriptionBody.resizeTextMinSize = 10;
+        descriptionBody.resizeTextMaxSize = Mathf.Max(10, ScaledFontSize(15));
+        descriptionBody.gameObject.AddComponent<LayoutElement>().flexibleHeight = 1f;
+
+        descriptionHint = CreateText(
+            "Hint", box.transform, ScaledFontSize(13), TextAnchor.LowerLeft);
+        descriptionHint.color = DimmedLabelColor;
+        descriptionHint.gameObject.AddComponent<LayoutElement>().preferredHeight = 18f;
     }
 
     private GameObject BuildRoundPage(Transform parent)
@@ -687,21 +869,39 @@ public class TowerShopUI : MonoBehaviour
         GameObject page = CreateUIObject("Round Page", parent);
         AddPageLayout(page).padding = new RectOffset(0, 0, 0, 0);
 
+        // The box keeps the taller Build page's height, so this page stretches into the
+        // leftover space instead of ending halfway down it.
+        page.AddComponent<LayoutElement>().flexibleHeight = 1f;
+
         roundTitleText = CreateText("Round Title", page.transform, 26, TextAnchor.MiddleCenter);
         roundTitleText.fontStyle = FontStyle.Bold;
-        roundTitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 40f;
+        roundTitleText.color = labelColor;
+        roundTitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 56f;
 
-        GameObject subtitleRow = CreateUIObject("Round Subtitle Row", page.transform);
-        subtitleRow.AddComponent<LayoutElement>().preferredHeight = 26f;
+        // "Coming next" labels the list, so the two are one block with its own tight
+        // spacing. The page's row spacing then applies around the pair rather than
+        // between them, which is what used to leave the label floating.
+        GameObject nextWaveBlock = CreateUIObject("Next Wave", page.transform);
+        VerticalLayoutGroup blockLayout = nextWaveBlock.AddComponent<VerticalLayoutGroup>();
+        blockLayout.spacing = 2f;
+        blockLayout.childAlignment = TextAnchor.UpperLeft;
+        blockLayout.childControlHeight = true;
+        blockLayout.childControlWidth = true;
+        blockLayout.childForceExpandHeight = false;
+
+        GameObject subtitleRow = CreateUIObject("Round Subtitle Row", nextWaveBlock.transform);
+        subtitleRow.AddComponent<LayoutElement>().preferredHeight = 20f;
+        // Sits on the bottom of its row, so the label rests on the first enemy rather
+        // than being centred in a band of empty space.
         roundSubtitleText = CreateText(
-            "Round Subtitle", subtitleRow.transform, 18, TextAnchor.MiddleLeft);
+            "Round Subtitle", subtitleRow.transform, 16, TextAnchor.LowerLeft);
         roundSubtitleText.color = new Color(0.75f, 0.8f, 0.88f, 1f);
         StretchLabel(roundSubtitleText, 0f);
         roundSubtitleText.rectTransform.anchoredPosition = comingNextTextOffset;
 
-        GameObject list = CreateUIObject("Enemy List", page.transform);
+        GameObject list = CreateUIObject("Enemy List", nextWaveBlock.transform);
         VerticalLayoutGroup listLayout = list.AddComponent<VerticalLayoutGroup>();
-        listLayout.spacing = 6f;
+        listLayout.spacing = 2f;
         listLayout.childAlignment = TextAnchor.UpperLeft;
         listLayout.childControlHeight = true;
         listLayout.childControlWidth = true;
@@ -712,6 +912,15 @@ public class TowerShopUI : MonoBehaviour
 
         // Healing belongs with the round preview: you top up after seeing what is coming.
         potionButton = CreatePotionButton(page.transform);
+
+        // Takes whatever height the page above it does not use, which keeps Start Round
+        // on the bottom edge of the box however short the wave preview turns out to be.
+        GameObject spacer = CreateUIObject("Spacer", page.transform);
+        LayoutElement spacerLayout = spacer.AddComponent<LayoutElement>();
+        spacerLayout.minHeight = 0f;
+        spacerLayout.preferredHeight = 0f;
+        spacerLayout.flexibleHeight = 1f;
+
         StartRoundButton = CreateStartRoundButton(page.transform);
         return page;
     }
@@ -729,7 +938,7 @@ public class TowerShopUI : MonoBehaviour
         return layout;
     }
 
-    /// <summary>Switches content while leaving the panel background unchanged.</summary>
+    /// <summary>Switches content while leaving the wireframe box around it unchanged.</summary>
     public void ShowTab(bool roundTab)
     {
         showingRoundTab = roundTab;
@@ -789,9 +998,10 @@ public class TowerShopUI : MonoBehaviour
         roundSubtitleText.text = "Coming next:";
 
         waveSpawner.GetNextWavePreview(wavePreview);
+        float rowBudget = GetEnemyPreviewRowBudget(wavePreview.Count);
         for (int i = 0; i < wavePreview.Count; i++)
         {
-            CreateEnemyPreviewRow(wavePreview[i]);
+            CreateEnemyPreviewRow(wavePreview[i], rowBudget);
         }
 
         if (wavePreview.Count == 0)
@@ -800,31 +1010,88 @@ public class TowerShopUI : MonoBehaviour
         }
     }
 
-    private void CreateEnemyPreviewRow(WaveSpawner.WavePreviewEntry entry)
+    /// <summary>
+    /// One enemy in the next wave: its name on a line of its own, with the art below
+    /// spanning the menu box. Aspect is preserved, so the art reaches both edges whenever
+    /// the row is tall enough to let it.
+    /// </summary>
+    private void CreateEnemyPreviewRow(WaveSpawner.WavePreviewEntry entry, float maxRowHeight)
     {
+        // The name owns a band at the top of the row and the art starts below the gap,
+        // so the two never overlap however tall the art ends up.
+        const float labelHeight = 22f;
+        const float labelGap = 6f;
+
+        Sprite sprite = GetEnemySprite(entry.prefab);
+        float artHeight = Mathf.Max(
+            20f,
+            Mathf.Min(GetFullWidthPreviewHeight(sprite), maxRowHeight - labelHeight - labelGap));
+
         GameObject rowObject = CreateUIObject(entry.prefab.name + " Preview", enemyListRoot);
-        rowObject.AddComponent<LayoutElement>().preferredHeight = 44f;
+        rowObject.AddComponent<LayoutElement>().preferredHeight =
+            labelHeight + labelGap + artHeight;
 
-        HorizontalLayoutGroup row = rowObject.AddComponent<HorizontalLayoutGroup>();
-        row.spacing = 10f;
-        row.childAlignment = TextAnchor.MiddleLeft;
-        row.childControlHeight = true;
-        row.childControlWidth = false;
+        Text label = CreateText(
+            "Label", rowObject.transform, ScaledFontSize(18), TextAnchor.MiddleCenter);
+        label.text = entry.prefab.name + "   x" + entry.count;
+        label.color = labelColor;
+        label.fontStyle = FontStyle.Bold;
+        label.raycastTarget = false;
 
-        GameObject iconObject = CreateUIObject("Icon", rowObject.transform);
-        Image icon = iconObject.AddComponent<Image>();
-        icon.sprite = GetEnemySprite(entry.prefab);
-        icon.preserveAspect = true;
-        icon.enabled = icon.sprite != null;
-        LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
-        iconLayout.preferredWidth = 36f;
-        iconLayout.preferredHeight = 36f;
+        RectTransform labelRect = label.rectTransform;
+        labelRect.anchorMin = new Vector2(0f, 1f);
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(6f, -labelHeight);
+        labelRect.offsetMax = new Vector2(-6f, 0f);
 
-        Text label = CreateText("Label", rowObject.transform, 18, TextAnchor.MiddleLeft);
-        label.text = "x" + entry.count + "  " + entry.prefab.name;
-        LayoutElement labelLayout = label.gameObject.AddComponent<LayoutElement>();
-        labelLayout.flexibleWidth = 1f;
-        labelLayout.preferredHeight = 36f;
+        GameObject artObject = CreateUIObject("Art", rowObject.transform);
+        Image art = artObject.AddComponent<Image>();
+        art.sprite = sprite;
+        art.preserveAspect = true;
+        art.raycastTarget = false;
+        art.enabled = sprite != null;
+
+        RectTransform artRect = art.rectTransform;
+        artRect.anchorMin = Vector2.zero;
+        artRect.anchorMax = Vector2.one;
+        artRect.offsetMin = Vector2.zero;
+        artRect.offsetMax = new Vector2(0f, -(labelHeight + labelGap));
+    }
+
+    /// <summary>
+    /// How tall a row has to be for this art to reach both edges of the menu box. Rows
+    /// taller than this would only add empty space, since aspect is preserved.
+    /// </summary>
+    private float GetFullWidthPreviewHeight(Sprite sprite)
+    {
+        if (sprite == null || sprite.rect.width <= 0f)
+        {
+            return 30f;
+        }
+
+        float boxWidth = shopRootRect != null ? shopRootRect.rect.width : 250f;
+        // Both page padding columns, which the row does not cover.
+        float rowWidth = Mathf.Max(1f, boxWidth - 24f);
+        return rowWidth * (sprite.rect.height / sprite.rect.width);
+    }
+
+    /// <summary>
+    /// The height each preview may take. The list as a whole is capped so the round page
+    /// cannot outgrow the box, which means a wave of one enemy type spends the lot on it
+    /// and four types share it.
+    /// </summary>
+    private static float GetEnemyPreviewRowBudget(int entryCount)
+    {
+        // Room for the name band above each piece of art as well as the art itself.
+        const float listHeight = 260f;
+        const float rowSpacing = 2f;
+
+        if (entryCount <= 0)
+        {
+            return 0f;
+        }
+
+        return Mathf.Max(28f, (listHeight - rowSpacing * (entryCount - 1)) / entryCount);
     }
 
     /// <summary>
@@ -844,69 +1111,45 @@ public class TowerShopUI : MonoBehaviour
 
     private Button CreateRepairButton(Transform parent)
     {
-        GameObject buttonObject = CreateUIObject("Repair Cage", parent);
-        Image background = buttonObject.AddComponent<Image>();
-        background.sprite = buttonSprite;
-        background.preserveAspect = buttonSprite != null;
-        background.color = buttonColor;
-        Button button = buttonObject.AddComponent<Button>();
-        button.targetGraphic = background;
+        Button button = CreateBareButton("Repair Cage", parent, 62f);
         button.onClick.AddListener(ToggleRepairMode);
-        buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
 
         repairLabel = CreateText(
-            "Label", buttonObject.transform, ScaledFontSize(20), TextAnchor.MiddleCenter);
+            "Label", button.transform, ScaledFontSize(20), TextAnchor.MiddleCenter);
+        repairLabel.color = labelColor;
         StretchLabel(repairLabel, 8f);
         return button;
     }
 
     private Button CreatePotionButton(Transform parent)
     {
-        GameObject buttonObject = CreateUIObject("Health Potion", parent);
-        Image background = buttonObject.AddComponent<Image>();
-        background.sprite = buttonSprite;
-        background.preserveAspect = buttonSprite != null;
-        background.color = buttonColor;
-        Button button = buttonObject.AddComponent<Button>();
-        button.targetGraphic = background;
+        Button button = CreateBareButton("Health Potion", parent, 62f);
         button.onClick.AddListener(BuyHealthPotion);
-        buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
 
-        Text label = CreateText(
-            "Label", buttonObject.transform, ScaledFontSize(20), TextAnchor.MiddleCenter);
-        label.text = "Health Potion (+" + potionHealAmount + ")  $" + potionPrice;
-        StretchLabel(label, 8f);
+        potionLabel = CreateText(
+            "Label", button.transform, ScaledFontSize(20), TextAnchor.MiddleCenter);
+        potionLabel.text = "Health Potion (+" + potionHealAmount + ")  " + potionPrice;
+        potionLabel.color = labelColor;
+        StretchLabel(potionLabel, 8f);
         return button;
     }
 
     private Button CreateStartRoundButton(Transform parent)
     {
-        GameObject buttonObject = CreateUIObject("Start Round", parent);
-        Image background = buttonObject.AddComponent<Image>();
-        background.sprite = buttonSprite;
-        background.preserveAspect = buttonSprite != null;
-        background.color = startRoundColor;
-        Button button = buttonObject.AddComponent<Button>();
-        button.targetGraphic = background;
-        buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
+        Button button = CreateBareButton("Start Round", parent, 62f);
 
         Text label = CreateText(
-            "Label", buttonObject.transform, ScaledFontSize(24), TextAnchor.MiddleCenter);
+            "Label", button.transform, ScaledFontSize(24), TextAnchor.MiddleCenter);
         label.text = "Start Round";
+        label.color = startRoundLabelColor;
         StretchLabel(label, 0f);
         return button;
     }
 
     private Button CreateButton(Transform parent, TowerOffer offer, int index)
     {
-        GameObject buttonObject = CreateUIObject("Tower " + index, parent);
-        Image background = buttonObject.AddComponent<Image>();
-        background.sprite = buttonSprite;
-        background.preserveAspect = buttonSprite != null;
-        background.color = buttonColor;
-        Button button = buttonObject.AddComponent<Button>();
-        button.targetGraphic = background;
-        buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
+        Button button = CreateBareButton("Tower " + index, parent, 62f);
+        GameObject buttonObject = button.gameObject;
 
         HorizontalLayoutGroup row = buttonObject.AddComponent<HorizontalLayoutGroup>();
         row.padding = new RectOffset(8, 8, 6, 6);
@@ -925,26 +1168,37 @@ public class TowerShopUI : MonoBehaviour
 
         Text label = CreateText(
             "Label", buttonObject.transform, ScaledFontSize(20), TextAnchor.MiddleLeft);
-        label.text = offer.displayName + "  $" + offer.price;
+        label.text = offer.displayName + "  " + offer.price;
+        label.color = labelColor;
         LayoutElement labelLayout = label.gameObject.AddComponent<LayoutElement>();
         labelLayout.flexibleWidth = 1f;
         labelLayout.preferredHeight = 48f;
+
+        // Recorded so the selected offer can be lit up without a button background.
+        towerLabels.Add(label);
+        towerIcons.Add(icon);
         return button;
     }
 
     private void RefreshUI()
     {
-        if (moneyText != null)
+        if (energyText != null)
         {
-            moneyText.text = "Money: $" + Mathf.RoundToInt(displayedMoney);
+            energyText.text = "Energy: " + Mathf.RoundToInt(displayedEnergy);
         }
 
+        // With no button backgrounds left, affordability and selection are carried by
+        // the label and icon instead of by a panel colour.
         for (int i = 0; i < towerButtons.Count; i++)
         {
-            Button button = towerButtons[i];
             TowerOffer offer = towers[i];
-            button.interactable = GetOfferSprite(offer) != null && CanAfford(offer.price);
-            button.GetComponent<Image>().color = i == selectedIndex ? selectedColor : buttonColor;
+            bool available = GetOfferSprite(offer) != null && CanAfford(offer.price);
+            towerButtons[i].interactable = available;
+
+            towerLabels[i].color = i == selectedIndex
+                ? highlightColor
+                : (available ? labelColor : DimmedLabelColor);
+            towerIcons[i].color = available ? Color.white : new Color(1f, 1f, 1f, 0.35f);
         }
 
         if (potionButton != null)
@@ -953,29 +1207,108 @@ public class TowerShopUI : MonoBehaviour
             // offer disappears entirely rather than sitting there greyed out.
             bool healingWouldHelp = player != null && player.CanBeHealed;
             potionButton.gameObject.SetActive(healingWouldHelp);
-            potionButton.interactable = healingWouldHelp && CanAfford(potionPrice);
+
+            bool affordable = CanAfford(potionPrice);
+            potionButton.interactable = healingWouldHelp && affordable;
+            potionLabel.color = affordable ? labelColor : DimmedLabelColor;
         }
 
         if (repairButton != null)
         {
-            repairButton.interactable = CanAfford(cageRepairPrice);
-            repairButton.GetComponent<Image>().color = repairMode ? selectedColor : buttonColor;
+            bool affordable = CanAfford(cageRepairPrice);
+            repairButton.interactable = affordable;
+            repairLabel.color = repairMode
+                ? highlightColor
+                : (affordable ? labelColor : DimmedLabelColor);
             repairLabel.text = repairMode
                 ? "Click a Cage to Repair"
-                : "Repair Cage  $" + cageRepairPrice;
+                : "Repair Cage  " + cageRepairPrice;
         }
 
-        if (buildTabButton != null)
+        SetTabState(buildTabLabel, buildTabOutline, !showingRoundTab);
+        SetTabState(roundTabLabel, roundTabOutline, showingRoundTab);
+        RefreshDescription();
+    }
+
+    /// <summary>The open tab is lit; the closed one keeps a dimmer outline.</summary>
+    private void SetTabState(Text label, UIWireframeBox outline, bool active)
+    {
+        if (label != null)
         {
-            buildTabButton.GetComponent<Image>().color =
-                showingRoundTab ? buttonColor : selectedColor;
+            label.color = active ? highlightColor : labelColor;
         }
 
-        if (roundTabButton != null)
+        if (outline != null)
         {
-            roundTabButton.GetComponent<Image>().color =
-                showingRoundTab ? selectedColor : buttonColor;
+            outline.Color = active ? outlineColor : FadedOutlineColor(0.4f);
         }
+    }
+
+    /// <summary>
+    /// Rewrites the description box for whatever is selected. Prices and text never
+    /// change on their own, so the work is skipped unless the selection has moved -
+    /// this runs from every energy tick.
+    /// </summary>
+    private void RefreshDescription()
+    {
+        if (descriptionTitle == null
+            || (selectedIndex == describedIndex && repairMode == describedRepairMode))
+        {
+            return;
+        }
+
+        describedIndex = selectedIndex;
+        describedRepairMode = repairMode;
+
+        if (repairMode)
+        {
+            descriptionTitle.text = "Repair Cage";
+            descriptionBody.text = "Click a broken cage to fix it. A repaired cage can hold "
+                + "an enemy again and powers the towers stacked above it.";
+            descriptionHint.text = cageRepairPrice + " energy per cage";
+            return;
+        }
+
+        TowerOffer offer = selectedIndex >= 0 && selectedIndex < towers.Count
+            ? towers[selectedIndex]
+            : null;
+        if (offer == null)
+        {
+            descriptionTitle.text = "Nothing selected";
+            descriptionBody.text = "Pick a piece above to see what it does.";
+            descriptionHint.text = string.Empty;
+            return;
+        }
+
+        descriptionTitle.text = offer.displayName + "   " + offer.price;
+
+        string description = GetDescription(offer);
+        descriptionBody.text = string.IsNullOrWhiteSpace(description)
+            ? "No description yet. Add one on this prefab's Tower Placement Info component."
+            : description;
+        descriptionHint.text = BuildPlacementHint(offer);
+    }
+
+    /// <summary>
+    /// The one-line placement rules underneath the description. These come from the
+    /// prefab's own flags rather than from the prose, so they cannot fall out of step
+    /// with how the piece actually places.
+    /// </summary>
+    private static string BuildPlacementHint(TowerOffer offer)
+    {
+        string hint = IsSupportPiece(offer) ? "Stands on its own" : "Needs support below";
+
+        if (IsRotatable(offer))
+        {
+            hint += "   |   R to rotate";
+        }
+
+        if (IsWalkThrough(offer))
+        {
+            hint += "   |   Walk through";
+        }
+
+        return hint;
     }
 
     private int ScaledFontSize(int baseSize)
@@ -1024,7 +1357,7 @@ public class TowerShopUI : MonoBehaviour
     /// <summary>
     /// Keeps the potion offer in step with the player's health. Health is not owned by
     /// the shop and is initialised after this component's Awake, so the offer is checked
-    /// per frame instead of only when money changes. Only runs during build phases,
+    /// per frame instead of only when energy changes. Only runs during build phases,
     /// since the spawner disables this component while a wave is being fought.
     /// </summary>
     private void Update()
@@ -1081,6 +1414,7 @@ public class TowerShopUI : MonoBehaviour
         menuScaleX = Mathf.Max(0.1f, menuScaleX);
         menuScaleY = Mathf.Max(0.1f, menuScaleY);
         buttonContentScale = Mathf.Clamp(buttonContentScale, 0.25f, 2f);
+        outlineThickness = Mathf.Max(1f, outlineThickness);
         menuItemSpacing = Mathf.Max(0f, menuItemSpacing);
         screenEdgePadding = Mathf.Max(0f, screenEdgePadding);
 

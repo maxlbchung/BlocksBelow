@@ -154,9 +154,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2889b925cb7b3ad4abe49a0eb8a4a9ed, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShotgunTower
-  projectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
+  projectilePrefab: {fileID: 6591939630860976102, guid: acb49bf5a05760847844678a2bf5c394, type: 3}
   fireRate: 1
-  bulletsPerShot: 0
   spread: 30
   damage: 1
   shootSfx: {fileID: 8300000, guid: ba8ba2a767922f143baee7fbb577a988, type: 3}
@@ -196,6 +195,7 @@ MonoBehaviour:
   aimDirection: {x: -1, y: 0}
   supportPiece: 0
   walkThrough: 0
+  description: Fires multiple bullets at once. + Bullets
 --- !u!114 &2867807040023081173
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -18,8 +18,12 @@ public class TowerPlacementInfo : MonoBehaviour
     [Tooltip("The player can stand inside this piece, so its cell stays placeable while the player is in it.")]
     [SerializeField] private bool walkThrough;
 
+    [Tooltip("What this piece does, shown in the shop's description box while it is selected.")]
+    [SerializeField, TextArea(2, 5)] private string description;
+
     public bool Rotatable => rotatable;
     public Vector2 AimDirection => aimDirection;
     public bool SupportPiece => supportPiece;
     public bool WalkThrough => walkThrough;
+    public string Description => description;
 }

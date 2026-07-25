@@ -63,8 +63,8 @@ public class PlayerController : Entity
     private int deathParticleCount = 40;
 
     [Header("Health Bar")]
-    [SerializeField] private Vector2 healthBarSize = new Vector2(2f, 0.25f);
-    [SerializeField] private float healthBarHeight = 0.6f;
+    [SerializeField] private Vector2 healthBarSize = new Vector2(2.8f, 0.4f);
+    [SerializeField] private float healthBarHeight = 1.1f;
     [SerializeField] private Color healthBarColor = new Color(0.2f, 0.85f, 0.25f, 1f);
     [SerializeField] private Color healthBarBackgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.9f);
     [SerializeField] private int healthBarSortingOrder = 100;

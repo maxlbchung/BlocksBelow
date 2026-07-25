@@ -177,6 +177,7 @@ MonoBehaviour:
   aimDirection: {x: -1, y: 0}
   supportPiece: 0
   walkThrough: 0
+  description: Spins blades around. + Blade
 --- !u!114 &6274397010501154314
 MonoBehaviour:
   m_ObjectHideFlags: 0

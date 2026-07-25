@@ -130,6 +130,7 @@ public class CageTower : MonoBehaviour
 
         SetEnemySorting(enemy, "Towers");
         PlaySfx(captureSfx);
+        FirstCaptureCinematic.TryPlay(this);
     }
 
     public void ReleaseEnemy()

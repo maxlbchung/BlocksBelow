@@ -13,11 +13,17 @@ public class PlayerDamageTaker : MonoBehaviour
             return;
         }
 
-        if (other.TryGetComponent<BasicEnemy>(out BasicEnemy enemy))
+        // Read off the base type rather than one subclass, so every enemy that declares
+        // contact damage lands it. Enemies that hurt the player another way, or not at
+        // all, report zero and are skipped.
+        if (other.TryGetComponent<Enemy>(out Enemy enemy))
         {
-            playerController.DamagePlayer(
-                enemy.damage,
-                CalculateKnockbackDirection(transform.position, other.transform.position));
+            if (enemy.ContactDamage > 0)
+            {
+                playerController.DamagePlayer(
+                    enemy.ContactDamage,
+                    CalculateKnockbackDirection(transform.position, other.transform.position));
+            }
         }
         else if (other.TryGetComponent<EnemyBullet>(out EnemyBullet bullet))
         {

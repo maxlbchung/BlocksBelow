@@ -5,6 +5,8 @@ public class BasicEnemy : Enemy
     [SerializeField] private float moveSpeed = 5f;
     public int damage;
 
+    public override int ContactDamage => damage;
+
     protected override Vector2 CalculateDesiredVelocity(Transform player, float elapsed)
     {
         if (player == null)

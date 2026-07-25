@@ -93,6 +93,9 @@ public class WaveSpawner : MonoBehaviour
     private Button startGameButton;
 
     [Header("Runtime")]
+    [SerializeField, Tooltip("Starts round 1 as soon as the level loads, with no build phase "
+        + "in front of it. Later rounds still wait for the Start Round button.")]
+    private bool startFirstWaveImmediately = true;
     public GameState gameState = GameState.Wave;
 
     private static WaveSpawner instance;
@@ -240,7 +243,7 @@ public class WaveSpawner : MonoBehaviour
             startGameButton.onClick.AddListener(StartNextWave);
         }
 
-        if (gameState == GameState.Wave)
+        if (startFirstWaveImmediately || gameState == GameState.Wave)
         {
             SetBuildingToolsEnabled(false);
             StartNextWave();
@@ -258,6 +261,7 @@ public class WaveSpawner : MonoBehaviour
             return;
         }
 
+        int blockingEnemies = 0;
         for (int i = livingEnemies.Count - 1; i >= 0; i--)
         {
             Enemy enemy = livingEnemies[i];
@@ -266,12 +270,38 @@ public class WaveSpawner : MonoBehaviour
                 int lastIndex = livingEnemies.Count - 1;
                 livingEnemies[i] = livingEnemies[lastIndex];
                 livingEnemies.RemoveAt(lastIndex);
+                continue;
+            }
+
+            if (enemy.BlocksWaveCompletion)
+            {
+                blockingEnemies++;
             }
         }
 
-        if (finishedSpawning && livingEnemies.Count == 0)
+        if (finishedSpawning && blockingEnemies == 0)
         {
+            DespawnIdleEnemies();
             switchGameState(GameState.Building);
+        }
+    }
+
+    /// <summary>
+    /// Clears out whatever was not holding the round open - breakers still hunting for a
+    /// cage. They spawned, which is what the wave's breaker count promises, but there is
+    /// nothing left for them to do once every other enemy is gone.
+    /// </summary>
+    private void DespawnIdleEnemies()
+    {
+        for (int i = livingEnemies.Count - 1; i >= 0; i--)
+        {
+            Enemy enemy = livingEnemies[i];
+            livingEnemies.RemoveAt(i);
+
+            if (enemy != null && enemy.isActiveAndEnabled)
+            {
+                enemy.Despawn();
+            }
         }
     }
 
@@ -538,19 +568,19 @@ public class WaveSpawner : MonoBehaviour
         gameState = GameState.Building;
         SetBuildingToolsEnabled(true);
 
-        // Pay after the shop is re-enabled so the coin effect lands on a visible canvas.
+        // Pay after the shop is re-enabled so the payout effect lands on a visible canvas.
         if (roundJustEnded)
         {
-            PayOutMoneyTowers();
+            PayOutEnergyTowers();
         }
     }
 
-    private static void PayOutMoneyTowers()
+    private static void PayOutEnergyTowers()
     {
-        MoneyTower[] moneyTowers = FindObjectsByType<MoneyTower>(FindObjectsSortMode.None);
-        for (int i = 0; i < moneyTowers.Length; i++)
+        EnergyTower[] energyTowers = FindObjectsByType<EnergyTower>(FindObjectsSortMode.None);
+        for (int i = 0; i < energyTowers.Length; i++)
         {
-            moneyTowers[i].PayOutRound();
+            energyTowers[i].PayOutRound();
         }
     }
 

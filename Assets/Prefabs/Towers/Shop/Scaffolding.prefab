@@ -254,6 +254,7 @@ MonoBehaviour:
   aimDirection: {x: -1, y: 0}
   supportPiece: 1
   walkThrough: 1
+  description: Climb it and walk through it. Build on it.
 --- !u!114 &4589898515344838545
 MonoBehaviour:
   m_ObjectHideFlags: 0

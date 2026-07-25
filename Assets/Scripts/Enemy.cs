@@ -48,6 +48,21 @@ public class Enemy : Entity, IPoolable
     public virtual bool CanTakeDamage => true;
     public virtual bool CanBeCaged => isCagable;
 
+    /// <summary>
+    /// Damage this enemy deals to the player on contact. Zero for enemies that hurt the
+    /// player some other way, or not at all: a flyer does its damage through its bullets,
+    /// and a breaker only goes for cages. A caged enemy never lands contact damage - the
+    /// cage disables its colliders, so no overlap is reported while it is held.
+    /// </summary>
+    public virtual int ContactDamage => 0;
+
+    /// <summary>
+    /// Whether the round has to wait for this enemy before it can end. False for enemies
+    /// that are on the field with nothing left to do - a breaker with no cage to target -
+    /// which would otherwise hold the wave open forever, since they cannot be shot down.
+    /// </summary>
+    public virtual bool BlocksWaveCompletion => true;
+
     [Header("Cage")]
     public bool isCagable = false;
 
@@ -293,6 +308,15 @@ public class Enemy : Entity, IPoolable
         rb.gravityScale = 0f;
         rb.constraints = RigidbodyConstraints2D.FreezeRotation;
         rb.collisionDetectionMode = CollisionDetectionMode2D.Discrete;
+    }
+
+    /// <summary>
+    /// Takes this enemy off the field without counting it as a kill, for the spawner
+    /// clearing up leftovers at the end of a round.
+    /// </summary>
+    internal void Despawn()
+    {
+        ReleaseOrDestroy();
     }
 
     protected void ReleaseOrDestroy()

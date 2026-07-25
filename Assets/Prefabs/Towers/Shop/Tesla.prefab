@@ -183,6 +183,7 @@ MonoBehaviour:
   aimDirection: {x: -1, y: 0}
   supportPiece: 0
   walkThrough: 0
+  description: Chain attacks nearest enemies. + Target
 --- !u!114 &150787767599746645
 MonoBehaviour:
   m_ObjectHideFlags: 0

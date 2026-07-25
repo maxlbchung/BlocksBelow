@@ -25,6 +25,11 @@ public class Bird : Enemy
     [Header("Cage")]
     [SerializeField, Min(0f)] private float uncageableDurationAfterRelease = 2f;
 
+    [Header("Contact Damage")]
+    [SerializeField, Min(0), Tooltip("Damage dealt to the player on contact. The player's own "
+        + "invincibility frames decide how often a bird pressed against them can land a hit.")]
+    private int contactDamage = 1;
+
     public float currentSpeed;
 
     private float countdownRemaining;
@@ -37,6 +42,9 @@ public class Bird : Enemy
     public float CountdownRemaining => countdownRemaining;
     public override bool CanBeCaged =>
         base.CanBeCaged && Time.time >= cageableAgainTime && !escaping;
+
+    // A bird rushing for the sky is done with the player, so its escape run is harmless.
+    public override int ContactDamage => escaping ? 0 : contactDamage;
 
     protected override void Awake()
     {

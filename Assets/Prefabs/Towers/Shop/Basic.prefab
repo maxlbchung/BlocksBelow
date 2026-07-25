@@ -155,7 +155,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BasicTower
   projectilePrefab: {fileID: 6591939630860976102, guid: 121536fd1d8cd56489a1e86a61272bac, type: 3}
-  fireRate: 0
+  fireRatePerPower: 1
   damage: 1
   shootSfx: {fileID: 8300000, guid: c4bd30de22dc6b04e917a497093819e9, type: 3}
   projectilePrewarmCount: 30
@@ -194,6 +194,9 @@ MonoBehaviour:
   aimDirection: {x: -1, y: 0}
   supportPiece: 0
   walkThrough: 0
+  description: 'Single bullet shot
+
+    + Damage'
 --- !u!114 &1207467843014007573
 MonoBehaviour:
   m_ObjectHideFlags: 0

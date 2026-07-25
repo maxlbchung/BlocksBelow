@@ -145,8 +145,8 @@ MonoBehaviour:
   walkAnimationThreshold: 0.1
   gameOverDelay: 2.5
   deathParticleCount: 40
-  healthBarSize: {x: 2, y: 0.25}
-  healthBarHeight: 0.6
+  healthBarSize: {x: 2.8, y: 0.4}
+  healthBarHeight: 1.1
   healthBarColor: {r: 0.2, g: 0.85, b: 0.25, a: 1}
   healthBarBackgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 0.9}
   healthBarSortingOrder: 100

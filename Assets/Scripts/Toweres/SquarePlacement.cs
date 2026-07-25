@@ -74,7 +74,7 @@ public class SquarePlacement : MonoBehaviour
     // or the selection changes, so it is recomputed on those rather than every frame.
     private Vector2Int lastGhostCell;
     private int lastGhostGridVersion = -1;
-    private int lastGhostMoney = -1;
+    private int lastGhostEnergy = -1;
     private TowerShopUI.TowerOffer lastGhostOffer;
     private bool lastGhostValid;
     private bool hasGhostResult;
@@ -117,6 +117,20 @@ public class SquarePlacement : MonoBehaviour
         for (int i = 0; i < prePlacedTowersPosition.Length; i++)
         {
             towerShop.CreateTower(prePlacedTowers[i], SnapToGrid(prePlacedTowersPosition[i].position), cellSize, CurrentRotation);
+        }
+
+        // A tower maps the cages under it as it is placed, so one listed above its own
+        // cages would come up unpowered. Re-mapping once the whole list is down lets the
+        // pre-placed entries be in any order.
+        RemapPlacedCageStacks();
+    }
+
+    private void RemapPlacedCageStacks()
+    {
+        TowerCageStack[] stacks = FindObjectsByType<TowerCageStack>(FindObjectsSortMode.None);
+        for (int i = 0; i < stacks.Length; i++)
+        {
+            stacks[i].Initialize(cellSize);
         }
     }
 
@@ -273,8 +287,10 @@ public class SquarePlacement : MonoBehaviour
         }
         else
         {
-            ghostAimIndicator.transform.localPosition =
-                TowerShopUI.GetAimDirection(selectedTower) * (cellSize * 0.55f);
+            TowerShopUI.PointAimIndicator(
+                ghostAimIndicator.transform,
+                TowerShopUI.GetAimDirection(selectedTower),
+                cellSize);
         }
 
         ghostAimIndicator.SetActive(true);
@@ -313,12 +329,12 @@ public class SquarePlacement : MonoBehaviour
     private bool IsGhostCellPlaceable(Vector2 cellPosition)
     {
         Vector2Int cell = TowerGrid.ToCell(cellPosition);
-        int money = towerShop != null ? towerShop.Money : 0;
+        int energy = towerShop != null ? towerShop.Energy : 0;
 
         if (hasGhostResult
             && cell == lastGhostCell
             && lastGhostGridVersion == TowerGrid.Version
-            && lastGhostMoney == money
+            && lastGhostEnergy == energy
             && ReferenceEquals(lastGhostOffer, selectedTower))
         {
             // The player walks around while the cursor holds still, so this one stays live.
@@ -328,7 +344,7 @@ public class SquarePlacement : MonoBehaviour
 
         lastGhostCell = cell;
         lastGhostGridVersion = TowerGrid.Version;
-        lastGhostMoney = money;
+        lastGhostEnergy = energy;
         lastGhostOffer = selectedTower;
         hasGhostResult = true;
 

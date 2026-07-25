@@ -6,6 +6,8 @@ public class Projectile : MonoBehaviour, IPoolable
     [SerializeField, Min(0f)] private float speed = 8f;
     [SerializeField, Min(0.1f), Tooltip("Seconds before the projectile is returned to its pool.")]
     private float lifetime = 8f;
+    [SerializeField, Tooltip("Degrees per second the bullet spins as it flies. Negative spins the other way.")]
+    private float spinSpeed = 1440f;
 
     private Rigidbody2D body;
     private Vector2 direction = Vector2.left;
@@ -18,7 +20,12 @@ public class Projectile : MonoBehaviour, IPoolable
     {
         body = GetComponent<Rigidbody2D>();
         body.gravityScale = 0f;
-        body.constraints = RigidbodyConstraints2D.FreezeRotation;
+        // The spin is physics-driven, so rotation has to stay free. The trigger
+        // collider is a circle centred on the bullet, so spinning never changes
+        // what the shot can hit.
+        body.constraints = RigidbodyConstraints2D.None;
+        // Damping would bleed the spin off over a long flight.
+        body.angularDamping = 0f;
         body.collisionDetectionMode = CollisionDetectionMode2D.Discrete;
     }
 
@@ -97,6 +104,7 @@ public class Projectile : MonoBehaviour, IPoolable
         if (body != null)
         {
             body.linearVelocity = direction * speed;
+            body.angularVelocity = spinSpeed;
         }
     }
 

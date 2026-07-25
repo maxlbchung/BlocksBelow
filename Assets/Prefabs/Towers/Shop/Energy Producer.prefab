@@ -162,6 +162,7 @@ MonoBehaviour:
   powerLevel3Sprite: {fileID: -9107245436441646521, guid: 1685e3511f14fad479069a0cc44996f6, type: 3}
   powerLevel4Sprite: {fileID: -8214498277981057878, guid: 6ee511cdd65edf84cafc5000a8301c49, type: 3}
   powerLevel5Sprite: {fileID: -3982742705208658864, guid: a96c5bb1e583a184491526956b4ef67f, type: 3}
+  powerUpSfx: {fileID: 8300000, guid: a723204c5cbe1434f9746b566c0ca0aa, type: 3}
 --- !u!114 &4606044406989627604
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -178,6 +179,9 @@ MonoBehaviour:
   aimDirection: {x: -1, y: 0}
   supportPiece: 0
   walkThrough: 0
+  description: 'Gives 100 Energy per powered cage.
+
+    + Energy Per Round'
 --- !u!114 &6402893465600897724
 MonoBehaviour:
   m_ObjectHideFlags: 0

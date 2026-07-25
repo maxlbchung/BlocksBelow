@@ -21,7 +21,7 @@ public static class TowerPrefabBuilder
     // (Sawblade is the saw projectile, not the tower) that must not be overwritten.
     private const string PrefabFolder = "Assets/Prefabs/Towers/Shop";
 
-    private enum TowerKind { Basic, Shotgun, SawBlade, Fan, Money, Cage, Scaffolding, Tesla }
+    private enum TowerKind { Basic, Shotgun, SawBlade, Fan, Energy, Cage, Scaffolding, Tesla }
 
     private readonly struct AssetRef
     {
@@ -58,6 +58,8 @@ public static class TowerPrefabBuilder
         public Vector2 AimDirection = Vector2.left;
         public bool SupportPiece;
         public bool WalkThrough;
+        // Shown in the shop's description box while this piece is selected.
+        public string Description = string.Empty;
         public AssetRef Projectile;
         public AssetRef SawBlade;
         public AssetRef BrokenSprite;
@@ -83,6 +85,8 @@ public static class TowerPrefabBuilder
             Sprite = new AssetRef("576297a92d40ef5429eda20a5509643b", 3100948675293211672L),
             Rotatable = true,
             AimDirection = Vector2.left,
+            Description = "Fires a single bolt straight ahead once a round starts. "
+                + "Every full cage below adds one shot per second, so a taller stack fires faster.",
             Projectile = ProjectilePrefab,
             ShootSfx = new AssetRef("c4bd30de22dc6b04e917a497093819e9", 8300000L),
             Frames = new[]
@@ -104,6 +108,8 @@ public static class TowerPrefabBuilder
             Sprite = new AssetRef("49c7fb3c5d83ad24999f7b8f4430c6a3", -5720788984432554497L),
             Rotatable = true,
             AimDirection = Vector2.left,
+            Description = "Fires a wide fan of pellets in one blast. One pellet per full "
+                + "cage below, so the stack decides how much of the spread is covered.",
             Projectile = ProjectilePrefab,
             ShootSfx = new AssetRef("ba8ba2a767922f143baee7fbb577a988", 8300000L),
             Frames = new[]
@@ -125,6 +131,8 @@ public static class TowerPrefabBuilder
             Kind = TowerKind.SawBlade,
             Sprite = new AssetRef("7cd10c01d0f42934f8755a341ad0ad97", -5897110159133509205L),
             SawBlade = new AssetRef("2a7857f5961cfcc4f927c40ae9a8b8f6", 6163622273882598567L),
+            Description = "Spins saw blades on a wide orbit, cutting anything they pass "
+                + "through. One blade per full cage below.",
             Stats = new[]
             {
                 Stat("damage", 1f),
@@ -139,6 +147,8 @@ public static class TowerPrefabBuilder
             Sprite = new AssetRef("38cc522e0b7c13a46bedc7f4647d7939", -4743906769504856869L),
             Rotatable = true,
             AimDirection = Vector2.right,
+            Description = "Blows a cone of wind that shoves enemies back and can carry "
+                + "the player. Each full cage below makes the gust stronger.",
             Stats = new[]
             {
                 Stat("forcePerPowerLevel", 3f),
@@ -148,11 +158,13 @@ public static class TowerPrefabBuilder
         new TowerSpec
         {
             OfferName = "Energy Producer",
-            Kind = TowerKind.Money,
+            Kind = TowerKind.Energy,
             Sprite = new AssetRef("0cce292fa3659e94ea2060b87b0cd5ac", 2244537257139846633L),
+            Description = "Pays out energy at the end of every round. The payout scales with "
+                + "the number of full cages below it, and nothing is earned without one.",
             Stats = new[]
             {
-                Stat("coinsPerPower", 100f),
+                Stat("energyPerPower", 100f),
             },
         },
         new TowerSpec
@@ -161,6 +173,8 @@ public static class TowerPrefabBuilder
             Kind = TowerKind.Cage,
             Sprite = new AssetRef("8ed378ed21fe6ea4fb3b2358aa60f9c3", 5817013890515777238L),
             SupportPiece = true,
+            Description = "Traps an enemy that walks into it. A full cage powers every tower "
+                + "stacked above it, and can be repaired once an enemy breaks out.",
             // Sprites/towers/IMG_1180 - the same cage with its bars bent apart.
             BrokenSprite = new AssetRef("617ba9ddc793cc441b1e0bb2ae2e3dee", -4290933271646154427L),
         },
@@ -171,12 +185,16 @@ public static class TowerPrefabBuilder
             Sprite = new AssetRef("b1eafcaffeb124f4f8003011b7b09507", 7032804871889132505L),
             SupportPiece = true,
             WalkThrough = true,
+            Description = "Cheap footing to build on and climb. It carries no power of its "
+                + "own, and the player can walk straight through it.",
         },
         new TowerSpec
         {
             OfferName = "Tesla",
             Kind = TowerKind.Tesla,
             Sprite = new AssetRef("e9c8c57590f4ced44ac77b2685496b0f", 2659575502240807182L),
+            Description = "Zaps the nearest enemy and chains onward from there. Power N hits "
+                + "exactly N enemies, so every extra full cage below adds one more target.",
             Stats = new[]
             {
                 Stat("damage", 3f),
@@ -320,8 +338,8 @@ public static class TowerPrefabBuilder
                 behaviour = tower.AddComponent<FanTower>();
                 break;
 
-            case TowerKind.Money:
-                behaviour = tower.AddComponent<MoneyTower>();
+            case TowerKind.Energy:
+                behaviour = tower.AddComponent<EnergyTower>();
                 break;
 
             case TowerKind.Cage:
@@ -416,6 +434,7 @@ public static class TowerPrefabBuilder
             settings.FindProperty("aimDirection").vector2Value = spec.AimDirection;
             settings.FindProperty("supportPiece").boolValue = spec.SupportPiece;
             settings.FindProperty("walkThrough").boolValue = spec.WalkThrough;
+            settings.FindProperty("description").stringValue = spec.Description ?? string.Empty;
         });
     }
 

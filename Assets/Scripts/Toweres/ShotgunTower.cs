@@ -11,6 +11,12 @@ public class ShotgunTower : MonoBehaviour
     private int projectilePrewarmCount = 40;
     [SerializeField, Min(1)] private int projectilePoolMaxSize = 1024;
 
+    [Header("Muzzle Flash")]
+    [SerializeField, Min(0), Tooltip("Sparks per pellet in the blast, so a taller stack flashes bigger. 0 turns the flash off.")]
+    private int muzzleSparkCountPerPellet = 4;
+    [SerializeField, Min(0f), Tooltip("How far along the shot direction the flash sits, in world units.")]
+    private float muzzleOffset = 0.5f;
+
     private float nextShotTime;
     private TowerCageStack cageStack;
     private TowerShootAnimation shootAnimation;
@@ -72,6 +78,15 @@ public class ShotgunTower : MonoBehaviour
 
         if (shootSfx != null)
             AudioController.Play(shootSfx);
+
+        // The flash covers the same fan the pellets leave in, widened a little so
+        // the sparks frame the outermost pellets instead of stopping at them.
+        Vector2 blastDirection = transform.rotation * Vector2.left;
+        MuzzleParticles.EmitShot(
+            (Vector2)transform.position + blastDirection * muzzleOffset,
+            blastDirection,
+            muzzleSparkCountPerPellet * shotCount,
+            spread + 10f);
 
         if (shootAnimation != null)
         {
