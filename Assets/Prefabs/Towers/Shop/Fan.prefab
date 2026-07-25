@@ -177,9 +177,7 @@ MonoBehaviour:
   aimDirection: {x: 1, y: 0}
   supportPiece: 0
   walkThrough: 0
-  description: 'Pushes enemies and player.
-
-    + Force'
+  description: Pushes enemies and player. + Force
 --- !u!114 &4898422733023356424
 MonoBehaviour:
   m_ObjectHideFlags: 0

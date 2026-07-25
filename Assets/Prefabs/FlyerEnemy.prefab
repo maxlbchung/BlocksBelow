@@ -134,11 +134,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlyerEnemy
   health: 2
+  hitSfx: {fileID: 0}
+  hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
+  hitFlashDuration: 0.06
+  hitFlashCount: 2
+  hitParticleCount: 8
+  invincibilityTime: 0.1
   repulsionForce: 1.5
   repulsionRadius: 3
   exponentialFalloff: 2
+  groundClearance: 0.5
+  groundApproachBand: 1.5
+  groundRecoverySpeed: 4
   isCagable: 0
-  description: Holds its distance and shoots, and backs away when you close in. It will not walk into your towers on its own, so chase it down or drag it into their range.
+  description: Hovers at a distance and fires projectiles at the player.
   moveSpeed: 4
   desiredRange: 7
   runRange: 2.5

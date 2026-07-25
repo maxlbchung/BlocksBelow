@@ -205,7 +205,7 @@ public static class TowerPrefabBuilder
         },
     };
 
-    private const float CageCaptureRadius = 1.25f;
+    private const float CageCaptureRadius = 0.75f;
 
     [MenuItem("Tools/Towers/Build Tower Prefabs")]
     public static void BuildTowerPrefabs()

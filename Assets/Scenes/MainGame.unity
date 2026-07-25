@@ -396,27 +396,35 @@ MonoBehaviour:
   - displayName: Generator
     prefab: {fileID: 8755736338420080416, guid: 94d6126dbfd7c0941a9e2fdc9bc27c6e, type: 3}
     price: 100
-  - displayName: Cannon
-    prefab: {fileID: 6895232330752811065, guid: 93489eb75e09dd24db7c21c7b4c97a4a, type: 3}
-    price: 50
+    unlockRound: 0
   - displayName: Shotgun
     prefab: {fileID: 4207048639629459165, guid: 113d84a8722d4104fa90cf1e65367424, type: 3}
     price: 75
+    unlockRound: 0
+  - displayName: Cannon
+    prefab: {fileID: 6895232330752811065, guid: 93489eb75e09dd24db7c21c7b4c97a4a, type: 3}
+    price: 50
+    unlockRound: 0
   - displayName: Blade
     prefab: {fileID: 689768124312060714, guid: 57bb0c77f467e394ca86e4bc504b76fe, type: 3}
     price: 100
+    unlockRound: 0
   - displayName: Lightning
     prefab: {fileID: 5157854673919590627, guid: f37d943d75669644d82ff8f9695e8822, type: 3}
     price: 200
+    unlockRound: 0
   - displayName: Gust
     prefab: {fileID: 5158665762915999829, guid: 1fd7ea4f4e2419a4c9239231c0912635, type: 3}
     price: 100
+    unlockRound: 0
   - displayName: Cage
     prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
     price: 25
+    unlockRound: 0
   - displayName: Scaffold
     prefab: {fileID: 8012409773836190367, guid: 9d1dad1ac33d16f4e9012becf684be94, type: 3}
     price: 5
+    unlockRound: 0
   placement: {fileID: 0}
   potionHealAmount: 5
   potionPrice: 25
@@ -469,15 +477,19 @@ MonoBehaviour:
   - displayName: Scaffolding
     prefab: {fileID: 8012409773836190367, guid: 9d1dad1ac33d16f4e9012becf684be94, type: 3}
     price: 0
+    unlockRound: 0
   - displayName: Cage
     prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
     price: 0
+    unlockRound: 0
   - displayName: Cage
     prefab: {fileID: 4027283021592826554, guid: 58e105a149e6e544fad452fa947aa0ff, type: 3}
     price: 0
+    unlockRound: 0
   - displayName: MoneyFarm
     prefab: {fileID: 8755736338420080416, guid: 94d6126dbfd7c0941a9e2fdc9bc27c6e, type: 3}
     price: 0
+    unlockRound: 0
 --- !u!4 &265706328
 Transform:
   m_ObjectHideFlags: 0

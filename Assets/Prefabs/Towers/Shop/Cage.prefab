@@ -155,7 +155,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CageTower
   intactSprite: {fileID: 5817013890515777238, guid: 8ed378ed21fe6ea4fb3b2358aa60f9c3, type: 3}
   brokenSprite: {fileID: -4290933271646154427, guid: 617ba9ddc793cc441b1e0bb2ae2e3dee, type: 3}
-  captureRadius: 1.25
+  captureRadius: 0.75
   state: 0
   captureSfx: {fileID: 0}
   breakSfx: {fileID: 0}
@@ -195,7 +195,7 @@ CircleCollider2D:
   m_CompositeOperation: 0
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
-  m_Radius: 1.25
+  m_Radius: 0.75
 --- !u!114 &7353082968543628489
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -212,8 +212,4 @@ MonoBehaviour:
   aimDirection: {x: -1, y: 0}
   supportPiece: 1
   walkThrough: 0
-  description: 'Captures Enemies.
-
-    Powers Towers.
-
-    Can be destroyed.'
+  description: Captures Enemies. Powers Towers. Can be destroyed.

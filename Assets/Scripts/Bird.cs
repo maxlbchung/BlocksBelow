@@ -38,6 +38,17 @@ public class Bird : Enemy
     [Header("Cage")]
     [SerializeField, Min(0f)] private float uncageableDurationAfterRelease = 2f;
 
+    [Header("Stealth Puff")]
+    [Tooltip("Burst fired where the bird drops into stealth and where it breaks back out "
+        + "of it. Left empty, a ring of puffs is built in code. A system assigned here "
+        + "should be a child of the bird, since it is only told when to emit.")]
+    [SerializeField] private ParticleSystem stealthPuff;
+    [Tooltip("Puffs per burst. Zero turns the effect off.")]
+    [SerializeField, Min(0)] private int stealthPuffParticles = 16;
+    [Tooltip("Colour and size of the built-in puff. Ignored when a system is assigned above.")]
+    [SerializeField] private Color stealthPuffColor = new Color(1f, 0.94f, 0.7f, 0.85f);
+    [SerializeField, Min(0.01f)] private float stealthPuffRadius = 0.35f;
+
     [Header("Contact Damage")]
     [SerializeField, Min(0), Tooltip("Damage dealt to the player on contact. The player's own "
         + "invincibility frames decide how often a bird pressed against them can land a hit.")]
@@ -54,6 +65,7 @@ public class Bird : Enemy
     private SpriteRenderer[] spriteRenderers;
     private BirdState state;
     private bool escaping;
+    private static Material puffMaterial;
 
     public BirdState State => state;
     public float CountdownRemaining => countdownRemaining;
@@ -72,6 +84,7 @@ public class Bird : Enemy
         base.Awake();
         spriteRenderers = GetComponentsInChildren<SpriteRenderer>(true);
         EnsureCountdownText();
+        EnsureStealthPuff();
         ResetBirdState();
     }
 
@@ -244,6 +257,7 @@ public class Bird : Enemy
         state = BirdState.Sneaking;
         attackExitTimeRemaining = 0f;
         SetSpriteOpacity(sneakingOpacity);
+        PlayStealthPuff();
     }
 
     private void EnterAttackingState()
@@ -255,6 +269,134 @@ public class Bird : Enemy
 
         state = BirdState.Attacking;
         SetSpriteOpacity(1f);
+        PlayStealthPuff();
+    }
+
+    /// <summary>
+    /// The burst that covers the bird fading out of sight and snapping back into it. Both
+    /// transitions use the same puff, so the two read as one effect running either way.
+    /// Only fired from the Enter*State methods, which return early when the bird is
+    /// already in that state - the puff cannot repeat while the state holds.
+    /// </summary>
+    private void PlayStealthPuff()
+    {
+        if (stealthPuff != null && stealthPuffParticles > 0)
+        {
+            stealthPuff.Emit(stealthPuffParticles);
+        }
+    }
+
+    /// <summary>
+    /// Builds the puff in code so the bird needs no particle asset of its own, the way its
+    /// countdown text is built rather than authored. Simulated in world space, so a burst
+    /// hangs where the bird changed state instead of being dragged along behind it.
+    /// </summary>
+    private void EnsureStealthPuff()
+    {
+        if (stealthPuff != null)
+        {
+            return;
+        }
+
+        GameObject puffObject = new GameObject("Stealth Puff");
+        puffObject.transform.SetParent(transform, false);
+        stealthPuff = puffObject.AddComponent<ParticleSystem>();
+
+        ParticleSystem.MainModule main = stealthPuff.main;
+        // Looping keeps the system running with nothing to show, which is what lets a
+        // later Emit() simulate. A one-shot system stops itself and swallows the burst.
+        main.loop = true;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.2f, 0.45f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(1f, 2.5f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.28f);
+        main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+        main.startColor = stealthPuffColor;
+        // Puffs hang in the air rather than dropping out of it.
+        main.gravityModifier = 0f;
+        // Sized in world units off this object's own scale, ignoring the bird's. Enemies
+        // flip by negating localScale.y to face the other way, and a puff measured through
+        // that would turn itself inside out every time the bird changed direction.
+        main.scalingMode = ParticleSystemScalingMode.Local;
+
+        // Bursts come only from Emit(); nothing trickles out between transitions.
+        ParticleSystem.EmissionModule emission = stealthPuff.emission;
+        emission.enabled = false;
+
+        // Spawned on the rim of a circle and pushed outward along it, so the burst opens
+        // as a ring around where the bird was rather than a blob on top of it.
+        ParticleSystem.ShapeModule shape = stealthPuff.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = Mathf.Max(0.01f, stealthPuffRadius);
+        shape.radiusThickness = 0f;
+
+        // Each puff swells as it drifts, so the ring thins out into nothing instead of
+        // staying a tight cluster of dots to the end of its life.
+        ParticleSystem.SizeOverLifetimeModule sizeOverLifetime = stealthPuff.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(
+            1f, AnimationCurve.EaseInOut(0f, 0.6f, 1f, 1.6f));
+
+        ParticleSystem.ColorOverLifetimeModule colorOverLifetime = stealthPuff.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient fade = new Gradient();
+        fade.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(0.8f, 0.35f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOverLifetime.color = fade;
+
+        // Drag: the ring pushes out quickly and then settles, which is what separates a
+        // puff of air from a spark burst flying apart at full speed.
+        ParticleSystem.LimitVelocityOverLifetimeModule drag =
+            stealthPuff.limitVelocityOverLifetime;
+        drag.enabled = true;
+        drag.limit = new ParticleSystem.MinMaxCurve(0.5f);
+        drag.dampen = 0.35f;
+
+        ParticleSystemRenderer puffRenderer = puffObject.GetComponent<ParticleSystemRenderer>();
+        puffRenderer.renderMode = ParticleSystemRenderMode.Billboard;
+        puffRenderer.sharedMaterial = GetPuffMaterial();
+
+        // Drawn with the bird rather than on a layer of its own, so the puff cannot end up
+        // behind the terrain the bird is flying over.
+        SpriteRenderer birdRenderer =
+            spriteRenderers != null && spriteRenderers.Length > 0 ? spriteRenderers[0] : null;
+        if (birdRenderer != null)
+        {
+            puffRenderer.sortingLayerID = birdRenderer.sortingLayerID;
+            puffRenderer.sortingOrder = birdRenderer.sortingOrder + 1;
+        }
+    }
+
+    /// <summary>
+    /// Untextured white quads on the sprite shader, matching the hit and death bursts.
+    /// One material serves every bird, since none of them ever changes it.
+    /// </summary>
+    private static Material GetPuffMaterial()
+    {
+        if (puffMaterial == null)
+        {
+            Shader spriteShader = Shader.Find("Sprites/Default");
+            if (spriteShader != null)
+            {
+                puffMaterial = new Material(spriteShader)
+                {
+                    name = "Shared Stealth Puff Material",
+                    hideFlags = HideFlags.HideAndDontSave
+                };
+            }
+        }
+
+        return puffMaterial;
     }
 
     private void SetSpriteOpacity(float opacity)
