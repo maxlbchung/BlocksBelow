@@ -34,13 +34,24 @@ public sealed class CageBreakerEnemy : Enemy
     [Header("Explosion Effect")]
     [SerializeField, Min(0f), Tooltip("How long the white blast takes to swell to the explosion radius and fade. 0 turns it off.")]
     private float explosionFlashDuration = 0.3f;
-    [SerializeField, Min(0), Tooltip("White sparks thrown out by the blast. 0 turns them off.")]
+    [SerializeField, Min(0), Tooltip("Shards flung straight outward at speed by the blast. 0 turns them off.")]
+    private int explosionShardCount = 28;
+    [SerializeField, Min(0), Tooltip("Slower debris that arcs down after the blast. 0 turns it off.")]
     private int explosionSparkCount = 32;
+    [SerializeField, AudioClipDropdown, Tooltip("Played once when the breaker detonates.")]
+    private AudioClip explosionSfx;
+
+    // Shard speed lives here rather than on the prefab: the burst is one system shared by
+    // every breaker, and EmitParams can override a particle's size and lifetime but not
+    // its speed, so a per-breaker value could not actually be honoured.
+    private const float ShardMinSpeed = 14f;
+    private const float ShardMaxSpeed = 26f;
 
     // One shared blast system for every breaker, the same way HitParticles pools its
-    // bursts: the flash has to outlive the breaker, which is released to the pool in
+    // bursts: the effect has to outlive the breaker, which is released to the pool in
     // the same frame it explodes.
     private static ParticleSystem flashSystem;
+    private static ParticleSystem shardSystem;
     private static Material flashMaterial;
 
     private readonly List<CageTower> cagesInExplosion = new List<CageTower>(16);
@@ -375,12 +386,18 @@ public sealed class CageBreakerEnemy : Enemy
     }
 
     /// <summary>
-    /// The white blast: a disc that swells out to the explosion radius and fades, plus a
-    /// spray of white sparks. The disc is sized off the radius, so it shows exactly which
-    /// cages the breaker just took with it.
+    /// The white blast, in three layers: a disc that swells out to the explosion radius,
+    /// shards that leave it at speed, and slower debris that arcs down behind them. The
+    /// disc is sized off the radius, so it shows exactly which cages the breaker took.
     /// </summary>
     private void PlayExplosionEffect()
     {
+        if (explosionSfx != null)
+        {
+            AudioController.Play(explosionSfx);
+        }
+
+        EmitShards(Position, explosionShardCount);
         HitParticles.EmitDeathBurst(Position, explosionSparkCount);
 
         float radius = Mathf.Max(0f, explosionRadius);
@@ -403,6 +420,79 @@ public sealed class CageBreakerEnemy : Enemy
             startLifetime = explosionFlashDuration
         };
         flashSystem.Emit(emitParams, 1);
+    }
+
+    private static void EmitShards(Vector2 position, int count)
+    {
+        if (count <= 0)
+        {
+            return;
+        }
+
+        if (shardSystem == null)
+        {
+            shardSystem = CreateShardSystem();
+        }
+
+        ParticleSystem.EmitParams emitParams = new ParticleSystem.EmitParams
+        {
+            position = position,
+            applyShapeToPosition = true
+        };
+        shardSystem.Emit(emitParams, count);
+    }
+
+    private static ParticleSystem CreateShardSystem()
+    {
+        GameObject systemObject = new GameObject("Cage Break Shards");
+        ParticleSystem system = systemObject.AddComponent<ParticleSystem>();
+
+        ParticleSystem.MainModule main = system.main;
+        main.loop = true;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.2f, 0.45f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(ShardMinSpeed, ShardMaxSpeed);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.14f);
+        main.startColor = Color.white;
+        // Barely any fall: these read as the blast throwing them, not as debris dropping.
+        // That is what the slower HitParticles burst underneath is for.
+        main.gravityModifier = 0.25f;
+
+        ParticleSystem.EmissionModule emission = system.emission;
+        emission.enabled = false;
+
+        // Emitted off the rim rather than across the whole disc, so every shard leaves on
+        // a clean outward heading instead of crawling out of the middle.
+        ParticleSystem.ShapeModule shape = system.shape;
+        shape.shapeType = ParticleSystemShapeType.Circle;
+        shape.radius = 0.15f;
+        shape.radiusThickness = 0f;
+        shape.randomDirectionAmount = 0f;
+
+        // Bleeds the speed off across the flight, so the shards punch out and coast to a
+        // stop rather than holding full pace right up to the moment they vanish.
+        ParticleSystem.LimitVelocityOverLifetimeModule limitVelocity =
+            system.limitVelocityOverLifetime;
+        limitVelocity.enabled = true;
+        limitVelocity.limit = new ParticleSystem.MinMaxCurve(3f);
+        limitVelocity.dampen = 0.1f;
+
+        ParticleSystem.ColorOverLifetimeModule colorOverLifetime = system.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        colorOverLifetime.color = CreateWhiteFadeGradient(1f, 0.6f);
+
+        ParticleSystemRenderer particleRenderer =
+            systemObject.GetComponent<ParticleSystemRenderer>();
+        // Stretched along their own velocity, so the speed reads as a streak.
+        particleRenderer.renderMode = ParticleSystemRenderMode.Stretch;
+        particleRenderer.lengthScale = 1.4f;
+        particleRenderer.velocityScale = 0.05f;
+        particleRenderer.sortingLayerName = "Foreground";
+        // Above the flash and the debris, since the shards lead the explosion.
+        particleRenderer.sortingOrder = 11;
+        particleRenderer.sharedMaterial = GetFlashMaterial();
+
+        return system;
     }
 
     private static ParticleSystem CreateFlashSystem()
@@ -441,20 +531,7 @@ public sealed class CageBreakerEnemy : Enemy
 
         ParticleSystem.ColorOverLifetimeModule colorOverLifetime = system.colorOverLifetime;
         colorOverLifetime.enabled = true;
-        Gradient gradient = new Gradient();
-        gradient.SetKeys(
-            new[]
-            {
-                new GradientColorKey(Color.white, 0f),
-                new GradientColorKey(Color.white, 1f)
-            },
-            new[]
-            {
-                new GradientAlphaKey(1f, 0f),
-                new GradientAlphaKey(0.85f, 0.3f),
-                new GradientAlphaKey(0f, 1f)
-            });
-        colorOverLifetime.color = gradient;
+        colorOverLifetime.color = CreateWhiteFadeGradient(1f, 0.3f);
 
         ParticleSystemRenderer particleRenderer =
             systemObject.GetComponent<ParticleSystemRenderer>();
@@ -465,6 +542,30 @@ public sealed class CageBreakerEnemy : Enemy
         particleRenderer.sharedMaterial = GetFlashMaterial();
 
         return system;
+    }
+
+    /// <summary>
+    /// Stays fully white at <paramref name="alpha"/> until <paramref name="holdUntil"/> of the
+    /// particle's life, then fades out. Both layers of the blast stay white the whole way
+    /// down; only the opacity moves.
+    /// </summary>
+    private static Gradient CreateWhiteFadeGradient(float alpha, float holdUntil)
+    {
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(alpha, 0f),
+                new GradientAlphaKey(alpha, holdUntil),
+                new GradientAlphaKey(0f, 1f)
+            });
+
+        return gradient;
     }
 
     /// <summary>A white disc with a soft rim, so the blast has an edge instead of a hard cut.</summary>
