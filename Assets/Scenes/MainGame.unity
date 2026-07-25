@@ -390,7 +390,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd21c34430a6b1844aa4c6842a5a8c7d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TowerShopUI
-  startingMoney: 10000
+  startingMoney: 0
   towers:
   - displayName: Generator
     prefab: {fileID: 8755736338420080416, guid: 94d6126dbfd7c0941a9e2fdc9bc27c6e, type: 3}
