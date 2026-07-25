@@ -10,9 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 5658216941472993428}
   - component: {fileID: 8185670721484392543}
-  - component: {fileID: 3219652487541324048}
   - component: {fileID: 4573768113491351581}
   - component: {fileID: 2666627484576532110}
+  - component: {fileID: -3711885402042755984}
   m_Layer: 7
   m_Name: PowerBird
   m_TagString: Enemy
@@ -94,25 +94,6 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!114 &3219652487541324048
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1216375964642885722}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 38f07c98f8f9cf84b962518a250438f1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BasicEnemy
-  health: 10
-  repulsionForce: 1
-  repulsionRadius: 1
-  exponentialFalloff: 3
-  isCagable: 1
-  moveSpeed: 10
-  damage: 3
 --- !u!50 &4573768113491351581
 Rigidbody2D:
   serializedVersion: 5
@@ -186,3 +167,43 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
+--- !u!114 &-3711885402042755984
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1216375964642885722}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7be4de5a64d557c46819798898e22edb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Bird
+  health: 1
+  hitSfx: {fileID: 0}
+  hitFlashColor: {r: 1, g: 0.84179914, b: 0.2783019, a: 1}
+  hitFlashDuration: 0.06
+  hitFlashCount: 2
+  hitParticleCount: 8
+  invincibilityTime: 0.1
+  repulsionForce: 1.5
+  repulsionRadius: 3
+  exponentialFalloff: 2
+  groundClearance: 0.5
+  groundApproachBand: 1.5
+  groundRecoverySpeed: 4
+  isCagable: 1
+  moveSpeed: 8
+  acceleration: 5
+  countdownDuration: 10
+  escapeSpeed: 14
+  escapeDuration: 2
+  countdownOffset: {x: 0, y: 1.2}
+  countdownFontSize: 10
+  countdownText: {fileID: 0}
+  damageIncreasesTimer: 1
+  firstDamageThreshold: 1
+  damageThresholdMultiplier: 2
+  secondsAddedPerThreshold: 1
+  uncageableDurationAfterRelease: 2
+  currentSpeed: 0

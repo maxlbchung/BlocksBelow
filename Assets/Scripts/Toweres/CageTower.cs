@@ -77,7 +77,9 @@ public class CageTower : MonoBehaviour
         }
 
         GameObject enemy = FindTaggedEnemy(other);
-        if (enemy != null && enemy.GetComponent<Enemy>().isCagable)
+        if (enemy != null
+            && enemy.TryGetComponent(out Enemy enemyComponent)
+            && enemyComponent.CanBeCaged)
         {
             Capture(enemy);
         }
@@ -169,6 +171,7 @@ public class CageTower : MonoBehaviour
             }
         }
 
+        enemy.GetComponent<Enemy>()?.OnReleasedFromCage();
         GetWaveSpawner()?.AddLivingEnemy(enemy);
         SetEnemySorting(enemy, "Enemy");
         disabledEnemyColliders.Clear();

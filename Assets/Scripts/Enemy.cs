@@ -45,6 +45,7 @@ public class Enemy : Entity, IPoolable
     public Rigidbody2D Body => rb;
     public Collider2D EnemyCollider => enemyCollider;
     public virtual bool CanTakeDamage => true;
+    public virtual bool CanBeCaged => isCagable;
 
     [Header("Cage")]
     public bool isCagable = false;
@@ -214,7 +215,7 @@ public class Enemy : Entity, IPoolable
     {
     }
 
-    public bool TryTakeDamage(float damage)
+    public virtual bool TryTakeDamage(float damage)
     {
         if (!CanTakeDamage || IsInvincible)
         {
@@ -224,6 +225,11 @@ public class Enemy : Entity, IPoolable
         health -= damage;
         PlayHitFeedback(Position);
         return true;
+    }
+
+    /// <summary>Called after this enemy is freed from a cage and re-enabled.</summary>
+    public virtual void OnReleasedFromCage()
+    {
     }
 
     public void OnPoolAcquire()
