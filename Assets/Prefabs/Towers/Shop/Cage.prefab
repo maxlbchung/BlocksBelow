@@ -153,7 +153,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 47e9d0a63ea04eb6ac681fe69529f4a1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CageTower
-  brokenSprite: {fileID: 6675669677758570782, guid: 93da9deb12fdbc4419fa4822f9b15681, type: 3}
+  intactSprite: {fileID: 5817013890515777238, guid: 8ed378ed21fe6ea4fb3b2358aa60f9c3, type: 3}
+  brokenSprite: {fileID: -4290933271646154427, guid: 617ba9ddc793cc441b1e0bb2ae2e3dee, type: 3}
   captureRadius: 1.25
   state: 0
   captureSfx: {fileID: 0}

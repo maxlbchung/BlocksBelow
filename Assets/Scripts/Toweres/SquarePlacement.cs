@@ -27,8 +27,12 @@ public class SquarePlacement : MonoBehaviour
     [SerializeField] private Color invalidGhostColor = new Color(1f, 0f, 0f, 0.5f);
 
     [Header("Repair")]
-    [Tooltip("Overlay drawn on the broken cage under the cursor while repair mode is active.")]
+    [Tooltip("Overlay drawn on every broken cage while repair mode is active.")]
     [SerializeField] private Color repairHighlightColor = new Color(0.3f, 0.9f, 0.45f, 0.45f);
+    [Tooltip("Overlay drawn on the broken cage the cursor is over, i.e. the one a click repairs.")]
+    [SerializeField] private Color repairHoverColor = new Color(0.45f, 1f, 0.6f, 0.8f);
+    [Tooltip("Pulses per second for the markers on the broken cages the cursor is not over.")]
+    [SerializeField, Min(0f)] private float repairPulseSpeed = 1.5f;
 
     [Header("Collision")]
     [Tooltip("The starting base. It may be a BoxCollider2D of any width and does not need the tower tag.")]
@@ -44,12 +48,17 @@ public class SquarePlacement : MonoBehaviour
     private GameObject ghostObject;
     private SpriteRenderer ghostRenderer;
     private GameObject ghostAimIndicator;
-    private GameObject repairHighlight;
-    private SpriteRenderer repairHighlightRenderer;
     private static Sprite repairHighlightSprite;
     private TowerShopUI.TowerOffer selectedTower;
     private int rotationSteps;
     private Collider2D playerCollider;
+
+    // One marker per broken cage, so repair mode shows every cage that needs paying for
+    // rather than only the one under the cursor. Markers are pooled: the count only grows
+    // to the largest number of cages broken at once.
+    private readonly List<SpriteRenderer> repairHighlights = new List<SpriteRenderer>(8);
+    private readonly List<CageTower> cages = new List<CageTower>(16);
+    private int cageCacheVersion = -1;
 
     // The ground probe is the one question the tower registry cannot answer: it reads world
     // geometry (terrain, the starting base) rather than placed pieces. Terrain never moves, and
@@ -117,7 +126,7 @@ public class SquarePlacement : MonoBehaviour
         if (mouse == null)
         {
             SetGhostVisible(false);
-            SetRepairHighlightVisible(false);
+            HideRepairHighlights();
             return;
         }
 
@@ -127,11 +136,11 @@ public class SquarePlacement : MonoBehaviour
         if (repairing)
         {
             SetGhostVisible(false);
-            UpdateRepairHighlight(cursorPosition);
+            UpdateRepairHighlights(cursorPosition);
         }
         else
         {
-            SetRepairHighlightVisible(false);
+            HideRepairHighlights();
             UpdateGhost(cursorPosition);
         }
 
@@ -440,7 +449,12 @@ public class SquarePlacement : MonoBehaviour
         return cage != null && cage.IsBroken ? cage : null;
     }
 
-    private void UpdateRepairHighlight(Vector2 screenPosition)
+    /// <summary>
+    /// Marks every broken cage while repair mode is active, so a cage that needs paying for
+    /// can be found without hunting the tower for changed artwork, and brightens the one
+    /// under the cursor - the one a click would actually repair.
+    /// </summary>
+    private void UpdateRepairHighlights(Vector2 screenPosition)
     {
         if (mainCamera == null)
         {
@@ -449,46 +463,88 @@ public class SquarePlacement : MonoBehaviour
 
         if (mainCamera == null)
         {
-            SetRepairHighlightVisible(false);
+            HideRepairHighlights();
             return;
         }
 
         Vector2 cellPosition = SnapToGrid(mainCamera.ScreenToWorldPoint(screenPosition));
-        if (FindBrokenCageAt(cellPosition) == null)
+        CageTower hoveredCage = FindBrokenCageAt(cellPosition);
+        Color pulsedColor = PulseRepairColor(repairHighlightColor);
+        int markerCount = 0;
+
+        RefreshCageList();
+        for (int i = 0; i < cages.Count; i++)
         {
-            SetRepairHighlightVisible(false);
+            CageTower cage = cages[i];
+            if (cage == null || !cage.IsBroken)
+            {
+                continue;
+            }
+
+            SpriteRenderer highlight = GetRepairHighlight(markerCount++);
+            highlight.transform.position = cage.transform.position;
+            highlight.color = cage == hoveredCage ? repairHoverColor : pulsedColor;
+            if (!highlight.gameObject.activeSelf)
+            {
+                highlight.gameObject.SetActive(true);
+            }
+        }
+
+        HideRepairHighlights(markerCount);
+    }
+
+    /// <summary>
+    /// Which cages exist only changes when something is placed, so the list is rebuilt against
+    /// the registry version instead of every frame. Whether each one is broken is read live.
+    /// </summary>
+    private void RefreshCageList()
+    {
+        if (cageCacheVersion == TowerGrid.Version)
+        {
             return;
         }
 
-        if (repairHighlight == null)
+        cageCacheVersion = TowerGrid.Version;
+        TowerGrid.CollectCages(cages);
+    }
+
+    /// <summary>Fades the marker in and out so a broken cage reads as wanting attention.</summary>
+    private Color PulseRepairColor(Color color)
+    {
+        float wave = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * repairPulseSpeed * Mathf.PI * 2f);
+        color.a *= Mathf.Lerp(0.4f, 1f, wave);
+        return color;
+    }
+
+    private SpriteRenderer GetRepairHighlight(int index)
+    {
+        while (repairHighlights.Count <= index)
         {
-            CreateRepairHighlight();
+            GameObject highlight = new GameObject("Cage Repair Highlight");
+            highlight.transform.SetParent(transform);
+            highlight.transform.localScale = Vector3.one * cellSize;
+            highlight.SetActive(false);
+
+            SpriteRenderer highlightRenderer = highlight.AddComponent<SpriteRenderer>();
+            highlightRenderer.sprite = GetRepairHighlightSprite();
+            highlightRenderer.color = repairHighlightColor;
+            highlightRenderer.sortingLayerName = "Towers";
+            highlightRenderer.sortingOrder = 2;
+            repairHighlights.Add(highlightRenderer);
         }
 
-        repairHighlight.transform.position = new Vector3(cellPosition.x, cellPosition.y, 0f);
-        repairHighlightRenderer.color = repairHighlightColor;
-        SetRepairHighlightVisible(true);
+        return repairHighlights[index];
     }
 
-    private void CreateRepairHighlight()
+    /// <param name="firstIndex">Markers from here on are spares this frame did not need.</param>
+    private void HideRepairHighlights(int firstIndex = 0)
     {
-        repairHighlight = new GameObject("Cage Repair Highlight");
-        repairHighlight.transform.SetParent(transform);
-        repairHighlight.transform.localScale = Vector3.one * cellSize;
-        repairHighlight.SetActive(false);
-
-        repairHighlightRenderer = repairHighlight.AddComponent<SpriteRenderer>();
-        repairHighlightRenderer.sprite = GetRepairHighlightSprite();
-        repairHighlightRenderer.color = repairHighlightColor;
-        repairHighlightRenderer.sortingLayerName = "Towers";
-        repairHighlightRenderer.sortingOrder = 2;
-    }
-
-    private void SetRepairHighlightVisible(bool isVisible)
-    {
-        if (repairHighlight != null && repairHighlight.activeSelf != isVisible)
+        for (int i = firstIndex; i < repairHighlights.Count; i++)
         {
-            repairHighlight.SetActive(isVisible);
+            if (repairHighlights[i].gameObject.activeSelf)
+            {
+                repairHighlights[i].gameObject.SetActive(false);
+            }
         }
     }
 
@@ -689,7 +745,12 @@ public class SquarePlacement : MonoBehaviour
         if (ghostObject != null)
             Destroy(ghostObject);
 
-        if (repairHighlight != null)
-            Destroy(repairHighlight);
+        for (int i = 0; i < repairHighlights.Count; i++)
+        {
+            if (repairHighlights[i] != null)
+                Destroy(repairHighlights[i].gameObject);
+        }
+
+        repairHighlights.Clear();
     }
 }

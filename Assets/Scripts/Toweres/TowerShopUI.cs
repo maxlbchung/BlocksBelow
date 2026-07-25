@@ -1051,6 +1051,10 @@ public class TowerShopUI : MonoBehaviour
     {
         if (canvasObject != null)
             canvasObject.SetActive(false);
+
+        // Repair is a build-phase action. Left armed, the cage markers would stay lit
+        // through the wave and a stray click would repair a cage mid-fight.
+        repairMode = false;
     }
 
     private void OnEnable()

@@ -156,6 +156,12 @@ MonoBehaviour:
   coinsPerPower: 100
   towerShop: {fileID: 0}
   paymentSfx: {fileID: 0}
+  unpoweredSprite: {fileID: 2244537257139846633, guid: 0cce292fa3659e94ea2060b87b0cd5ac, type: 3}
+  powerLevel1Sprite: {fileID: -3168354349275551047, guid: d0a44ea126d36a342b178bc22ae4977c, type: 3}
+  powerLevel2Sprite: {fileID: -7823670345209195976, guid: 4056b4d6d1fabcb42a1872ac3e80ffe6, type: 3}
+  powerLevel3Sprite: {fileID: -9107245436441646521, guid: 1685e3511f14fad479069a0cc44996f6, type: 3}
+  powerLevel4Sprite: {fileID: -8214498277981057878, guid: 6ee511cdd65edf84cafc5000a8301c49, type: 3}
+  powerLevel5Sprite: {fileID: -3982742705208658864, guid: a96c5bb1e583a184491526956b4ef67f, type: 3}
 --- !u!114 &4606044406989627604
 MonoBehaviour:
   m_ObjectHideFlags: 0
