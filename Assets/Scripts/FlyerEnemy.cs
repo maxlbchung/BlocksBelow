@@ -15,7 +15,14 @@ public class FlyerEnemy : Enemy
 
     private Vector2 target;
     private float shootCounter;
+    private Animator anim;
 
+    private void Awake()
+    {
+        anim = GetComponent<Animator>();
+        base.Awake();
+    }
+    
     protected override Vector2 CalculateDesiredVelocity(Transform player, float elapsed)
     {
         if (player == null)
@@ -60,11 +67,15 @@ public class FlyerEnemy : Enemy
     protected override void OnDecisionTick(Transform player, float elapsed)
     {
         shootCounter += elapsed;
+        if (shootCounter < shootInterval + 2f)
+        {
+            anim.SetBool("Charging", true);
+        }
         if (shootCounter < Mathf.Max(0.01f, shootInterval))
         {
             return;
         }
-
+        anim.SetBool("Charging", false);
         shootCounter %= Mathf.Max(0.01f, shootInterval);
         ShootAtPlayer(player);
     }
@@ -116,7 +127,7 @@ public class FlyerEnemy : Enemy
         {
             return;
         }
-
+        
         Vector2 velocity = direction * (bulletSpeed / Mathf.Sqrt(distanceSquared));
         EnemyBullet.Spawn(
             bulletPrefab,
