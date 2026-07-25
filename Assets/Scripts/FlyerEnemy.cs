@@ -11,7 +11,7 @@ public class FlyerEnemy : Enemy
     [SerializeField, Min(0.1f), Tooltip("Seconds before an enemy bullet is returned to its pool.")]
     private float bulletLifetime = 8f;
     [SerializeField, Min(0), Tooltip("Bullets reserved when this enemy type is prepared by a wave spawner.")]
-    private int bulletPrewarmCount = 128;
+    private int bulletPrewarmCount = 30;
 
     private Vector2 target;
     private float shootCounter;

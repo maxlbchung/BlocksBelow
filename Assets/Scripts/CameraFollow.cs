@@ -5,7 +5,8 @@ using UnityEngine;
 public class CameraFollow : MonoBehaviour
 {
     private Transform player;
-    private BoxCollider2D camBox;
+    private CalculateCameraBox cameraBox;
+    private Camera cam;
     private GameObject[] boundaries;
     private Bounds[] allBounds;
     private Bounds targetBounds;
@@ -13,11 +14,42 @@ public class CameraFollow : MonoBehaviour
     public float speed;
     private float waitForSeconds = 0.5f;
 
+    /// <summary>
+    /// The camera's visible area in world units. This used to be read off a BoxCollider2D on
+    /// the camera; that collider was static and being moved and resized every frame, so the
+    /// size is now published by <see cref="CalculateCameraBox"/> instead.
+    /// </summary>
+    private Vector2 ViewSize
+    {
+        get
+        {
+            if (cameraBox != null)
+            {
+                return cameraBox.Size;
+            }
+
+            if (cam == null)
+            {
+                cam = GetComponent<Camera>();
+            }
+
+            if (cam == null)
+            {
+                return Vector2.zero;
+            }
+
+            float height = cam.orthographicSize * 2f;
+            float ratio = Screen.height > 0 ? Screen.width / (float)Screen.height : 1f;
+            return new Vector2(height * ratio, height);
+        }
+    }
+
     void Start()
     {
         if (GameObject.Find("Player") != null)
             player = GameObject.Find("Player").GetComponent<Transform>();
-        camBox = GetComponent<BoxCollider2D>();
+        cameraBox = GetComponent<CalculateCameraBox>();
+        cam = GetComponent<Camera>();
         FindLimits();
     }
 
@@ -64,12 +96,12 @@ public class CameraFollow : MonoBehaviour
 
     void FollowPlayer()
     {
+        Vector2 viewSize = ViewSize;
 
-       
-        float xTarget = camBox.size.x < targetBounds.size.x ? Mathf.Clamp(player.position.x, targetBounds.min.x + camBox.size.x / 2, targetBounds.max.x - camBox.size.x / 2) : (targetBounds.min.x + targetBounds.max.x) / 2;
-        float yTarget = camBox.size.y < targetBounds.size.y ? Mathf.Clamp(player.position.y, targetBounds.min.y + camBox.size.y / 2, targetBounds.max.y - camBox.size.y / 2) : (targetBounds.min.y + targetBounds.max.y) / 2;
+        float xTarget = viewSize.x < targetBounds.size.x ? Mathf.Clamp(player.position.x, targetBounds.min.x + viewSize.x / 2, targetBounds.max.x - viewSize.x / 2) : (targetBounds.min.x + targetBounds.max.x) / 2;
+        float yTarget = viewSize.y < targetBounds.size.y ? Mathf.Clamp(player.position.y, targetBounds.min.y + viewSize.y / 2, targetBounds.max.y - viewSize.y / 2) : (targetBounds.min.y + targetBounds.max.y) / 2;
         Vector3 target = new Vector3(xTarget, yTarget, transform.position.z);
-        
+
         transform.position = Vector3.Lerp(transform.position, target, speed * Time.deltaTime);
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
@@ -35,15 +36,35 @@ public class PlayerController : Entity
 
     [Header("Passable Platforms")]
     [SerializeField] private float platformCheckRadius = 2f;
+    [SerializeField, Min(0f), Tooltip("How close the player must already be to a platform for S to make it passable. Platforms further away stay solid, so a drop never carries through the next one down.")]
+    private float platformContactDistance = 0.15f;
+    [SerializeField, Min(0f), Tooltip("Minimum time a platform stays passable once a drop starts, so a quick tap of S still drops the player through.")]
+    private float platformDropGraceTime = 0.05f;
+
+    [Header("Movement Dust")]
+    [SerializeField, Min(0f), Tooltip("Seconds between dust puffs while running on the ground.")]
+    private float runDustInterval = 0.18f;
+    [SerializeField, Min(0f), Tooltip("Horizontal speed below which running kicks up no dust.")]
+    private float runDustMinSpeed = 1.5f;
+    [SerializeField, Min(0)] private int jumpDustCount = 6;
+    [SerializeField, Min(0f), Tooltip("Fall speed below which landing kicks up no dust.")]
+    private float landDustMinFallSpeed = 4f;
+    [SerializeField, Min(0)] private int landDustMaxCount = 12;
 
     [Header("Animation")]
     [SerializeField] private Animator animator;
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField, Min(0f)] private float walkAnimationThreshold = 0.1f;
 
+    [Header("Death")]
+    [SerializeField, Min(0f), Tooltip("Seconds the dead player stands still before the game over screen appears.")]
+    private float gameOverDelay = 2.5f;
+    [SerializeField, Min(0), Tooltip("White debris burst shown at the moment of death.")]
+    private int deathParticleCount = 40;
+
     [Header("Health Bar")]
-    [SerializeField] private Vector2 healthBarSize = new Vector2(1.4f, 0.16f);
-    [SerializeField] private float healthBarHeight = 0.25f;
+    [SerializeField] private Vector2 healthBarSize = new Vector2(2f, 0.25f);
+    [SerializeField] private float healthBarHeight = 0.6f;
     [SerializeField] private Color healthBarColor = new Color(0.2f, 0.85f, 0.25f, 1f);
     [SerializeField] private Color healthBarBackgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.9f);
     [SerializeField] private int healthBarSortingOrder = 100;
@@ -55,8 +76,20 @@ public class PlayerController : Entity
     private float knockbackTimer;
     private bool jumpReleased;
     private bool jumpInProgress;
+    private float runDustTimer;
+    private float peakFallSpeed;
     private Collider2D[] nearbyColliders = new Collider2D[32];
-    private readonly List<PlatformEffector2D> droppingThroughPlatforms = new();
+
+    private struct DroppingPlatform
+    {
+        public PlatformEffector2D effector;
+        public Collider2D collider;
+        public float originalSurfaceArc;
+        public float graceTimer;
+    }
+
+    private readonly List<DroppingPlatform> droppingThroughPlatforms = new();
+    private const float PlatformOverlapEpsilon = 0.02f;
 
     private bool alive = true;
     public int maxHealth;
@@ -90,6 +123,7 @@ public class PlayerController : Entity
     private void OnDisable()
     {
         EnemySimulationManager.ClearPlayer(transform);
+        RestoreDroppingPlatforms();
     }
 
     void Update()
@@ -100,14 +134,36 @@ public class PlayerController : Entity
             return;
         }
 
-        animator.SetFloat("Movement", Mathf.Abs(rb.linearVelocityX));
-
         HandleInput();
         UpdateCoyoteTime();
         UpdateJumpBuffer();
         UpdateGroundedState();
+        UpdateRunDust();
         UpdatePlatformEffectors();
         UpdateAnimation();
+    }
+
+    private Vector2 FeetPosition => playerCollider != null
+        ? new Vector2(playerCollider.bounds.center.x, playerCollider.bounds.min.y)
+        : (Vector2)transform.position;
+
+    private void UpdateRunDust()
+    {
+        if (!isGrounded || Mathf.Abs(currentHorizontalVelocity) < runDustMinSpeed)
+        {
+            // Zeroed so the first puff appears the moment running resumes.
+            runDustTimer = 0f;
+            return;
+        }
+
+        runDustTimer -= Time.deltaTime;
+        if (runDustTimer > 0f)
+        {
+            return;
+        }
+
+        runDustTimer = runDustInterval;
+        DustParticles.EmitRun(FeetPosition, Mathf.Sign(currentHorizontalVelocity));
     }
 
     private void UpdateAnimation()
@@ -396,7 +452,7 @@ public class PlayerController : Entity
 
             PlatformEffector2D platform = hit.collider.GetComponent<PlatformEffector2D>();
             if (platform != null
-                && (isDroppingThrough || droppingThroughPlatforms.Contains(platform)))
+                && (isDroppingThrough || IndexOfDroppingPlatform(platform) >= 0))
             {
                 continue;
             }
@@ -412,6 +468,27 @@ public class PlayerController : Entity
         if (!isGrounded && wasGrounded)
         {
             airJumpsRemaining = maxAirJumps;
+        }
+
+        if (!isGrounded)
+        {
+            // The impact frame reports a near-zero velocity because physics has
+            // already resolved the collision, so the landing puff is scaled by
+            // the fastest fall speed seen while airborne instead.
+            peakFallSpeed = Mathf.Max(peakFallSpeed, -rb.linearVelocity.y);
+        }
+        else
+        {
+            if (!wasGrounded && peakFallSpeed >= landDustMinFallSpeed)
+            {
+                int count = Mathf.RoundToInt(Mathf.Lerp(
+                    3f,
+                    landDustMaxCount,
+                    Mathf.InverseLerp(landDustMinFallSpeed, maxFallSpeed, peakFallSpeed)));
+                DustParticles.EmitLand(FeetPosition, count);
+            }
+
+            peakFallSpeed = 0f;
         }
 
         wasGrounded = isGrounded;
@@ -442,6 +519,7 @@ public class PlayerController : Entity
             coyoteCounter = 0f; // Use up coyote time
             jumpBufferCounter = 0;
             jumpInProgress = true;
+            DustParticles.EmitJump(FeetPosition, jumpDustCount);
         }
         // Otherwise use air jump, but only on an actual press (not a held key)
         else if (hasAirJump && jumpBufferCounter > 0)
@@ -450,6 +528,7 @@ public class PlayerController : Entity
             airJumpsRemaining--;
             jumpBufferCounter = 0;
             jumpInProgress = true;
+            DustParticles.EmitJump(FeetPosition, jumpDustCount);
         }
     }
 
@@ -495,17 +574,20 @@ public class PlayerController : Entity
         Keyboard keyboard = Keyboard.current;
         bool isHoldingS = keyboard != null && keyboard.sKey.isPressed;
 
-        // Find all nearby colliders with PlatformEffector2D
-        ContactFilter2D filter = new ContactFilter2D
+        // Only the platform the player is actually standing on (or already
+        // sunk into) is opened up. Arming every effector within the search
+        // radius used to punch a hole through the whole stack below, so one
+        // tap of S dropped the player past several platforms in a row.
+        if (isHoldingS && playerCollider != null)
         {
-            layerMask = LayerMask.GetMask("Default", "Wall"),
-            useLayerMask = true
-        };
+            ContactFilter2D filter = new ContactFilter2D
+            {
+                layerMask = LayerMask.GetMask("Default", "Wall"),
+                useLayerMask = true
+            };
 
-        int colliderCount = Physics2D.OverlapCircle(transform.position, platformCheckRadius, filter, nearbyColliders);
+            int colliderCount = Physics2D.OverlapCircle(transform.position, platformCheckRadius, filter, nearbyColliders);
 
-        if (isHoldingS)
-        {
             for (int i = 0; i < colliderCount; i++)
             {
                 Collider2D collider = nearbyColliders[i];
@@ -513,62 +595,208 @@ public class PlayerController : Entity
                     continue;
 
                 PlatformEffector2D effector = collider.GetComponent<PlatformEffector2D>();
-                if (effector == null)
+                if (effector == null || !IsStandingOnPlatform(collider))
                     continue;
 
-                effector.surfaceArc = 0f;
-                if (!droppingThroughPlatforms.Contains(effector))
+                int existingIndex = IndexOfDroppingPlatform(effector);
+                if (existingIndex >= 0)
                 {
-                    droppingThroughPlatforms.Add(effector);
+                    DroppingPlatform existing = droppingThroughPlatforms[existingIndex];
+                    existing.graceTimer = platformDropGraceTime;
+                    droppingThroughPlatforms[existingIndex] = existing;
+                    continue;
                 }
+
+                droppingThroughPlatforms.Add(new DroppingPlatform
+                {
+                    effector = effector,
+                    collider = collider,
+                    originalSurfaceArc = effector.surfaceArc,
+                    graceTimer = platformDropGraceTime
+                });
+                effector.surfaceArc = 0f;
+            }
+
+            // Clear remaining array
+            for (int i = colliderCount; i < nearbyColliders.Length; i++)
+            {
+                nearbyColliders[i] = null;
             }
         }
 
-        // Do not restore a platform merely because S was released. Keep it
-        // passable until the player's whole collider is below the edge.
+        // Releasing S ends the drop as soon as the player is no longer inside
+        // the platform - whether they finished passing through it or never
+        // sank into it at all. The grace timer only covers the first moments
+        // of a tap, before gravity has pulled the player into the collider.
         for (int i = droppingThroughPlatforms.Count - 1; i >= 0; i--)
         {
-            PlatformEffector2D effector = droppingThroughPlatforms[i];
-            if (effector == null)
+            DroppingPlatform dropping = droppingThroughPlatforms[i];
+            if (dropping.effector == null)
             {
                 droppingThroughPlatforms.RemoveAt(i);
                 continue;
             }
 
-            Collider2D platformCollider = effector.GetComponent<Collider2D>();
-            bool fullyBelow = playerCollider == null
-                || platformCollider == null
-                || playerCollider.bounds.max.y < platformCollider.bounds.min.y - 0.01f;
+            dropping.graceTimer = Mathf.Max(0f, dropping.graceTimer - Time.deltaTime);
+            droppingThroughPlatforms[i] = dropping;
 
-            if (fullyBelow)
+            if (dropping.graceTimer > 0f || IsInsidePlatform(dropping.collider))
             {
-                effector.surfaceArc = 180f;
-                droppingThroughPlatforms.RemoveAt(i);
+                continue;
+            }
+
+            dropping.effector.surfaceArc = dropping.originalSurfaceArc;
+            droppingThroughPlatforms.RemoveAt(i);
+        }
+    }
+
+    private int IndexOfDroppingPlatform(PlatformEffector2D effector)
+    {
+        for (int i = 0; i < droppingThroughPlatforms.Count; i++)
+        {
+            if (droppingThroughPlatforms[i].effector == effector)
+            {
+                return i;
             }
         }
 
-        // Clear remaining array
-        for (int i = colliderCount; i < nearbyColliders.Length; i++)
+        return -1;
+    }
+
+    /// <summary>
+    /// True when the player is resting on, or already inside, this platform.
+    /// Collider-shape distance rather than bounds, so tilemap and composite
+    /// platforms are measured at the surface the player is touching.
+    /// </summary>
+    private bool IsStandingOnPlatform(Collider2D platformCollider)
+    {
+        if (playerCollider == null || platformCollider == null || !platformCollider.enabled)
         {
-            nearbyColliders[i] = null;
+            return false;
         }
+
+        ColliderDistance2D distance = Physics2D.Distance(playerCollider, platformCollider);
+        if (!distance.isValid || distance.distance > platformContactDistance)
+        {
+            return false;
+        }
+
+        // Ignore platforms the player is merely brushing from below or the side.
+        return distance.pointB.y < playerCollider.bounds.center.y;
+    }
+
+    /// <summary>
+    /// True while the player's collider still overlaps the platform, i.e. the
+    /// drop through it is still in progress.
+    /// </summary>
+    private bool IsInsidePlatform(Collider2D platformCollider)
+    {
+        if (playerCollider == null || platformCollider == null || !platformCollider.enabled)
+        {
+            return false;
+        }
+
+        ColliderDistance2D distance = Physics2D.Distance(playerCollider, platformCollider);
+        return distance.isValid && distance.distance < -PlatformOverlapEpsilon;
+    }
+
+    private void RestoreDroppingPlatforms()
+    {
+        for (int i = 0; i < droppingThroughPlatforms.Count; i++)
+        {
+            DroppingPlatform dropping = droppingThroughPlatforms[i];
+            if (dropping.effector != null)
+            {
+                dropping.effector.surfaceArc = dropping.originalSurfaceArc;
+            }
+        }
+
+        droppingThroughPlatforms.Clear();
     }
 
     public void DamagePlayer(int damage, Vector2 knockback)
     {
+        // A corpse takes no further hits, so it is not shoved around while the
+        // game over screen counts down. Invincibility frames swallow the hit
+        // entirely - no damage and no knockback.
+        if (!alive || IsInvincible)
+        {
+            return;
+        }
+
         ApplyKnockback(knockback);
         health = Mathf.Max(0f, health - damage);
         UpdateHealthBar();
+        PlayHitFeedback(transform.position);
         if (health <= 0)
         {
-            alive = false;
+            Die();
         }
 
     }
 
     /// <summary>
+    /// Stops the player where they are and queues the game over screen. Movement,
+    /// input, and knockback are all dropped; Unity's own gravity still settles the
+    /// body onto the ground if the killing blow landed mid-air.
+    /// </summary>
+    private void Die()
+    {
+        if (!alive)
+        {
+            return;
+        }
+
+        alive = false;
+        // Update() stops running the platform logic once dead, so hand back any
+        // platform still held open instead of leaving a permanent hole.
+        RestoreDroppingPlatforms();
+        currentHorizontalVelocity = 0f;
+        knockbackTimer = 0f;
+        pendingWindForce = Vector2.zero;
+        jumpBufferCounter = 0f;
+        jumpInProgress = false;
+
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+            // Enemies still crowd the body, so lock sideways motion. Vertical stays
+            // free, letting a player killed mid-air drop onto the ground.
+            rb.constraints |= RigidbodyConstraints2D.FreezePositionX;
+        }
+
+        UpdateAnimation();
+
+        // The body stays behind for physics (gravity settles it, enemies crowd
+        // it), but visually the player is gone: the hit flash is stopped, the
+        // sprite hidden, and a debris burst marks the spot.
+        ResetHitFeedback();
+        HitParticles.EmitDeathBurst(transform.position, deathParticleCount);
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = false;
+        }
+
+        StartCoroutine(ShowGameOverAfterDelay());
+    }
+
+    private IEnumerator ShowGameOverAfterDelay()
+    {
+        // Realtime, so the pause the screen applies cannot stall its own entrance.
+        yield return new WaitForSecondsRealtime(gameOverDelay);
+        GameOverScreen.Show();
+    }
+
+    /// <summary>
     /// Restores health up to maxHealth. Returns false when no healing was needed.
     /// </summary>
+    /// <summary>
+    /// True while a heal would actually do something. Mirrors the guard in
+    /// <see cref="Heal"/> so the shop can hide healing it would refuse to apply.
+    /// </summary>
+    public bool CanBeHealed => alive && health < maxHealth;
+
     public bool Heal(int amount)
     {
         if (!alive || amount <= 0 || health >= maxHealth)

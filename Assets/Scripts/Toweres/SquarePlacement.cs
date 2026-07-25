@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -6,6 +7,11 @@ using UnityEngine.InputSystem;
 /// Places shop-configured towers on a square grid at the mouse cursor.
 /// Cells overlapping or below the ground are unbuildable. A piece must rest on
 /// the ground or sit beside an existing tower, cage, or scaffold.
+/// <para>
+/// Cell occupancy is read from <see cref="TowerGrid"/> rather than from physics overlaps.
+/// Pieces do not move once placed, so recording them at placement time replaces the seven
+/// allocating <c>OverlapBoxAll</c> calls this ran on every frame the ghost was visible.
+/// </para>
 /// </summary>
 public class SquarePlacement : MonoBehaviour
 {
@@ -43,6 +49,26 @@ public class SquarePlacement : MonoBehaviour
     private static Sprite repairHighlightSprite;
     private TowerShopUI.TowerOffer selectedTower;
     private int rotationSteps;
+    private Collider2D playerCollider;
+
+    // The ground probe is the one question the tower registry cannot answer: it reads world
+    // geometry (terrain, the starting base) rather than placed pieces. Terrain never moves, and
+    // the only Wall-layer colliders that appear at runtime are placed pieces, so the answer is
+    // cached per cell and thrown away whenever the registry changes.
+    private readonly Dictionary<Vector2Int, bool> groundBelowCache = new Dictionary<Vector2Int, bool>(64);
+    private readonly List<Collider2D> probeResults = new List<Collider2D>(8);
+    private ContactFilter2D wallFilter;
+    private bool wallFilterReady;
+    private int groundCacheVersion = -1;
+
+    // The ghost's validity only changes when the hovered cell, the grid contents, the wallet,
+    // or the selection changes, so it is recomputed on those rather than every frame.
+    private Vector2Int lastGhostCell;
+    private int lastGhostGridVersion = -1;
+    private int lastGhostMoney = -1;
+    private TowerShopUI.TowerOffer lastGhostOffer;
+    private bool lastGhostValid;
+    private bool hasGhostResult;
 
     /// <summary>Width of one grid cell in world units.</summary>
     public float CellSize => cellSize;
@@ -64,6 +90,18 @@ public class SquarePlacement : MonoBehaviour
         {
             groundSurfaceY = groundCollider.bounds.max.y;
         }
+
+        GameObject playerObject = GameObject.FindWithTag("Player");
+        if (playerObject != null)
+        {
+            playerCollider = playerObject.GetComponent<Collider2D>();
+        }
+
+        // Configure clears the registry, which also resets the statics a scene reload leaves
+        // behind. The scene scan then picks up towers a designer placed by hand; anything the
+        // shop builds after this - including the pre-placed offers below - registers itself.
+        TowerGrid.Configure(cellSize, gridOrigin);
+        TowerGrid.RebuildFromScene();
 
         CreateGhost();
 
@@ -143,30 +181,15 @@ public class SquarePlacement : MonoBehaviour
 
     private bool TryRotateTowerAt(Vector2 cellPosition)
     {
-        Vector2 checkSize = Vector2.one * (cellSize * 0.9f);
-        Collider2D[] hits = Physics2D.OverlapBoxAll(cellPosition, checkSize, 0f);
-
-        foreach (Collider2D hit in hits)
+        if (!TowerGrid.TryGet(TowerGrid.ToCell(cellPosition), adjacencyTolerance, out TowerGrid.Occupant occupant)
+            || occupant.Kind != TowerGrid.PieceKind.Tower
+            || !IsRotatableTower(occupant.Root))
         {
-            Transform current = hit.transform;
-            while (current != null)
-            {
-                if (current.CompareTag("tower"))
-                {
-                    if (IsCenteredOnCell(current.position, cellPosition) && IsRotatableTower(current))
-                    {
-                        current.Rotate(0f, 0f, -90f);
-                        return true;
-                    }
-
-                    break;
-                }
-
-                current = current.parent;
-            }
+            return false;
         }
 
-        return false;
+        occupant.Root.Rotate(0f, 0f, -90f);
+        return true;
     }
 
     private static bool IsRotatableTower(Transform tower)
@@ -269,8 +292,41 @@ public class SquarePlacement : MonoBehaviour
         Vector3 worldPosition = mainCamera.ScreenToWorldPoint(screenPosition);
         Vector2 cellPosition = SnapToGrid(worldPosition);
         ghostObject.transform.position = new Vector3(cellPosition.x, cellPosition.y, 0f);
-        ghostRenderer.color = CanPlaceAt(cellPosition) ? validGhostColor : invalidGhostColor;
+        ghostRenderer.color = IsGhostCellPlaceable(cellPosition) ? validGhostColor : invalidGhostColor;
         SetGhostVisible(true);
+    }
+
+    /// <summary>
+    /// <see cref="CanPlaceAt"/> behind a cache. Its answer only moves when the hovered cell,
+    /// the grid contents, the wallet, or the selected offer changes - not once per frame - and
+    /// the player's own position, which is why that check is re-run every time.
+    /// </summary>
+    private bool IsGhostCellPlaceable(Vector2 cellPosition)
+    {
+        Vector2Int cell = TowerGrid.ToCell(cellPosition);
+        int money = towerShop != null ? towerShop.Money : 0;
+
+        if (hasGhostResult
+            && cell == lastGhostCell
+            && lastGhostGridVersion == TowerGrid.Version
+            && lastGhostMoney == money
+            && ReferenceEquals(lastGhostOffer, selectedTower))
+        {
+            // The player walks around while the cursor holds still, so this one stays live.
+            return lastGhostValid
+                && !(!TowerShopUI.IsWalkThrough(selectedTower) && IsPlayerInCell(cellPosition));
+        }
+
+        lastGhostCell = cell;
+        lastGhostGridVersion = TowerGrid.Version;
+        lastGhostMoney = money;
+        lastGhostOffer = selectedTower;
+        hasGhostResult = true;
+
+        // Cached without the player term so the live check above can layer on top of it.
+        lastGhostValid = CanPlaceAt(cellPosition, ignorePlayer: true);
+        return lastGhostValid
+            && !(!TowerShopUI.IsWalkThrough(selectedTower) && IsPlayerInCell(cellPosition));
     }
 
     private void SetGhostVisible(bool isVisible)
@@ -346,7 +402,10 @@ public class SquarePlacement : MonoBehaviour
             return;
         }
 
-        towerShop.CreateTower(selectedTower, cellPosition, cellSize, CurrentRotation);
+        if (towerShop.CreateTower(selectedTower, cellPosition, cellSize, CurrentRotation) != null)
+        {
+            RunStats.RecordTowerPlaced();
+        }
     }
 
     /// <summary>Repairs the broken cage in the cell under the cursor, if there is one.</summary>
@@ -377,28 +436,8 @@ public class SquarePlacement : MonoBehaviour
 
     private CageTower FindBrokenCageAt(Vector2 cellPosition)
     {
-        // Slightly smaller than the cell so a neighbouring cage's body is not picked up.
-        Vector2 checkSize = Vector2.one * (cellSize * 0.9f);
-        Collider2D[] hits = Physics2D.OverlapBoxAll(cellPosition, checkSize, 0f);
-
-        foreach (Collider2D hit in hits)
-        {
-            // Capture triggers reach into neighbouring cells, so only solid bodies count.
-            if (hit.isTrigger)
-            {
-                continue;
-            }
-
-            CageTower cage = hit.GetComponentInParent<CageTower>();
-            if (cage != null
-                && cage.IsBroken
-                && IsCenteredOnCell(cage.transform.position, cellPosition))
-            {
-                return cage;
-            }
-        }
-
-        return null;
+        CageTower cage = TowerGrid.GetCage(TowerGrid.ToCell(cellPosition), adjacencyTolerance);
+        return cage != null && cage.IsBroken ? cage : null;
     }
 
     private void UpdateRepairHighlight(Vector2 screenPosition)
@@ -468,14 +507,18 @@ public class SquarePlacement : MonoBehaviour
         return repairHighlightSprite;
     }
 
-    private bool CanPlaceAt(Vector2 cellPosition)
+    /// <param name="ignorePlayer">
+    /// Skips the player-overlap term so the ghost can cache the static part of the answer and
+    /// re-test the player separately. Placement itself always passes false.
+    /// </param>
+    private bool CanPlaceAt(Vector2 cellPosition, bool ignorePlayer = false)
     {
         bool isSupportPiece = TowerShopUI.IsSupportPiece(selectedTower);
 
         if (selectedTower == null
             || towerShop == null
             || !towerShop.CanAfford(selectedTower.price)
-            || IsCellOccupied(cellPosition)
+            || IsCellOccupied(cellPosition, ignorePlayer)
             || (!isSupportPiece && !HasCageDirectlyBelow(cellPosition)))
         {
             return false;
@@ -494,39 +537,74 @@ public class SquarePlacement : MonoBehaviour
     /// <summary>
     /// True when the cell directly below holds something solid to rest on, which in
     /// practice means the ground or the starting base.
+    /// <para>
+    /// This stays a physics query because it reads world geometry, not placed pieces - the
+    /// terrain and the starting base are never in the tower registry. The result is memoised
+    /// per cell and dropped whenever the registry changes, since scaffolds are also on the
+    /// Wall layer and so a newly placed piece can change the answer.
+    /// </para>
     /// </summary>
     private bool HasGroundDirectlyBelow(Vector2 cellPosition)
     {
-        int wallLayer = LayerMask.NameToLayer("Wall");
-        if (wallLayer < 0)
+        if (!EnsureWallFilter())
         {
             return false;
         }
 
-        float probeSize = Mathf.Max(cellSize * 0.1f, adjacencyTolerance * 2f);
-        Collider2D[] hits = Physics2D.OverlapBoxAll(
-            cellPosition + Vector2.down * cellSize,
-            Vector2.one * probeSize,
-            0f
-        );
+        Vector2 belowCenter = cellPosition + Vector2.down * cellSize;
+        Vector2Int belowCell = TowerGrid.ToCell(belowCenter);
 
-        foreach (Collider2D hit in hits)
+        if (groundCacheVersion != TowerGrid.Version)
+        {
+            groundBelowCache.Clear();
+            groundCacheVersion = TowerGrid.Version;
+        }
+        else if (groundBelowCache.TryGetValue(belowCell, out bool cached))
+        {
+            return cached;
+        }
+
+        float probeSize = Mathf.Max(cellSize * 0.1f, adjacencyTolerance * 2f);
+        Physics2D.OverlapBox(belowCenter, Vector2.one * probeSize, 0f, wallFilter, probeResults);
+
+        bool hasGround = false;
+        for (int i = 0; i < probeResults.Count; i++)
         {
             // A cage's capture radius reaches well past its own cell, and a scaffold's
             // box is walk-through. Counting either as ground let pieces be placed
             // floating a cell away from a cage, with nothing underneath them.
-            if (hit.isTrigger)
+            if (!probeResults[i].isTrigger)
             {
-                continue;
-            }
-
-            if (hit.gameObject.layer == wallLayer)
-            {
-                return true;
+                hasGround = true;
+                break;
             }
         }
 
-        return false;
+        groundBelowCache[belowCell] = hasGround;
+        return hasGround;
+    }
+
+    /// <summary>
+    /// Builds the Wall-layer filter once. The filter replaces the old per-hit layer comparison
+    /// and lets the query use the non-allocating overload.
+    /// </summary>
+    private bool EnsureWallFilter()
+    {
+        if (wallFilterReady)
+        {
+            return wallFilter.layerMask.value != 0;
+        }
+
+        wallFilterReady = true;
+        int wallLayer = LayerMask.NameToLayer("Wall");
+        wallFilter = new ContactFilter2D
+        {
+            useLayerMask = true,
+            layerMask = wallLayer >= 0 ? 1 << wallLayer : 0,
+            useTriggers = true
+        };
+
+        return wallLayer >= 0;
     }
 
     private Vector2 SnapToGrid(Vector2 worldPosition)
@@ -536,46 +614,43 @@ public class SquarePlacement : MonoBehaviour
         return gridOrigin + new Vector2(x, y);
     }
 
-    private bool IsCellOccupied(Vector2 cellPosition)
+    private bool IsCellOccupied(Vector2 cellPosition, bool ignorePlayer)
     {
-        // Scaffolding is a walk-through support piece, so the player's cell stays placeable for it.
-        bool ignorePlayer = TowerShopUI.IsWalkThrough(selectedTower);
-
-        // Slightly smaller than the cell so squares touching at their edges do not count as overlap.
-        Vector2 checkSize = Vector2.one * (cellSize * 0.9f);
-        Collider2D[] hits = Physics2D.OverlapBoxAll(cellPosition, checkSize, 0f);
-
-        foreach (Collider2D hit in hits)
+        if (TowerGrid.IsOccupied(TowerGrid.ToCell(cellPosition), adjacencyTolerance))
         {
-            if (IsTowerOrCageCenteredAt(hit, cellPosition) || (!ignorePlayer && IsPlayer(hit)))
-            {
-                return true;
-            }
+            return true;
         }
 
-        return false;
+        // Scaffolding is a walk-through support piece, so the player's cell stays placeable for it.
+        return !ignorePlayer
+            && !TowerShopUI.IsWalkThrough(selectedTower)
+            && IsPlayerInCell(cellPosition);
+    }
+
+    /// <summary>
+    /// True when the player's body overlaps the cell. The player is the one mover placement
+    /// cares about, so it is tested directly instead of through an overlap query.
+    /// </summary>
+    private bool IsPlayerInCell(Vector2 cellPosition)
+    {
+        if (playerCollider == null)
+        {
+            return false;
+        }
+
+        // Slightly smaller than the cell so squares touching at their edges do not count as overlap.
+        float halfExtent = cellSize * 0.45f;
+        Bounds playerBounds = playerCollider.bounds;
+        return Mathf.Abs(playerBounds.center.x - cellPosition.x)
+                <= halfExtent + playerBounds.extents.x
+            && Mathf.Abs(playerBounds.center.y - cellPosition.y)
+                <= halfExtent + playerBounds.extents.y;
     }
 
     private bool HasCageDirectlyBelow(Vector2 cellPosition)
     {
         Vector2 belowCenter = cellPosition + Vector2.down * cellSize;
-        float probeSize = Mathf.Max(cellSize * 0.1f, adjacencyTolerance * 2f);
-        Collider2D[] hits = Physics2D.OverlapBoxAll(
-            belowCenter,
-            Vector2.one * probeSize,
-            0f
-        );
-
-        foreach (Collider2D hit in hits)
-        {
-            CageTower cage = !hit.isTrigger ? hit.GetComponentInParent<CageTower>() : null;
-            if (cage != null && IsCenteredOnCell(cage.transform.position, belowCenter))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return TowerGrid.GetCage(TowerGrid.ToCell(belowCenter), adjacencyTolerance) != null;
     }
 
     private static readonly Vector2[] CardinalDirections =
@@ -588,67 +663,16 @@ public class SquarePlacement : MonoBehaviour
 
     private bool HasAdjacentStructure(Vector2 cellPosition)
     {
-        float probeSize = Mathf.Max(cellSize * 0.1f, adjacencyTolerance * 2f);
-
         foreach (Vector2 direction in CardinalDirections)
         {
+            // Only a tower, cage, or scaffold occupying the neighbor cell counts. The registry
+            // holds tagged roots only, so children like wind funnels or orbiting saws are
+            // never candidates in the first place.
             Vector2 neighborCenter = cellPosition + direction * cellSize;
-            Collider2D[] hits = Physics2D.OverlapBoxAll(
-                neighborCenter,
-                Vector2.one * probeSize,
-                0f
-            );
-
-            foreach (Collider2D hit in hits)
-            {
-                // Only a tower, cage, or scaffold occupying the neighbor cell counts.
-                // Children like wind funnels or orbiting saws fail the centered check.
-                if (IsTowerOrCageCenteredAt(hit, neighborCenter))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-
-    private bool IsTowerOrCageCenteredAt(Collider2D hit, Vector2 cellCenter)
-    {
-        Transform current = hit.transform;
-        while (current != null)
-        {
-            if (current.CompareTag("tower") || current.CompareTag("cage"))
-            {
-                return IsCenteredOnCell(current.position, cellCenter);
-            }
-
-            current = current.parent;
-        }
-
-        return false;
-    }
-
-    private bool IsCenteredOnCell(Vector2 objectPosition, Vector2 cellCenter)
-    {
-        float centerTolerance = Mathf.Max(0.001f, adjacencyTolerance);
-        return (objectPosition - cellCenter).sqrMagnitude
-            <= centerTolerance * centerTolerance;
-    }
-
-    private static bool IsPlayer(Collider2D hit)
-    {
-        Transform current = hit.transform;
-
-        while (current != null)
-        {
-            if (current.CompareTag("Player"))
+            if (TowerGrid.IsOccupied(TowerGrid.ToCell(neighborCenter), adjacencyTolerance))
             {
                 return true;
             }
-
-            current = current.parent;
         }
 
         return false;

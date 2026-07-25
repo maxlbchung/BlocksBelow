@@ -39,6 +39,9 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField] private Color selectedColor = new Color(0.25f, 0.55f, 0.3f, 1f);
     [SerializeField] private Color startRoundColor = new Color(0.16f, 0.45f, 0.22f, 1f);
     [SerializeField] private Color coinPayoutColor = new Color(1f, 0.84f, 0.25f, 1f);
+    [Tooltip("Fill for the tab currently being shown. Deliberately not the tower "
+        + "selection colour, so an open tab does not read as a selected piece.")]
+    [SerializeField] private Color activeTabColor = new Color(0.32f, 0.38f, 0.48f, 1f);
 
     [Header("Shop SFX")]
     [Tooltip("Per-tower sounds live on the tower prefabs; these two are shop actions.")]
@@ -46,6 +49,8 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField, AudioClipDropdown] private AudioClip cageRepairSfx;
 
     private readonly List<Button> towerButtons = new List<Button>();
+    private readonly List<WaveSpawner.WavePreviewEntry> wavePreview =
+        new List<WaveSpawner.WavePreviewEntry>(8);
     private static Sprite aimIndicatorSprite;
     private Text moneyText;
     private Button potionButton;
@@ -57,6 +62,16 @@ public class TowerShopUI : MonoBehaviour
     private Coroutine moneyTickRoutine;
     private int selectedIndex = -1;
     private bool repairMode;
+
+    private GameObject buildPage;
+    private GameObject roundPage;
+    private Button buildTabButton;
+    private Button roundTabButton;
+    private Text roundTitleText;
+    private Text roundSubtitleText;
+    private Transform enemyListRoot;
+    private WaveSpawner waveSpawner;
+    private bool showingRoundTab;
 
     public int Money => money;
     public Button StartRoundButton { get; private set; }
@@ -414,6 +429,10 @@ public class TowerShopUI : MonoBehaviour
             cageStack.Initialize(gridCellSize);
         }
 
+        // Recording the cell here is what lets placement answer "what is in this cell?"
+        // from a dictionary instead of a physics overlap every frame.
+        TowerGrid.Register(tower);
+
         PlaySfx(placementSfx);
         return tower;
     }
@@ -484,40 +503,254 @@ public class TowerShopUI : MonoBehaviour
 
         canvasRect = canvasObject.GetComponent<RectTransform>();
 
-        GameObject panel = CreateUIObject("Tower Shop", canvasObject.transform);
+        // The root holds the tab strip above the panel, so the tabs sit outside the
+        // container they switch rather than inside it.
+        GameObject root = CreateUIObject("Tower Shop", canvasObject.transform);
+
+        RectTransform rootRect = root.GetComponent<RectTransform>();
+        rootRect.anchorMin = new Vector2(0f, 0.5f);
+        rootRect.anchorMax = new Vector2(0f, 0.5f);
+        rootRect.pivot = new Vector2(0f, 0.5f);
+        rootRect.anchoredPosition = new Vector2(20f, 0f);
+        rootRect.sizeDelta = new Vector2(250f, 0f);
+
+        VerticalLayoutGroup rootLayout = root.AddComponent<VerticalLayoutGroup>();
+        rootLayout.spacing = 0f;
+        rootLayout.childAlignment = TextAnchor.UpperCenter;
+        rootLayout.childControlHeight = true;
+        rootLayout.childControlWidth = true;
+        rootLayout.childForceExpandHeight = false;
+
+        // Each page is a different height, so the shop measures itself instead of
+        // using the old hand-computed height.
+        ContentSizeFitter rootFitter = root.AddComponent<ContentSizeFitter>();
+        rootFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        rootFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        BuildTabBar(root.transform);
+
+        GameObject panel = CreateUIObject("Shop Panel", root.transform);
         Image panelImage = panel.AddComponent<Image>();
         panelImage.color = panelColor;
+        AddPageLayout(panel);
 
-        RectTransform panelRect = panel.GetComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(0f, 0.5f);
-        panelRect.anchorMax = new Vector2(0f, 0.5f);
-        panelRect.pivot = new Vector2(0f, 0.5f);
-        panelRect.anchoredPosition = new Vector2(20f, 0f);
-        panelRect.sizeDelta = new Vector2(250f, Mathf.Max(150f, 306f + towers.Count * 72f));
+        // Money stays outside the pages: it is what both tabs are spent against.
+        moneyText = CreateText("Money", panel.transform, 28, TextAnchor.MiddleCenter);
+        moneyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 48f;
 
-        VerticalLayoutGroup layout = panel.AddComponent<VerticalLayoutGroup>();
+        buildPage = BuildBuildPage(panel.transform);
+        roundPage = BuildRoundPage(panel.transform);
+
+        ShowTab(false);
+    }
+
+    private void BuildTabBar(Transform parent)
+    {
+        GameObject bar = CreateUIObject("Tabs", parent);
+        bar.AddComponent<LayoutElement>().preferredHeight = 50f;
+
+        HorizontalLayoutGroup row = bar.AddComponent<HorizontalLayoutGroup>();
+        row.spacing = 6f;
+        row.childControlHeight = true;
+        row.childControlWidth = true;
+        row.childForceExpandWidth = true;
+
+        buildTabButton = CreateTabButton(bar.transform, "Build", false);
+        roundTabButton = CreateTabButton(bar.transform, "Round", true);
+    }
+
+    private Button CreateTabButton(Transform parent, string tabName, bool opensRoundTab)
+    {
+        GameObject buttonObject = CreateUIObject(tabName + " Tab", parent);
+        Image background = buttonObject.AddComponent<Image>();
+        background.color = buttonColor;
+        Button button = buttonObject.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.onClick.AddListener(() => ShowTab(opensRoundTab));
+
+        Text label = CreateText("Label", buttonObject.transform, 22, TextAnchor.MiddleCenter);
+        label.text = tabName;
+        StretchLabel(label, 4f);
+        return button;
+    }
+
+    private GameObject BuildBuildPage(Transform parent)
+    {
+        GameObject page = CreateUIObject("Build Page", parent);
+        AddPageLayout(page).padding = new RectOffset(0, 0, 0, 0);
+
+        for (int i = 0; i < towers.Count; i++)
+        {
+            int capturedIndex = i;
+            TowerOffer offer = towers[i];
+            Button button = CreateButton(page.transform, offer, capturedIndex);
+            button.onClick.AddListener(() => SelectTower(capturedIndex));
+            towerButtons.Add(button);
+        }
+
+        repairButton = CreateRepairButton(page.transform);
+        return page;
+    }
+
+    private GameObject BuildRoundPage(Transform parent)
+    {
+        GameObject page = CreateUIObject("Round Page", parent);
+        AddPageLayout(page).padding = new RectOffset(0, 0, 0, 0);
+
+        roundTitleText = CreateText("Round Title", page.transform, 26, TextAnchor.MiddleCenter);
+        roundTitleText.fontStyle = FontStyle.Bold;
+        roundTitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 40f;
+
+        roundSubtitleText = CreateText("Round Subtitle", page.transform, 18, TextAnchor.MiddleLeft);
+        roundSubtitleText.color = new Color(0.75f, 0.8f, 0.88f, 1f);
+        roundSubtitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 26f;
+
+        GameObject list = CreateUIObject("Enemy List", page.transform);
+        VerticalLayoutGroup listLayout = list.AddComponent<VerticalLayoutGroup>();
+        listLayout.spacing = 6f;
+        listLayout.childAlignment = TextAnchor.UpperLeft;
+        listLayout.childControlHeight = true;
+        listLayout.childControlWidth = true;
+        listLayout.childForceExpandHeight = false;
+        enemyListRoot = list.transform;
+
+        // Healing belongs with the round preview: you top up after seeing what is coming.
+        potionButton = CreatePotionButton(page.transform);
+        StartRoundButton = CreateStartRoundButton(page.transform);
+        return page;
+    }
+
+    /// <summary>The shared vertical stack used by the panel and by each tab page.</summary>
+    private static VerticalLayoutGroup AddPageLayout(GameObject target)
+    {
+        VerticalLayoutGroup layout = target.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(12, 12, 12, 12);
         layout.spacing = 10f;
         layout.childAlignment = TextAnchor.UpperCenter;
         layout.childControlHeight = true;
         layout.childControlWidth = true;
         layout.childForceExpandHeight = false;
+        return layout;
+    }
 
-        moneyText = CreateText("Money", panel.transform, 28, TextAnchor.MiddleCenter);
-        moneyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 48f;
+    /// <summary>Shows one of the two tabs and hides the other.</summary>
+    public void ShowTab(bool roundTab)
+    {
+        showingRoundTab = roundTab;
 
-        for (int i = 0; i < towers.Count; i++)
+        if (buildPage != null)
         {
-            int capturedIndex = i;
-            TowerOffer offer = towers[i];
-            Button button = CreateButton(panel.transform, offer, capturedIndex);
-            button.onClick.AddListener(() => SelectTower(capturedIndex));
-            towerButtons.Add(button);
+            buildPage.SetActive(!roundTab);
         }
 
-        potionButton = CreatePotionButton(panel.transform);
-        repairButton = CreateRepairButton(panel.transform);
-        StartRoundButton = CreateStartRoundButton(panel.transform);
+        if (roundPage != null)
+        {
+            roundPage.SetActive(roundTab);
+        }
+
+        if (roundTab)
+        {
+            RefreshRoundPage();
+        }
+
+        RefreshUI();
+    }
+
+    /// <summary>
+    /// Rewrites the round tab from the spawner: which round is next and what it fields.
+    /// Called when the tab opens and when a build phase begins, which is the only time
+    /// the upcoming wave can have changed.
+    /// </summary>
+    private void RefreshRoundPage()
+    {
+        if (roundTitleText == null || enemyListRoot == null)
+        {
+            return;
+        }
+
+        for (int i = enemyListRoot.childCount - 1; i >= 0; i--)
+        {
+            // Destroy only takes effect at the end of the frame, so the old rows are
+            // detached now to keep them out of a rebuild that happens this frame.
+            GameObject oldRow = enemyListRoot.GetChild(i).gameObject;
+            oldRow.transform.SetParent(null, false);
+            Destroy(oldRow);
+        }
+
+        if (waveSpawner == null)
+        {
+            waveSpawner = FindFirstObjectByType<WaveSpawner>();
+        }
+
+        if (waveSpawner == null)
+        {
+            roundTitleText.text = "Round";
+            roundSubtitleText.text = string.Empty;
+            return;
+        }
+
+        if (!waveSpawner.HasNextWave)
+        {
+            roundTitleText.text = "Round " + waveSpawner.CurrentRoundNumber;
+            roundSubtitleText.text = "All rounds cleared.";
+            return;
+        }
+
+        roundTitleText.text = "Round " + waveSpawner.NextRoundNumber + " / " + waveSpawner.TotalRounds;
+        roundSubtitleText.text = "Coming next:";
+
+        waveSpawner.GetNextWavePreview(wavePreview);
+        for (int i = 0; i < wavePreview.Count; i++)
+        {
+            CreateEnemyPreviewRow(wavePreview[i]);
+        }
+
+        if (wavePreview.Count == 0)
+        {
+            roundSubtitleText.text = "No enemies this round.";
+        }
+    }
+
+    private void CreateEnemyPreviewRow(WaveSpawner.WavePreviewEntry entry)
+    {
+        GameObject rowObject = CreateUIObject(entry.prefab.name + " Preview", enemyListRoot);
+        rowObject.AddComponent<LayoutElement>().preferredHeight = 44f;
+
+        HorizontalLayoutGroup row = rowObject.AddComponent<HorizontalLayoutGroup>();
+        row.spacing = 10f;
+        row.childAlignment = TextAnchor.MiddleLeft;
+        row.childControlHeight = true;
+        row.childControlWidth = false;
+
+        GameObject iconObject = CreateUIObject("Icon", rowObject.transform);
+        Image icon = iconObject.AddComponent<Image>();
+        icon.sprite = GetEnemySprite(entry.prefab);
+        icon.preserveAspect = true;
+        icon.enabled = icon.sprite != null;
+        LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
+        iconLayout.preferredWidth = 36f;
+        iconLayout.preferredHeight = 36f;
+
+        Text label = CreateText("Label", rowObject.transform, 18, TextAnchor.MiddleLeft);
+        label.text = "x" + entry.count + "  " + entry.prefab.name;
+        LayoutElement labelLayout = label.gameObject.AddComponent<LayoutElement>();
+        labelLayout.flexibleWidth = 1f;
+        labelLayout.preferredHeight = 36f;
+    }
+
+    /// <summary>
+    /// Enemy art can sit on a child of the prefab root, unlike tower offers, so this
+    /// searches the whole prefab rather than only its root renderer.
+    /// </summary>
+    private static Sprite GetEnemySprite(GameObject enemyPrefab)
+    {
+        if (enemyPrefab == null)
+        {
+            return null;
+        }
+
+        SpriteRenderer renderer = enemyPrefab.GetComponentInChildren<SpriteRenderer>(true);
+        return renderer != null ? renderer.sprite : null;
     }
 
     private Button CreateRepairButton(Transform parent)
@@ -531,11 +764,7 @@ public class TowerShopUI : MonoBehaviour
         buttonObject.AddComponent<LayoutElement>().preferredHeight = 62f;
 
         repairLabel = CreateText("Label", buttonObject.transform, 20, TextAnchor.MiddleCenter);
-        RectTransform labelRect = repairLabel.rectTransform;
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = new Vector2(8f, 0f);
-        labelRect.offsetMax = new Vector2(-8f, 0f);
+        StretchLabel(repairLabel, 8f);
         return button;
     }
 
@@ -551,11 +780,7 @@ public class TowerShopUI : MonoBehaviour
 
         Text label = CreateText("Label", buttonObject.transform, 20, TextAnchor.MiddleCenter);
         label.text = "Health Potion (+" + potionHealAmount + ")  $" + potionPrice;
-        RectTransform labelRect = label.rectTransform;
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = new Vector2(8f, 0f);
-        labelRect.offsetMax = new Vector2(-8f, 0f);
+        StretchLabel(label, 8f);
         return button;
     }
 
@@ -570,11 +795,7 @@ public class TowerShopUI : MonoBehaviour
 
         Text label = CreateText("Label", buttonObject.transform, 24, TextAnchor.MiddleCenter);
         label.text = "Start Round";
-        RectTransform labelRect = label.rectTransform;
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = Vector2.zero;
-        labelRect.offsetMax = Vector2.zero;
+        StretchLabel(label, 0f);
         return button;
     }
 
@@ -627,7 +848,11 @@ public class TowerShopUI : MonoBehaviour
 
         if (potionButton != null)
         {
-            potionButton.interactable = player != null && CanAfford(potionPrice);
+            // A potion at full health is a no-op the shop refuses anyway, so the
+            // offer disappears entirely rather than sitting there greyed out.
+            bool healingWouldHelp = player != null && player.CanBeHealed;
+            potionButton.gameObject.SetActive(healingWouldHelp);
+            potionButton.interactable = healingWouldHelp && CanAfford(potionPrice);
         }
 
         if (repairButton != null)
@@ -638,6 +863,26 @@ public class TowerShopUI : MonoBehaviour
                 ? "Click a Cage to Repair"
                 : "Repair Cage  $" + cageRepairPrice;
         }
+
+        if (buildTabButton != null)
+        {
+            buildTabButton.GetComponent<Image>().color = showingRoundTab ? buttonColor : activeTabColor;
+        }
+
+        if (roundTabButton != null)
+        {
+            roundTabButton.GetComponent<Image>().color = showingRoundTab ? activeTabColor : buttonColor;
+        }
+    }
+
+    /// <summary>Makes a label fill its button, inset by <paramref name="horizontalPadding"/>.</summary>
+    private static void StretchLabel(Text label, float horizontalPadding)
+    {
+        RectTransform labelRect = label.rectTransform;
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(horizontalPadding, 0f);
+        labelRect.offsetMax = new Vector2(-horizontalPadding, 0f);
     }
 
     private static GameObject CreateUIObject(string objectName, Transform parent)
@@ -668,6 +913,26 @@ public class TowerShopUI : MonoBehaviour
         new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
     }
 
+    /// <summary>
+    /// Keeps the potion offer in step with the player's health. Health is not owned by
+    /// the shop and is initialised after this component's Awake, so the offer is checked
+    /// per frame instead of only when money changes. Only runs during build phases,
+    /// since the spawner disables this component while a wave is being fought.
+    /// </summary>
+    private void Update()
+    {
+        if (potionButton == null)
+        {
+            return;
+        }
+
+        bool healingWouldHelp = player != null && player.CanBeHealed;
+        if (healingWouldHelp != potionButton.gameObject.activeSelf)
+        {
+            RefreshUI();
+        }
+    }
+
     private void OnDisable()
     {
         if (canvasObject != null)
@@ -679,10 +944,17 @@ public class TowerShopUI : MonoBehaviour
         if (canvasObject != null)
             canvasObject.SetActive(true);
 
-        // Each build phase starts out of repair mode.
+        // Each build phase starts out of repair mode, on the build tab, and with a
+        // preview of the round that just became the next one.
         if (repairMode)
         {
             SetRepairMode(false);
+        }
+
+        if (buildPage != null)
+        {
+            RefreshRoundPage();
+            ShowTab(false);
         }
     }
 }

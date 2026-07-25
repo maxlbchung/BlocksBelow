@@ -2,11 +2,13 @@ using UnityEngine;
 
 public class TeslaTower : MonoBehaviour
 {
+    [Header("Combat")]
+    [SerializeField] private float damage = 3f;
+    [SerializeField, Min(0.01f)] private float zapInterval = 1f;
+
     [Header("Targeting")]
     [SerializeField, Min(0.1f)] private float initialTargetRadius = 5f;
     [SerializeField, Min(0.1f)] private float chainRadius = 5f;
-    [SerializeField, Min(0)] private int chainCount;
-    [SerializeField, Min(0.01f)] private float zapInterval = 1f;
 
     [Header("Lightning")]
     [SerializeField, Min(0.01f)] private float lightningDuration = 0.6f;
@@ -16,7 +18,6 @@ public class TeslaTower : MonoBehaviour
     private float reshapeInterval = 0.055f;
     [SerializeField, Min(0.001f)] private float lineWidth = 0.4f;
     [SerializeField] private Color lightningColor = new Color(1f, 0.9f, 0.3f, 1f);
-    [SerializeField] private float damage = 3f;
     [SerializeField] private AudioClip zapSfx;
 
     [Header("Sparks")]
@@ -31,6 +32,7 @@ public class TeslaTower : MonoBehaviour
     private static readonly int OrbIntensityId = Shader.PropertyToID("_Intensity");
 
     private float nextZapTime;
+    private int chainCount;
     private TowerCageStack cageStack;
     private Enemy[] hitEnemies;
     private LineRenderer[] boltLines;
@@ -64,7 +66,8 @@ public class TeslaTower : MonoBehaviour
     private void Update()
     {
         int powerLevel = cageStack != null ? cageStack.PowerLevel : 0;
-        // The first cage powers the zap itself; each cage beyond it adds a chain.
+        // The first cage powers the zap itself; each cage beyond it adds a chain,
+        // so power N hits exactly N enemies. Only damage is tunable.
         chainCount = Mathf.Max(0, powerLevel - 1);
 
         // Bolts keep fading even outside a wave; only new zaps are gated.
@@ -101,7 +104,7 @@ public class TeslaTower : MonoBehaviour
         }
 
         ShowBolt(0, transform, firstEnemy.transform);
-        firstEnemy.health -= damage;
+        firstEnemy.TryTakeDamage(damage);
         Enemy currentEnemy = firstEnemy;
         for (int i = 0; i < chainCount; i++)
         {
@@ -116,7 +119,7 @@ public class TeslaTower : MonoBehaviour
             }
 
             ShowBolt(i + 1, currentEnemy.transform, nextEnemy.transform);
-            nextEnemy.health -= damage;
+            nextEnemy.TryTakeDamage(damage);
             hitEnemies[hitCount++] = nextEnemy;
             currentEnemy = nextEnemy;
         }

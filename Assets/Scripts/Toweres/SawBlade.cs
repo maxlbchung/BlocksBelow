@@ -6,9 +6,10 @@ public class SawBlade : MonoBehaviour
     [SerializeField] private float damage = 1f;
     [SerializeField] private AudioClip hitSfx;
 
-    public void ConfigureSfx(AudioClip newHitSfx)
+    public void Configure(AudioClip newHitSfx, float newDamage)
     {
         hitSfx = newHitSfx;
+        damage = newDamage;
     }
 
     // The blade is a trigger, so it never physically pushes or blocks anything;

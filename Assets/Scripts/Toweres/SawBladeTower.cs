@@ -4,7 +4,7 @@ using System.Collections.Generic;
 public class SawBladeTower : MonoBehaviour
 {
     [SerializeField] private GameObject sawPrefab;
-    [SerializeField, Min(0)] private int numberOfSaws;
+    [SerializeField] private float damage = 1f;
     [SerializeField, Min(0f)] private float orbitRadius = 3f;
     [SerializeField] private float orbitSpeed = 90f;
     [Header("Saw Tethers")]
@@ -23,15 +23,16 @@ public class SawBladeTower : MonoBehaviour
     private void Start()
     {
         cageStack = GetComponent<TowerCageStack>();
-        RefreshSaws();
+        RefreshSaws(0);
     }
 
     private void Update()
     {
-        numberOfSaws = cageStack != null ? cageStack.PowerLevel : 0;
-        if (numberOfSaws != activeSawCount)
+        // One saw per full cage below — the count is locked to cage power.
+        int targetSawCount = cageStack != null ? cageStack.PowerLevel : 0;
+        if (targetSawCount != activeSawCount)
         {
-            RefreshSaws();
+            RefreshSaws(targetSawCount);
         }
 
         if (sawOrbit != null)
@@ -41,7 +42,7 @@ public class SawBladeTower : MonoBehaviour
         }
     }
 
-    private void RefreshSaws()
+    private void RefreshSaws(int targetSawCount)
     {
         if (sawOrbit != null)
         {
@@ -59,7 +60,7 @@ public class SawBladeTower : MonoBehaviour
 
         saws.Clear();
         sawLines.Clear();
-        activeSawCount = Mathf.Max(0, numberOfSaws);
+        activeSawCount = Mathf.Max(0, targetSawCount);
 
         if (activeSawCount > 0)
         {
@@ -97,7 +98,7 @@ public class SawBladeTower : MonoBehaviour
             SawBlade blade = saw.GetComponent<SawBlade>();
             if (blade != null)
             {
-                blade.ConfigureSfx(hitSfx);
+                blade.Configure(hitSfx, damage);
             }
 
             saws.Add(saw.transform);

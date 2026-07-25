@@ -7,6 +7,7 @@ Shader "TowerDefense/TeslaLightning"
         _CoreSharpness ("Core Sharpness", Float) = 3
         _BodyWidth ("Body Width", Range(0, 1)) = 0.35
         _GlowStrength ("Glow Strength", Range(0, 4)) = 1.6
+        _BloomBoost ("Bloom Boost", Range(1, 8)) = 4
         _ShimmerSpeed ("Shimmer Speed", Float) = 16
         _FlickerAmount ("Flicker Amount", Range(0, 1)) = 0.25
         _FlickerSpeed ("Flicker Speed", Float) = 40
@@ -60,6 +61,7 @@ Shader "TowerDefense/TeslaLightning"
                 float _CoreSharpness;
                 float _BodyWidth;
                 float _GlowStrength;
+                float _BloomBoost;
                 float _ShimmerSpeed;
                 float _FlickerAmount;
                 float _FlickerSpeed;
@@ -115,8 +117,14 @@ Shader "TowerDefense/TeslaLightning"
                     * input.color.rgb;
                 half3 glowRgb = _GlowColor.rgb * input.color.rgb;
 
+                // The whole bolt is pushed into HDR so the bloom pass sees it.
+                // A thin line covers few pixels and its energy dilutes when
+                // bloom downsamples, so it needs to sit well above the
+                // threshold - a value just past 1.0 reads as no glow at all.
+                // On screen the core clamps to white-hot; the rim keeps its
+                // hue because color ratios survive the multiply.
                 half3 rgb = (bodyRgb * body + glowRgb * glow)
-                    * fade * flicker * shimmer;
+                    * fade * flicker * shimmer * _BloomBoost;
                 // The halo carries some opacity so it tints what is behind it
                 // instead of only adding light; an add-only halo disappears
                 // against bright backgrounds.

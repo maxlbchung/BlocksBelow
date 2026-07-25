@@ -113,7 +113,7 @@ MonoBehaviour:
   exponentialFalloff: 3
   isCagable: 0
   moveSpeed: 5
-  damage: 2
+  damage: 1
 --- !u!50 &4573768113491351581
 Rigidbody2D:
   serializedVersion: 5
@@ -179,7 +179,7 @@ BoxCollider2D:
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 14.94, y: 10.24}
+    oldSize: {x: 1.494, y: 1.024}
     newSize: {x: 1, y: 1}
     adaptiveTilingThreshold: 0.5
     drawMode: 0

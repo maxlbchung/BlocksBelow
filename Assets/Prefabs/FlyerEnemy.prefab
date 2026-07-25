@@ -145,7 +145,7 @@ MonoBehaviour:
   bulletPrefab: {fileID: 2105853612659289840, guid: 2beea353b56e9e94885ba30122ab6966, type: 3}
   bulletSpeed: 5
   bulletLifetime: 8
-  bulletPrewarmCount: 128
+  bulletPrewarmCount: 30
 --- !u!61 &8705924546012806200
 BoxCollider2D:
   m_ObjectHideFlags: 0

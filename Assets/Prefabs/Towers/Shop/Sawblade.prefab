@@ -154,9 +154,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SawBladeTower
   sawPrefab: {fileID: 6163622273882598567, guid: 2a7857f5961cfcc4f927c40ae9a8b8f6, type: 3}
-  numberOfSaws: 0
-  orbitRadius: 3
-  orbitSpeed: 90
+  damage: 1
+  orbitRadius: 2
+  orbitSpeed: 180
   lineWidth: 0.05
   lineColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   hitSfx: {fileID: 0}

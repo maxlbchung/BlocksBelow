@@ -3,11 +3,12 @@ using UnityEngine;
 public class BasicTower : MonoBehaviour
 {
     [SerializeField] private Projectile projectilePrefab;
-    [SerializeField, Min(0f)] private float fireRate;
+    [SerializeField, Min(0f), Tooltip("Shots per second granted by each full cage below.")]
+    private float fireRatePerPower = 1f;
     [SerializeField] private float damage = 1f;
     [SerializeField] private AudioClip shootSfx;
     [SerializeField, Min(0), Tooltip("Projectiles prepared before this tower starts firing.")]
-    private int projectilePrewarmCount = 128;
+    private int projectilePrewarmCount = 30;
     [SerializeField, Min(1)] private int projectilePoolMaxSize = 512;
 
     private float nextShotTime;
@@ -30,7 +31,7 @@ public class BasicTower : MonoBehaviour
 
     private void Update()
     {
-        fireRate = cageStack != null ? cageStack.PowerLevel : 0f;
+        float fireRate = (cageStack != null ? cageStack.PowerLevel : 0) * fireRatePerPower;
         if (fireRate <= 0f || !WaveSpawner.IsWaveActive)
         {
             return;

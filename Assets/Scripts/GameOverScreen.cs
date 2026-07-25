@@ -1,0 +1,244 @@
+using System.Collections;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+/// <summary>
+/// End-of-run screen showing the run's stats plus play again and main menu buttons.
+/// Builds its own canvas and spawns itself on demand, so the scene needs no wiring.
+/// The game is paused while it is up.
+/// </summary>
+public class GameOverScreen : MonoBehaviour
+{
+    private const string MainMenuSceneName = "MainMenu";
+    private const float FadeDuration = 0.35f;
+
+    private static readonly Color BackdropColor = new Color(0f, 0f, 0f, 0.75f);
+    private static readonly Color PanelColor = new Color(0.08f, 0.1f, 0.14f, 0.96f);
+    private static readonly Color TitleColor = new Color(0.9f, 0.28f, 0.26f, 1f);
+    private static readonly Color StatLabelColor = new Color(0.72f, 0.76f, 0.82f, 1f);
+    private static readonly Color StatValueColor = new Color(1f, 0.84f, 0.25f, 1f);
+    private static readonly Color PlayAgainColor = new Color(0.16f, 0.45f, 0.22f, 1f);
+    private static readonly Color MainMenuColor = new Color(0.2f, 0.24f, 0.3f, 1f);
+
+    private static GameOverScreen instance;
+
+    private CanvasGroup canvasGroup;
+
+    /// <summary>Builds and shows the screen. Later calls while it is up do nothing.</summary>
+    public static void Show()
+    {
+        if (instance != null)
+        {
+            return;
+        }
+
+        new GameObject("Game Over Screen").AddComponent<GameOverScreen>();
+    }
+
+    private void Awake()
+    {
+        instance = this;
+
+        EnsureEventSystem();
+        BuildUI();
+
+        // Freeze the fight behind the screen. Both buttons restore this before loading.
+        Time.timeScale = 0f;
+        StartCoroutine(FadeIn());
+    }
+
+    private void OnDestroy()
+    {
+        if (instance == this)
+        {
+            instance = null;
+        }
+    }
+
+    public void PlayAgain()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    public void GoToMainMenu()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(MainMenuSceneName);
+    }
+
+    private IEnumerator FadeIn()
+    {
+        // Unscaled, because showing the screen is what paused the game.
+        for (float elapsed = 0f; elapsed < FadeDuration; elapsed += Time.unscaledDeltaTime)
+        {
+            canvasGroup.alpha = Mathf.SmoothStep(0f, 1f, elapsed / FadeDuration);
+            yield return null;
+        }
+
+        canvasGroup.alpha = 1f;
+    }
+
+    private void BuildUI()
+    {
+        GameObject canvasObject = new GameObject(
+            "Game Over Canvas",
+            typeof(Canvas),
+            typeof(CanvasScaler),
+            typeof(GraphicRaycaster),
+            typeof(CanvasGroup));
+        canvasObject.transform.SetParent(transform, false);
+
+        Canvas canvas = canvasObject.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        // Above the tower shop, which sorts at 100.
+        canvas.sortingOrder = 500;
+
+        CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 1f;
+
+        canvasGroup = canvasObject.GetComponent<CanvasGroup>();
+        canvasGroup.alpha = 0f;
+
+        // Full-screen dim that also swallows clicks aimed at the game behind it.
+        GameObject backdrop = CreateUIObject("Backdrop", canvasObject.transform);
+        backdrop.AddComponent<Image>().color = BackdropColor;
+        RectTransform backdropRect = backdrop.GetComponent<RectTransform>();
+        backdropRect.anchorMin = Vector2.zero;
+        backdropRect.anchorMax = Vector2.one;
+        backdropRect.offsetMin = Vector2.zero;
+        backdropRect.offsetMax = Vector2.zero;
+
+        GameObject panel = CreateUIObject("Panel", canvasObject.transform);
+        panel.AddComponent<Image>().color = PanelColor;
+
+        RectTransform panelRect = panel.GetComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRect.pivot = new Vector2(0.5f, 0.5f);
+        panelRect.anchoredPosition = Vector2.zero;
+        panelRect.sizeDelta = new Vector2(660f, 620f);
+
+        VerticalLayoutGroup layout = panel.AddComponent<VerticalLayoutGroup>();
+        layout.padding = new RectOffset(40, 40, 36, 36);
+        layout.spacing = 14f;
+        layout.childAlignment = TextAnchor.UpperCenter;
+        layout.childControlHeight = true;
+        layout.childControlWidth = true;
+        layout.childForceExpandHeight = false;
+
+        Text title = CreateText("Title", panel.transform, 72, TextAnchor.MiddleCenter);
+        title.text = "GAME OVER";
+        title.color = TitleColor;
+        title.fontStyle = FontStyle.Bold;
+        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 92f;
+
+        Text subtitle = CreateText("Subtitle", panel.transform, 24, TextAnchor.MiddleCenter);
+        subtitle.text = "You were overrun.";
+        subtitle.color = StatLabelColor;
+        subtitle.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
+
+        CreateSpacer(panel.transform, 14f);
+
+        CreateStatRow(panel.transform, "Round Reached", RunStats.Round.ToString());
+        CreateStatRow(panel.transform, "Enemies Defeated", RunStats.EnemiesDefeated.ToString());
+        CreateStatRow(panel.transform, "Towers Placed", RunStats.TowersPlaced.ToString());
+
+        CreateSpacer(panel.transform, 18f);
+
+        CreateButton(panel.transform, "Play Again", PlayAgainColor, PlayAgain);
+        CreateButton(panel.transform, "Main Menu", MainMenuColor, GoToMainMenu);
+    }
+
+    private static void CreateStatRow(Transform parent, string label, string value)
+    {
+        GameObject row = CreateUIObject(label + " Row", parent);
+        row.AddComponent<LayoutElement>().preferredHeight = 52f;
+
+        HorizontalLayoutGroup rowLayout = row.AddComponent<HorizontalLayoutGroup>();
+        rowLayout.padding = new RectOffset(16, 16, 0, 0);
+        rowLayout.spacing = 12f;
+        rowLayout.childAlignment = TextAnchor.MiddleLeft;
+        rowLayout.childControlHeight = true;
+        rowLayout.childControlWidth = true;
+
+        Image rowBackground = row.AddComponent<Image>();
+        rowBackground.color = new Color(1f, 1f, 1f, 0.05f);
+
+        Text labelText = CreateText("Label", row.transform, 28, TextAnchor.MiddleLeft);
+        labelText.text = label;
+        labelText.color = StatLabelColor;
+        labelText.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+
+        Text valueText = CreateText("Value", row.transform, 32, TextAnchor.MiddleRight);
+        valueText.text = value;
+        valueText.color = StatValueColor;
+        valueText.fontStyle = FontStyle.Bold;
+        valueText.gameObject.AddComponent<LayoutElement>().preferredWidth = 140f;
+    }
+
+    private static Button CreateButton(
+        Transform parent,
+        string label,
+        Color color,
+        UnityEngine.Events.UnityAction onClick)
+    {
+        GameObject buttonObject = CreateUIObject(label, parent);
+        Image background = buttonObject.AddComponent<Image>();
+        background.color = color;
+
+        Button button = buttonObject.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.onClick.AddListener(onClick);
+        buttonObject.AddComponent<LayoutElement>().preferredHeight = 68f;
+
+        Text buttonLabel = CreateText("Label", buttonObject.transform, 28, TextAnchor.MiddleCenter);
+        buttonLabel.text = label;
+        RectTransform labelRect = buttonLabel.rectTransform;
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+        return button;
+    }
+
+    private static void CreateSpacer(Transform parent, float height)
+    {
+        GameObject spacer = CreateUIObject("Spacer", parent);
+        spacer.AddComponent<LayoutElement>().preferredHeight = height;
+    }
+
+    private static GameObject CreateUIObject(string objectName, Transform parent)
+    {
+        GameObject result = new GameObject(objectName, typeof(RectTransform));
+        result.transform.SetParent(parent, false);
+        return result;
+    }
+
+    private static Text CreateText(string objectName, Transform parent, int fontSize, TextAnchor alignment)
+    {
+        GameObject textObject = CreateUIObject(objectName, parent);
+        Text text = textObject.AddComponent<Text>();
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.fontSize = fontSize;
+        text.alignment = alignment;
+        text.color = Color.white;
+        text.raycastTarget = false;
+        return text;
+    }
+
+    private static void EnsureEventSystem()
+    {
+        if (EventSystem.current != null)
+        {
+            return;
+        }
+
+        new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+    }
+}

@@ -160,7 +160,7 @@ MonoBehaviour:
   spread: 30
   damage: 1
   shootSfx: {fileID: 8300000, guid: ba8ba2a767922f143baee7fbb577a988, type: 3}
-  projectilePrewarmCount: 256
+  projectilePrewarmCount: 40
   projectilePoolMaxSize: 1024
 --- !u!114 &9120407453712664755
 MonoBehaviour:

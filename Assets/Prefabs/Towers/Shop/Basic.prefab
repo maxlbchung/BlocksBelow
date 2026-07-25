@@ -158,7 +158,7 @@ MonoBehaviour:
   fireRate: 0
   damage: 1
   shootSfx: {fileID: 8300000, guid: c4bd30de22dc6b04e917a497093819e9, type: 3}
-  projectilePrewarmCount: 128
+  projectilePrewarmCount: 30
   projectilePoolMaxSize: 512
 --- !u!114 &8266968104124773261
 MonoBehaviour:

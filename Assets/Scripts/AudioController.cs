@@ -39,10 +39,25 @@ public class AudioController : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float sfxVolume = 1f;
     [SerializeField, Range(0f, 1f)] private float musicVolume = 1f;
 
+    [Header("SFX Voices")]
+    [SerializeField, Min(1), Tooltip("Sound effects that may overlap. Built once at Awake and "
+        + "reused; the oldest voice is stolen when they are all busy.")]
+    private int sfxVoiceCount = 24;
+
     private static AudioController instance;
     private AudioSource musicSource;
     private AudioMixerGroup sfxMixerGroup;
     private AudioMixerGroup musicMixerGroup;
+
+    // Creating a GameObject and AddComponent<AudioSource> per sound was the single most
+    // expensive thing towers did during a wave - a saw blade plays one per enemy touched.
+    // These voices are built once and round-robined instead.
+    private AudioSource[] sfxVoices;
+    private int nextVoiceIndex;
+
+    private readonly Dictionary<AudioClip, AudioEntry> entriesByClip = new();
+    private readonly Dictionary<string, AudioEntry> entriesByName =
+        new(StringComparer.OrdinalIgnoreCase);
 
     private void Awake()
     {
@@ -63,6 +78,8 @@ public class AudioController : MonoBehaviour
         ApplyMixerVolume(SfxVolumeParameter, sfxVolume);
         ApplyMixerVolume(MusicVolumeParameter, musicVolume);
 
+        BuildEntryLookups();
+
         GameObject musicObject = new("Music Audio Source");
         musicObject.transform.SetParent(transform);
 
@@ -71,6 +88,97 @@ public class AudioController : MonoBehaviour
         musicSource.loop = true;
         musicSource.playOnAwake = false;
         musicSource.spatialBlend = 0f;
+
+        BuildSfxVoices();
+    }
+
+    /// <summary>
+    /// Indexes the library once so playing a sound is a dictionary hit instead of a
+    /// linear scan with a per-call closure allocation.
+    /// </summary>
+    private void BuildEntryLookups()
+    {
+        entriesByClip.Clear();
+        entriesByName.Clear();
+
+        for (int i = 0; i < audioClips.Count; i++)
+        {
+            AudioEntry entry = audioClips[i];
+            if (entry == null)
+            {
+                continue;
+            }
+
+            if (entry.clip != null)
+            {
+                entriesByClip[entry.clip] = entry;
+            }
+
+            if (!string.IsNullOrEmpty(entry.clipName))
+            {
+                entriesByName[entry.clipName] = entry;
+            }
+        }
+    }
+
+    private void BuildSfxVoices()
+    {
+        GameObject voiceRoot = new("SFX Voices");
+        voiceRoot.transform.SetParent(transform, false);
+
+        sfxVoices = new AudioSource[Mathf.Max(1, sfxVoiceCount)];
+        for (int i = 0; i < sfxVoices.Length; i++)
+        {
+            AudioSource voice = voiceRoot.AddComponent<AudioSource>();
+            voice.outputAudioMixerGroup = sfxMixerGroup;
+            voice.playOnAwake = false;
+            voice.loop = false;
+            voice.spatialBlend = 0f;
+            sfxVoices[i] = voice;
+        }
+    }
+
+    /// <summary>
+    /// Returns an idle voice, or steals the oldest one when every voice is busy.
+    /// Round-robin means the stolen voice is always the longest-running.
+    /// </summary>
+    private AudioSource GetFreeVoice()
+    {
+        if (sfxVoices == null || sfxVoices.Length == 0)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < sfxVoices.Length; i++)
+        {
+            int index = (nextVoiceIndex + i) % sfxVoices.Length;
+            AudioSource candidate = sfxVoices[index];
+            if (candidate != null && !candidate.isPlaying)
+            {
+                nextVoiceIndex = (index + 1) % sfxVoices.Length;
+                return candidate;
+            }
+        }
+
+        AudioSource stolen = sfxVoices[nextVoiceIndex];
+        nextVoiceIndex = (nextVoiceIndex + 1) % sfxVoices.Length;
+        return stolen;
+    }
+
+    private void PlayOnVoice(AudioClip clip, float volume, float pitch)
+    {
+        AudioSource voice = GetFreeVoice();
+        if (voice == null)
+        {
+            return;
+        }
+
+        voice.Stop();
+        voice.clip = clip;
+        voice.volume = Mathf.Clamp01(volume);
+        voice.pitch = pitch;
+        voice.outputAudioMixerGroup = sfxMixerGroup;
+        voice.Play();
     }
 
     private void OnDestroy()
@@ -93,9 +201,8 @@ public class AudioController : MonoBehaviour
             return;
         }
 
-        AudioEntry entry = instance.FindEntry(clipName, instance.audioClips);
-
-        if (entry == null || entry.clip == null)
+        if (!instance.entriesByName.TryGetValue(clipName, out AudioEntry entry)
+            || entry.clip == null)
         {
             Debug.LogWarning($"Audio clip '{clipName}' was not found in the AudioController.", instance);
             return;
@@ -108,18 +215,7 @@ public class AudioController : MonoBehaviour
             3f
         );
 
-        GameObject audioObject = new($"Audio - {clipName}");
-        audioObject.transform.SetParent(instance.transform);
-
-        AudioSource source = audioObject.AddComponent<AudioSource>();
-        source.clip = entry.clip;
-        source.volume = Mathf.Clamp01(entry.volume * volume);
-        source.pitch = finalPitch;
-        source.spatialBlend = 0f;
-        source.outputAudioMixerGroup = instance.sfxMixerGroup;
-        source.Play();
-
-        Destroy(audioObject, entry.clip.length / finalPitch + 0.1f);
+        instance.PlayOnVoice(entry.clip, entry.volume * volume, finalPitch);
     }
 
     public static void Play(AudioClip clip, float volume = 1f, float pitch = 1f)
@@ -129,7 +225,7 @@ public class AudioController : MonoBehaviour
             return;
         }
 
-        AudioEntry entry = instance.audioClips.Find(item => item != null && item.clip == clip);
+        instance.entriesByClip.TryGetValue(clip, out AudioEntry entry);
         float entryVolume = entry != null ? entry.volume : 1f;
         float entryPitch = entry != null ? entry.pitch : 1f;
         float pitchShift = entry != null ? entry.pitchShift : 0f;
@@ -138,18 +234,7 @@ public class AudioController : MonoBehaviour
             0.01f,
             3f);
 
-        GameObject audioObject = new($"Audio - {clip.name}");
-        audioObject.transform.SetParent(instance.transform);
-
-        AudioSource source = audioObject.AddComponent<AudioSource>();
-        source.clip = clip;
-        source.volume = Mathf.Clamp01(entryVolume * volume);
-        source.pitch = finalPitch;
-        source.spatialBlend = 0f;
-        source.outputAudioMixerGroup = instance.sfxMixerGroup;
-        source.Play();
-
-        Destroy(audioObject, clip.length / finalPitch + 0.1f);
+        instance.PlayOnVoice(clip, entryVolume * volume, finalPitch);
     }
 
     public static void PlayMusic(string trackName, float volume = 1f, float pitch = 1f)

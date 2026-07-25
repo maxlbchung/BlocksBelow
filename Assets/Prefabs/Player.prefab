@@ -130,11 +130,12 @@ MonoBehaviour:
   animator: {fileID: 464871150817697749}
   spriteRenderer: {fileID: 7912393881069136176}
   walkAnimationThreshold: 0.1
-  healthBarSize: {x: 1.4, y: 0.16}
-  healthBarHeight: 0.25
+  healthBarSize: {x: 2, y: 0.25}
+  healthBarHeight: 0.6
   healthBarColor: {r: 0.2, g: 0.85, b: 0.25, a: 1}
   healthBarBackgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 0.9}
   healthBarSortingOrder: 100
+  invincibilityTime: 0.75
   maxHealth: 15
 --- !u!50 &8186934828032893683
 Rigidbody2D:

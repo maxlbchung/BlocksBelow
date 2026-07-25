@@ -182,8 +182,11 @@ public sealed class CageBreakerEnemy : Enemy
             targetDirection = Vector2.right;
         }
 
-        Vector2 spawnPosition =
-            playerPosition - targetDirection.normalized * Mathf.Max(0.1f, spawnRadius);
+        // The ambush point is mirrored through the player, so a cage above the player puts
+        // it below - and that can land inside the island. Lift it back out.
+        Vector2 spawnPosition = ClampAboveGround(
+            playerPosition - targetDirection.normalized * Mathf.Max(0.1f, spawnRadius),
+            GroundClearance);
         rb.position = spawnPosition;
         transform.position = spawnPosition;
     }

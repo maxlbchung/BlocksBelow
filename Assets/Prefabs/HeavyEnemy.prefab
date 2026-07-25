@@ -107,11 +107,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BasicEnemy
   health: 6
-  repulsionForce: 1
+  repulsionForce: 3
   repulsionRadius: 1
   exponentialFalloff: 3
   isCagable: 0
-  moveSpeed: 5
+  moveSpeed: 2
   damage: 0
 --- !u!50 &4573768113491351581
 Rigidbody2D:

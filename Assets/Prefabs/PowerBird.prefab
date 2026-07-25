@@ -106,13 +106,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38f07c98f8f9cf84b962518a250438f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BasicEnemy
-  health: 2
+  health: 10
   repulsionForce: 1
   repulsionRadius: 1
   exponentialFalloff: 3
   isCagable: 1
-  moveSpeed: 5
-  damage: 2
+  moveSpeed: 10
+  damage: 3
 --- !u!50 &4573768113491351581
 Rigidbody2D:
   serializedVersion: 5

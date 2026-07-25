@@ -45,6 +45,13 @@ public class WaveSpawner : MonoBehaviour
         public float targetTime = 20f;
     }
 
+    /// <summary>One enemy type in an upcoming wave, and how many of it will spawn.</summary>
+    public struct WavePreviewEntry
+    {
+        public GameObject prefab;
+        public int count;
+    }
+
     public enum GameState
     {
         Building,
@@ -62,12 +69,17 @@ public class WaveSpawner : MonoBehaviour
     [Header("Spawning")]
     [SerializeField] private Transform player;
     [SerializeField, Min(0f)] private float spawnRadius = 12f;
+    [SerializeField, Range(0f, 360f), Tooltip("Width of the spawn arc, centred straight above the player. "
+        + "180 spawns across the upper half only, so nothing appears below the player.")]
+    private float spawnArcDegrees = 180f;
     [SerializeField] private GameObject bird;
     [SerializeField] private GameObject breaker;
 
     [Header("Pooling")]
-    [SerializeField, Min(0), Tooltip("Minimum inactive instances prepared for each configured enemy type.")]
-    private int prewarmPerEnemyType = 128;
+    [SerializeField, Min(0), Tooltip("Minimum inactive instances prepared for each configured enemy type. "
+        + "The hardest wave fields ~25 enemies across every type at once, so this only needs to cover "
+        + "one type's share. Pools still grow on demand unless strictPrewarmedPools is set.")]
+    private int prewarmPerEnemyType = 20;
     [SerializeField, Min(1), Tooltip("Hard size limit for each enemy and related projectile pool.")]
     private int maxPoolSizePerType = 512;
     [SerializeField, Tooltip("When enabled, a depleted pool records a miss and skips a spawn instead of instantiating.")]
@@ -93,6 +105,7 @@ public class WaveSpawner : MonoBehaviour
 
     private readonly List<Enemy> livingEnemies = new List<Enemy>(512);
     private readonly List<GameObject> spawnPool = new List<GameObject>(512);
+    private readonly List<GameObject> previewPool = new List<GameObject>(64);
     private readonly List<EnemySpawnData> validEnemies = new List<EnemySpawnData>(16);
     private Coroutine spawnRoutine;
     private int currentWaveIndex = -1;
@@ -100,6 +113,61 @@ public class WaveSpawner : MonoBehaviour
 
     public int CurrentWaveIndex => currentWaveIndex;
     public int LivingEnemyCount => livingEnemies.Count;
+
+    /// <summary>The round being fought right now, counting from 1.</summary>
+    public int CurrentRoundNumber => Mathf.Max(1, currentWaveIndex + 1);
+
+    /// <summary>The round the Start Round button would begin, counting from 1.</summary>
+    public int NextRoundNumber => currentWaveIndex + 2;
+
+    public int TotalRounds => waves.Count;
+
+    public bool HasNextWave => currentWaveIndex + 1 < waves.Count;
+
+    /// <summary>
+    /// Fills <paramref name="results"/> with the enemy types the next wave will field and
+    /// how many of each. Runs the same selection the wave itself will run, so the preview
+    /// cannot drift from what actually spawns; only the spawn order is randomised later.
+    /// </summary>
+    public void GetNextWavePreview(List<WavePreviewEntry> results)
+    {
+        results.Clear();
+        if (!HasNextWave)
+        {
+            return;
+        }
+
+        BuildSpawnPool(waves[currentWaveIndex + 1], previewPool);
+
+        for (int i = 0; i < previewPool.Count; i++)
+        {
+            GameObject prefab = previewPool[i];
+            if (prefab == null)
+            {
+                continue;
+            }
+
+            bool counted = false;
+            for (int j = 0; j < results.Count; j++)
+            {
+                if (results[j].prefab == prefab)
+                {
+                    WavePreviewEntry entry = results[j];
+                    entry.count++;
+                    results[j] = entry;
+                    counted = true;
+                    break;
+                }
+            }
+
+            if (!counted)
+            {
+                results.Add(new WavePreviewEntry { prefab = prefab, count = 1 });
+            }
+        }
+
+        previewPool.Clear();
+    }
 
     public void RemoveLivingEnemy(GameObject enemyObject)
     {
@@ -143,6 +211,9 @@ public class WaveSpawner : MonoBehaviour
     private void Awake()
     {
         instance = this;
+
+        // Statics survive a scene reload, so the run's counters start over here.
+        RunStats.ResetRun();
     }
 
     private void Start()
@@ -222,12 +293,13 @@ public class WaveSpawner : MonoBehaviour
         }
 
         currentWaveIndex++;
+        RunStats.RecordRoundStarted(currentWaveIndex + 1);
         gameState = GameState.Wave;
         finishedSpawning = false;
         livingEnemies.Clear();
         SetBuildingToolsEnabled(false);
 
-        BuildSpawnPool(waves[currentWaveIndex]);
+        BuildSpawnPool(waves[currentWaveIndex], spawnPool);
         Shuffle(spawnPool);
         spawnRoutine = StartCoroutine(SpawnWave(waves[currentWaveIndex].targetTime));
     }
@@ -295,9 +367,9 @@ public class WaveSpawner : MonoBehaviour
         }
     }
 
-    private void BuildSpawnPool(Wave wave)
+    private void BuildSpawnPool(Wave wave, List<GameObject> target)
     {
-        spawnPool.Clear();
+        target.Clear();
         validEnemies.Clear();
 
         for (int i = 0; i < wave.enemiesEnabled.Count; i++)
@@ -347,22 +419,22 @@ public class WaveSpawner : MonoBehaviour
                 }
 
                 selected ??= cheapest;
-                spawnPool.Add(selected.enemyPrefab);
+                target.Add(selected.enemyPrefab);
                 creditsRemaining = Mathf.Max(0, creditsRemaining - selected.spawnCredits);
             }
 
             while (creditsRemaining > 0)
             {
-                spawnPool.Add(cheapest.enemyPrefab);
+                target.Add(cheapest.enemyPrefab);
                 creditsRemaining = Mathf.Max(0, creditsRemaining - cheapest.spawnCredits);
             }
         }
 
-        AddMandatorySpawns(bird, wave.birdCount);
-        AddMandatorySpawns(breaker, wave.breakerCount);
+        AddMandatorySpawns(target, bird, wave.birdCount);
+        AddMandatorySpawns(target, breaker, wave.breakerCount);
     }
 
-    private void AddMandatorySpawns(GameObject enemyPrefab, int count)
+    private static void AddMandatorySpawns(List<GameObject> target, GameObject enemyPrefab, int count)
     {
         if (enemyPrefab == null)
         {
@@ -371,7 +443,7 @@ public class WaveSpawner : MonoBehaviour
 
         for (int i = 0; i < count; i++)
         {
-            spawnPool.Add(enemyPrefab);
+            target.Add(enemyPrefab);
         }
     }
 
@@ -417,13 +489,9 @@ public class WaveSpawner : MonoBehaviour
             }
 
             Vector3 center = player != null ? player.position : transform.position;
-            Vector2 direction = UnityEngine.Random.insideUnitCircle;
-            float directionLengthSquared = direction.sqrMagnitude;
-            direction = directionLengthSquared > 0.000001f
-                ? direction / Mathf.Sqrt(directionLengthSquared)
-                : Vector2.right;
-
-            Vector3 spawnPosition = center + (Vector3)(direction * spawnRadius);
+            float halfArc = spawnArcDegrees * 0.5f * Mathf.Deg2Rad;
+            float angle = UnityEngine.Random.Range(-halfArc, halfArc);
+            Vector3 spawnPosition = center + (Vector3)(DirectionOnArc(angle) * spawnRadius);
             if (!CombatObjectPool.TryAcquire(
                     enemyPrefab,
                     spawnPosition,
@@ -439,6 +507,12 @@ public class WaveSpawner : MonoBehaviour
             livingEnemies.Add(enemy);
             CombatObjectPool.Activate(pooledObject);
         }
+    }
+
+    /// <summary>Unit direction rotated <paramref name="offsetRadians"/> away from straight up.</summary>
+    private static Vector2 DirectionOnArc(float offsetRadians)
+    {
+        return new Vector2(Mathf.Sin(offsetRadians), Mathf.Cos(offsetRadians));
     }
 
     private static void Shuffle(List<GameObject> items)
@@ -515,8 +589,23 @@ public class WaveSpawner : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
+        const int SegmentCount = 32;
+
         Gizmos.color = Color.red;
         Vector3 center = player != null ? player.position : transform.position;
-        Gizmos.DrawWireSphere(center, spawnRadius);
+
+        float halfArc = spawnArcDegrees * 0.5f * Mathf.Deg2Rad;
+        float step = spawnArcDegrees * Mathf.Deg2Rad / SegmentCount;
+        Vector3 previous = center + (Vector3)(DirectionOnArc(-halfArc) * spawnRadius);
+        Gizmos.DrawLine(center, previous);
+
+        for (int i = 1; i <= SegmentCount; i++)
+        {
+            Vector3 current = center + (Vector3)(DirectionOnArc(-halfArc + i * step) * spawnRadius);
+            Gizmos.DrawLine(previous, current);
+            previous = current;
+        }
+
+        Gizmos.DrawLine(center, previous);
     }
 }

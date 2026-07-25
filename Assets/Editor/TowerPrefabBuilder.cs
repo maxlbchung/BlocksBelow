@@ -10,6 +10,10 @@ using UnityEngine;
 /// The specs below hold the values the shop used to carry in its own inspector fields,
 /// captured from testGame before those fields were removed. Re-running rebuilds every
 /// prefab in place, so scene references survive.
+///
+/// Gameplay numbers (damage, fire rate, ...) live in each spec's Stats block; edit
+/// them there and re-run so tuning survives a rebuild instead of being reset to the
+/// script defaults.
 /// </summary>
 public static class TowerPrefabBuilder
 {
@@ -33,6 +37,18 @@ public static class TowerPrefabBuilder
         public bool IsSet => !string.IsNullOrEmpty(Guid);
     }
 
+    private readonly struct StatValue
+    {
+        public readonly string Field;
+        public readonly float Value;
+
+        public StatValue(string field, float value)
+        {
+            Field = field;
+            Value = value;
+        }
+    }
+
     private sealed class TowerSpec
     {
         public string OfferName;
@@ -48,7 +64,12 @@ public static class TowerPrefabBuilder
         public AssetRef ShootSfx;
         public AssetRef[] Frames = new AssetRef[0];
         public float FrameDuration = 0.05f;
+        // Gameplay numbers baked into the prefab, keyed by the serialized field
+        // name on the tower behaviour. Any [SerializeField] number works here.
+        public StatValue[] Stats = new StatValue[0];
     }
+
+    private static StatValue Stat(string field, float value) => new StatValue(field, value);
 
     private static readonly AssetRef ProjectilePrefab =
         new AssetRef("121536fd1d8cd56489a1e86a61272bac", 6591939630860976102L);
@@ -70,6 +91,11 @@ public static class TowerPrefabBuilder
                 new AssetRef("ae6c10f0cecee6e44a66d3bc68046ab8", -3892938746899902262L),
                 new AssetRef("5768fc3bb791c974c84ac22597fe5e09", -3140887939690939534L),
             },
+            Stats = new[]
+            {
+                Stat("damage", 1f),
+                Stat("fireRatePerPower", 1f),
+            },
         },
         new TowerSpec
         {
@@ -86,6 +112,12 @@ public static class TowerPrefabBuilder
                 new AssetRef("2525a5f2a7376b147a139b2610464a1d", -6105952530712206989L),
                 new AssetRef("c56d7a226c8b5084c9b4695c214cd9bb", 1819619556249390510L),
             },
+            Stats = new[]
+            {
+                Stat("damage", 1f),
+                Stat("fireRate", 1f),
+                Stat("spread", 30f),
+            },
         },
         new TowerSpec
         {
@@ -93,6 +125,12 @@ public static class TowerPrefabBuilder
             Kind = TowerKind.SawBlade,
             Sprite = new AssetRef("7cd10c01d0f42934f8755a341ad0ad97", -5897110159133509205L),
             SawBlade = new AssetRef("2a7857f5961cfcc4f927c40ae9a8b8f6", 6163622273882598567L),
+            Stats = new[]
+            {
+                Stat("damage", 1f),
+                Stat("orbitRadius", 3f),
+                Stat("orbitSpeed", 90f),
+            },
         },
         new TowerSpec
         {
@@ -101,12 +139,21 @@ public static class TowerPrefabBuilder
             Sprite = new AssetRef("38cc522e0b7c13a46bedc7f4647d7939", -4743906769504856869L),
             Rotatable = true,
             AimDirection = Vector2.right,
+            Stats = new[]
+            {
+                Stat("forcePerPowerLevel", 3f),
+                Stat("playerForceMultiplier", 2.5f),
+            },
         },
         new TowerSpec
         {
             OfferName = "Energy Producer",
             Kind = TowerKind.Money,
             Sprite = new AssetRef("0cce292fa3659e94ea2060b87b0cd5ac", 2244537257139846633L),
+            Stats = new[]
+            {
+                Stat("coinsPerPower", 100f),
+            },
         },
         new TowerSpec
         {
@@ -129,6 +176,13 @@ public static class TowerPrefabBuilder
             OfferName = "Tesla",
             Kind = TowerKind.Tesla,
             Sprite = new AssetRef("e9c8c57590f4ced44ac77b2685496b0f", 2659575502240807182L),
+            Stats = new[]
+            {
+                Stat("damage", 3f),
+                Stat("zapInterval", 1f),
+                Stat("initialTargetRadius", 5f),
+                Stat("chainRadius", 5f),
+            },
         },
     };
 
@@ -230,10 +284,12 @@ public static class TowerPrefabBuilder
 
     private static void AddBehaviour(GameObject tower, TowerSpec spec)
     {
+        MonoBehaviour behaviour = null;
         switch (spec.Kind)
         {
             case TowerKind.Basic:
-                Apply(tower.AddComponent<BasicTower>(), settings =>
+                behaviour = tower.AddComponent<BasicTower>();
+                Apply(behaviour, settings =>
                 {
                     settings.FindProperty("projectilePrefab").objectReferenceValue =
                         Load<Projectile>(spec.Projectile);
@@ -243,7 +299,8 @@ public static class TowerPrefabBuilder
                 break;
 
             case TowerKind.Shotgun:
-                Apply(tower.AddComponent<ShotgunTower>(), settings =>
+                behaviour = tower.AddComponent<ShotgunTower>();
+                Apply(behaviour, settings =>
                 {
                     settings.FindProperty("projectilePrefab").objectReferenceValue =
                         Load<Projectile>(spec.Projectile);
@@ -253,20 +310,22 @@ public static class TowerPrefabBuilder
                 break;
 
             case TowerKind.SawBlade:
-                Apply(tower.AddComponent<SawBladeTower>(), settings =>
+                behaviour = tower.AddComponent<SawBladeTower>();
+                Apply(behaviour, settings =>
                     settings.FindProperty("sawPrefab").objectReferenceValue = Load<GameObject>(spec.SawBlade));
                 break;
 
             case TowerKind.Fan:
-                tower.AddComponent<FanTower>();
+                behaviour = tower.AddComponent<FanTower>();
                 break;
 
             case TowerKind.Money:
-                tower.AddComponent<MoneyTower>();
+                behaviour = tower.AddComponent<MoneyTower>();
                 break;
 
             case TowerKind.Cage:
-                Apply(tower.AddComponent<CageTower>(), settings =>
+                behaviour = tower.AddComponent<CageTower>();
+                Apply(behaviour, settings =>
                 {
                     settings.FindProperty("brokenSprite").objectReferenceValue = Load<Sprite>(spec.BrokenSprite);
                     settings.FindProperty("captureRadius").floatValue = CageCaptureRadius;
@@ -282,8 +341,37 @@ public static class TowerPrefabBuilder
                 break;
 
             case TowerKind.Tesla:
-                tower.AddComponent<TeslaTower>();
+                behaviour = tower.AddComponent<TeslaTower>();
                 break;
+        }
+
+        if (behaviour != null && spec.Stats.Length > 0)
+        {
+            Apply(behaviour, settings => ApplyStats(settings, spec));
+        }
+    }
+
+    private static void ApplyStats(SerializedObject settings, TowerSpec spec)
+    {
+        foreach (StatValue stat in spec.Stats)
+        {
+            SerializedProperty property = settings.FindProperty(stat.Field);
+            if (property == null)
+            {
+                Debug.LogWarning(
+                    $"{spec.OfferName}: no serialized field '{stat.Field}' on " +
+                    $"{settings.targetObject.GetType().Name}, stat skipped.");
+                continue;
+            }
+
+            if (property.propertyType == SerializedPropertyType.Integer)
+            {
+                property.intValue = Mathf.RoundToInt(stat.Value);
+            }
+            else
+            {
+                property.floatValue = stat.Value;
+            }
         }
     }
 

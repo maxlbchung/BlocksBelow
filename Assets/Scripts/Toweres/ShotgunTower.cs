@@ -4,12 +4,11 @@ public class ShotgunTower : MonoBehaviour
 {
     [SerializeField] private Projectile projectilePrefab;
     [SerializeField, Min(0.01f)] private float fireRate = 1f;
-    [SerializeField, Min(0)] private int bulletsPerShot;
     [SerializeField, Range(0f, 180f)] private float spread = 30f;
     [SerializeField] private float damage = 1f;
     [SerializeField] private AudioClip shootSfx;
     [SerializeField, Min(0), Tooltip("Projectiles prepared before this tower starts firing.")]
-    private int projectilePrewarmCount = 256;
+    private int projectilePrewarmCount = 40;
     [SerializeField, Min(1)] private int projectilePoolMaxSize = 1024;
 
     private float nextShotTime;
@@ -32,7 +31,8 @@ public class ShotgunTower : MonoBehaviour
 
     private void Update()
     {
-        bulletsPerShot = cageStack != null ? cageStack.PowerLevel : 0;
+        // One bullet per full cage below — the count is locked to cage power.
+        int bulletsPerShot = cageStack != null ? cageStack.PowerLevel : 0;
         if (bulletsPerShot <= 0 || !WaveSpawner.IsWaveActive)
         {
             return;
@@ -43,19 +43,17 @@ public class ShotgunTower : MonoBehaviour
             return;
         }
 
-        Shoot();
+        Shoot(bulletsPerShot);
         nextShotTime = Time.time + 1f / Mathf.Max(0.01f, fireRate);
     }
 
-    private void Shoot()
+    private void Shoot(int shotCount)
     {
         if (projectilePrefab == null)
         {
             Debug.LogWarning($"{name} needs a projectile prefab assigned.", this);
             return;
         }
-
-        int shotCount = bulletsPerShot;
 
         for (int i = 0; i < shotCount; i++)
         {
