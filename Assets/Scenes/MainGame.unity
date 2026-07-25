@@ -456,8 +456,8 @@ MonoBehaviour:
   ghostSprite: {fileID: 0}
   validGhostColor: {r: 1, g: 1, b: 1, a: 0.5}
   invalidGhostColor: {r: 1, g: 0, b: 0, a: 0.5}
-  repairHighlightColor: {r: 0.3, g: 0.9, b: 0.45, a: 0.45}
-  repairHoverColor: {r: 0.45, g: 1, b: 0.6, a: 0.8}
+  repairHighlightColor: {r: 0.3, g: 0.9, b: 0.45, a: 0.25}
+  repairHoverColor: {r: 0.45, g: 1, b: 0.6, a: 0.5}
   repairPulseSpeed: 1.5
   placementBase: {fileID: 0}
   adjacencyTolerance: 0.05
