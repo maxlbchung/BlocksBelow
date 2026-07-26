@@ -33,6 +33,7 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField] private TextMeshPro countdownText;
     [SerializeField] private SpriteRenderer countdownBackground;
     [SerializeField] private float startExplosionAnimationTime = 0.5f;
+    [SerializeField] private float spinSpeed = 360f;
 
     [Header("Explosion Effect")]
     [SerializeField, Min(0f), Tooltip("How long the white blast takes to swell to the explosion radius and fade. 0 turns it off.")]
@@ -138,6 +139,7 @@ public sealed class CageBreakerEnemy : Enemy
         }
 
         countdownRemaining -= Time.deltaTime;
+        transform.rotation = Quaternion.Euler(0, 0, transform.rotation.z + spinSpeed * Time.deltaTime);
         UpdateCountdownText();
         if (countdownRemaining <= startExplosionAnimationTime)
             animator.SetBool("DoExplosionEffect", true);
@@ -889,7 +891,7 @@ public sealed class CageBreakerEnemy : Enemy
         targetCage = null;
     }
 
-    private static bool IsValidTarget(CageTower cage)
+    internal static bool IsValidTarget(CageTower cage)
     {
         return cage != null
             && cage.State == CageTower.CageState.Full

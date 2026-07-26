@@ -150,6 +150,12 @@ public class Bird : Enemy
             return;
         }
 
+        if (!HasValidCage())
+        {
+            BeginEscape();
+            return;
+        }
+
         UpdateDiveSpeed(Time.deltaTime);
         countdownRemaining = Mathf.Max(0f, countdownRemaining - Time.deltaTime);
         UpdateCombatState();
@@ -159,6 +165,25 @@ public class Bird : Enemy
         {
             BeginEscape();
         }
+    }
+
+    /// <summary>
+    /// Birds only stay while there is a whole, occupied cage they can be caught in.
+    /// This deliberately uses the cage breaker's target rule so both enemies agree on
+    /// whether a cage is still valid.
+    /// </summary>
+    private static bool HasValidCage()
+    {
+        CageTower[] cages = FindObjectsByType<CageTower>(FindObjectsSortMode.None);
+        for (int i = 0; i < cages.Length; i++)
+        {
+            if (CageBreakerEnemy.IsValidTarget(cages[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void LateUpdate()

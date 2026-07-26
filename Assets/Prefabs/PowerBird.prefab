@@ -198,6 +198,12 @@ MonoBehaviour:
     it to power cages.
   moveSpeed: 8
   acceleration: 30
+  steeringResponse: 1.6
+  diveCommitDistance: 2.5
+  pullUpDuration: 0.1
+  pullUpSpeed: 4
+  pullUpDeceleration: 2
+  pullUpClimbAngle: 55
   attackDistance: 4
   attackExitDelay: 1
   sneakingOpacity: 0.05

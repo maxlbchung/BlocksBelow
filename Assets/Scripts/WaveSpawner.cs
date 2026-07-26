@@ -57,6 +57,7 @@ public class WaveSpawner : MonoBehaviour
 
     [Header("Waves")]
     [SerializeField] private List<Wave> waves = new List<Wave>();
+    [SerializeField] private float timeForFirstWave = 0f;
 
     [Header("Spawning")]
     [SerializeField] private Transform player;
@@ -237,12 +238,18 @@ public class WaveSpawner : MonoBehaviour
         if (startFirstWaveImmediately || gameState == GameState.Wave)
         {
             SetBuildingToolsEnabled(false);
-            StartNextWave();
+            StartCoroutine(StartFirstWave());
         }
         else
         {
             SetBuildingToolsEnabled(true);
         }
+    }
+
+    private IEnumerator StartFirstWave()
+    {
+        yield return new WaitForSeconds(timeForFirstWave);
+        StartNextWave();
     }
 
     private void Update()
