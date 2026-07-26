@@ -400,7 +400,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 145116276}
-  - {fileID: 122721274}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -474,12 +473,12 @@ RectTransform:
   m_LocalScale: {x: 0.29962814, y: 0.29962814, z: 0.29962814}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 115837886}
+  m_Father: {fileID: 1126289424}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 461, y: -507}
-  m_SizeDelta: {x: 900, y: 260.8066}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 844.2, y: 175.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &122721275
 MonoBehaviour:
@@ -528,10 +527,10 @@ MonoBehaviour:
     m_BestFit: 0
     m_MinSize: 1
     m_MaxSize: 200
-    m_Alignment: 3
+    m_Alignment: 6
     m_AlignByGeometry: 0
     m_RichText: 1
-    m_HorizontalOverflow: 0
+    m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
   m_Text: (Caged)
@@ -1789,62 +1788,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 668383157}
   m_CullTransparentMesh: 1
---- !u!1 &753498545
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 753498546}
-  - component: {fileID: 753498547}
-  m_Layer: 0
-  m_Name: Spacer
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &753498546
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 753498545}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1126289424}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 42.2303}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &753498547
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 753498545}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 306cc8c2b49d7114eaa3623786fc2126, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
-  m_IgnoreLayout: 0
-  m_MinWidth: -1
-  m_MinHeight: -1
-  m_PreferredWidth: -1
-  m_PreferredHeight: 35
-  m_FlexibleWidth: -1
-  m_FlexibleHeight: -1
-  m_LayoutPriority: 1
 --- !u!1 &767445482
 GameObject:
   m_ObjectHideFlags: 0
@@ -2294,7 +2237,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 900, y: 260.8066}
+  m_SizeDelta: {x: 900, y: 167.1}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &990362652
 MonoBehaviour:
@@ -2655,7 +2598,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 990362651}
-  - {fileID: 753498546}
+  - {fileID: 122721274}
   - {fileID: 2075723117}
   - {fileID: 595600900}
   m_Father: {fileID: 145116276}
@@ -3539,12 +3482,12 @@ MonoBehaviour:
   musicTracks:
   - clipName: BuildingTheme
     clip: {fileID: 8300000, guid: bd5e12d74bab6c04487d53c0f9d4b53e, type: 3}
-    volume: 1
+    volume: 0.5
     pitch: 1
     pitchShift: 0
   - clipName: FightingTheme
     clip: {fileID: 8300000, guid: 58917f786e5fa474d989b910dbc1d9e4, type: 3}
-    volume: 1
+    volume: 0.5
     pitch: 1
     pitchShift: 0
   audioMixer: {fileID: 24100000, guid: c06ee77f558d7e7458083183ac3fe289, type: 2}
