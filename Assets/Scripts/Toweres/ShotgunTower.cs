@@ -39,7 +39,7 @@ public class ShotgunTower : MonoBehaviour
     {
         // One bullet per full cage below — the count is locked to cage power.
         int bulletsPerShot = cageStack != null ? cageStack.PowerLevel : 0;
-        if (bulletsPerShot <= 0 || !WaveSpawner.IsWaveActive)
+        if (bulletsPerShot <= 0)
         {
             return;
         }

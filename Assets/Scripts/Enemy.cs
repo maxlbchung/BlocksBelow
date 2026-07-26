@@ -9,8 +9,10 @@ public class Enemy : Entity, IPoolable
     [SerializeField, Min(1f)] protected float exponentialFalloff = 2f;
 
     [Header("Ground Avoidance")]
-    [SerializeField, Min(0f), Tooltip("Lowest this enemy's centre may sit above the terrain surface.")]
-    private float groundClearance = 0.5f;
+    [SerializeField, Tooltip("Lowest this enemy's centre may sit relative to the terrain surface. "
+        + "Negative lets it fly with its centre below the top of the terrain, which is how enemies "
+        + "come down level with a player standing on the island instead of hovering over them.")]
+    private float groundClearance = -0.5f;
     [SerializeField, Min(0.01f), Tooltip("Height above the clearance line where descent starts easing off, "
         + "so enemies level out over the ground instead of stopping dead against it.")]
     private float groundApproachBand = 1.5f;
@@ -203,20 +205,30 @@ public class Enemy : Entity, IPoolable
             return;
         }
 
-        Vector2 velocityDifference = ApplyGroundAvoidance(desiredVelocity) - rb.linearVelocity;
-        rb.AddForce(
-            velocityDifference * rb.mass + separationForce,
-            ForceMode2D.Force);
+        // Integrated here rather than handed to AddForce, which would apply exactly this
+        // delta for ForceMode2D.Force: the velocity the step will actually run with has to
+        // be known before the body gets it, so ground avoidance can trim it.
+        Vector2 velocity = rb.linearVelocity;
+        Vector2 acceleration = desiredVelocity - velocity + separationForce / rb.mass;
+        rb.linearVelocity = ApplyGroundAvoidance(
+            velocity + acceleration * fixedDeltaTime,
+            fixedDeltaTime);
     }
 
     /// <summary>
-    /// Trims the descent out of a steering vector as it nears the terrain, and turns it
-    /// into a climb once the enemy is under it. Enemies fly with gravity disabled, so a
-    /// pursuit vector aimed at a player standing on the island would otherwise drive them
-    /// straight through it. This runs every physics step rather than at decision rate
-    /// because separation between enemies can shove a body downward between decisions.
+    /// Keeps a step's velocity above the terrain: it eases off the descent on the way down,
+    /// never lets a step carry the body through the surface, and climbs out from under it.
+    /// Enemies fly with gravity disabled, so a pursuit vector aimed at a player standing on
+    /// the island drives them straight into it.
+    /// <para>
+    /// This shapes the velocity the body is about to run with rather than the steering that
+    /// asked for it, which is what stops them flying underground: steering only closes a
+    /// fraction of the velocity gap per step, so a fast dive kept sinking well after the
+    /// desired velocity had already turned into a climb. It also catches the descent that
+    /// separation between enemies adds after their decisions were made.
+    /// </para>
     /// </summary>
-    private Vector2 ApplyGroundAvoidance(Vector2 velocity)
+    private Vector2 ApplyGroundAvoidance(Vector2 velocity, float fixedDeltaTime)
     {
         float floor = GroundSurfaceY + groundClearance;
         if (float.IsNegativeInfinity(floor))
@@ -224,18 +236,28 @@ public class Enemy : Entity, IPoolable
             return velocity;
         }
 
-        float heightAboveFloor = Position.y - floor;
+        float heightAboveFloor = rb.position.y - floor;
         if (heightAboveFloor <= 0f)
         {
-            velocity.y = groundRecoverySpeed;
+            // Only reached when something else put the body under - a spawn point inside
+            // the island, a push from a fan - since the cap below stops it descending
+            // through the surface under its own power.
+            velocity.y = Mathf.Max(velocity.y, groundRecoverySpeed);
             return velocity;
         }
 
-        // Taper the descent to zero across the approach band so enemies flatten out over
-        // the surface. Above the band they are free to dive at full speed.
-        if (velocity.y < 0f && heightAboveFloor < groundApproachBand)
+        if (velocity.y < 0f)
         {
-            velocity.y *= heightAboveFloor / groundApproachBand;
+            // Taper the descent to zero across the approach band so enemies flatten out
+            // over the surface, then cap it at the gap actually left underneath, so the
+            // step lands on the ground instead of crossing it. Above the band they are
+            // free to dive at full speed.
+            if (heightAboveFloor < groundApproachBand)
+            {
+                velocity.y *= heightAboveFloor / groundApproachBand;
+            }
+
+            velocity.y = Mathf.Max(velocity.y, -heightAboveFloor / fixedDeltaTime);
         }
 
         return velocity;

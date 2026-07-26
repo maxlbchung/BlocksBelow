@@ -62,6 +62,12 @@ public class PlayerController : Entity
     [SerializeField, Min(0), Tooltip("White debris burst shown at the moment of death.")]
     private int deathParticleCount = 40;
 
+    [Header("Fall Recovery")]
+    [SerializeField, Tooltip("World Y the player has to drop below to count as fallen off the map. They are then put back on top of the highest block with 1 HP.")]
+    private float fallLimitY = -12f;
+    [SerializeField, Min(0f), Tooltip("Gap left between the player's feet and the block they are dropped back onto.")]
+    private float fallRespawnClearance = 0.2f;
+
     [Header("Health Bar")]
     [SerializeField] private Vector2 healthBarSize = new Vector2(2.8f, 0.4f);
     [SerializeField] private float healthBarHeight = 1.1f;
@@ -131,6 +137,12 @@ public class PlayerController : Entity
         if (!alive)
         {
             UpdateAnimation();
+            return;
+        }
+
+        if (transform.position.y < fallLimitY)
+        {
+            RespawnOnHighestBlock();
             return;
         }
 
@@ -713,6 +725,78 @@ public class PlayerController : Entity
         }
 
         droppingThroughPlatforms.Clear();
+    }
+
+    /// <summary>
+    /// Drops the player back on top of the highest block and leaves them on 1 HP.
+    /// Falling off the map costs the run's health cushion rather than the run, so
+    /// the player is set down standing and unhurt-but-fragile instead of dying.
+    /// </summary>
+    private void RespawnOnHighestBlock()
+    {
+        Collider2D block = FindHighestBlock();
+        if (block != null)
+        {
+            // Measured from the collider rather than the transform, whose origin
+            // sits inside the body, so the feet land on the surface either way.
+            float feetToCentre = playerCollider != null
+                ? transform.position.y - playerCollider.bounds.min.y
+                : 0f;
+
+            transform.position = new Vector3(
+                block.bounds.center.x,
+                block.bounds.max.y + feetToCentre + fallRespawnClearance,
+                transform.position.z);
+        }
+
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+        }
+
+        // The fall is over, so nothing it built up carries into the landing: no
+        // leftover shove, no wind, and no landing puff sized by the whole drop.
+        currentHorizontalVelocity = 0f;
+        knockbackTimer = 0f;
+        pendingWindForce = Vector2.zero;
+        jumpBufferCounter = 0f;
+        jumpInProgress = false;
+        peakFallSpeed = 0f;
+        airJumpsRemaining = maxAirJumps;
+        RestoreDroppingPlatforms();
+
+        health = 1;
+        UpdateHealthBar();
+    }
+
+    /// <summary>
+    /// The topmost surface the player could stand on - the island, or whatever
+    /// has been built above it. Only runs on a fall, so a full scan is cheaper
+    /// than keeping a sorted list up to date on every placement.
+    /// </summary>
+    private Collider2D FindHighestBlock()
+    {
+        Collider2D highest = null;
+        Collider2D[] colliders = FindObjectsByType<Collider2D>(FindObjectsSortMode.None);
+
+        foreach (Collider2D candidate in colliders)
+        {
+            // Same mask the ground check uses, so the player only ever lands back
+            // on something they could have been standing on in the first place.
+            if (candidate.isTrigger
+                || (includeLayers.value & (1 << candidate.gameObject.layer)) == 0)
+            {
+                continue;
+            }
+
+            if (highest == null || candidate.bounds.max.y > highest.bounds.max.y)
+            {
+                highest = candidate;
+            }
+        }
+
+        return highest;
     }
 
     public void DamagePlayer(int damage, Vector2 knockback)

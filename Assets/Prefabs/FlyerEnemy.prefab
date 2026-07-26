@@ -144,7 +144,7 @@ MonoBehaviour:
   repulsionForce: 1.5
   repulsionRadius: 3
   exponentialFalloff: 2
-  groundClearance: 0.5
+  groundClearance: -0.5
   groundApproachBand: 1.5
   groundRecoverySpeed: 4
   isCagable: 0
@@ -152,11 +152,18 @@ MonoBehaviour:
   moveSpeed: 4
   desiredRange: 7
   runRange: 2.5
-  shootInterval: 2
+  strafeSpeed: 2
+  rangeVariation: 1.5
+  rangeVariationRate: 0.35
+  rangeCorrection: 1.5
+  minimumStrafeDuration: 1.5
+  maximumStrafeDuration: 4
+  groundTurnHeight: 2
+  shootInterval: 1
   bulletPrefab: {fileID: 2105853612659289840, guid: 2beea353b56e9e94885ba30122ab6966, type: 3}
   bulletSpeed: 5
-  bulletLifetime: 8
-  bulletPrewarmCount: 30
+  bulletLifetime: 10
+  bulletPrewarmCount: 10
 --- !u!61 &8705924546012806200
 BoxCollider2D:
   m_ObjectHideFlags: 0

@@ -117,7 +117,7 @@ MonoBehaviour:
   repulsionForce: 3
   repulsionRadius: 1
   exponentialFalloff: 3
-  groundClearance: 0.5
+  groundClearance: -0.5
   groundApproachBand: 1.5
   groundRecoverySpeed: 4
   isCagable: 0

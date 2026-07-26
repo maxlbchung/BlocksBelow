@@ -117,7 +117,7 @@ MonoBehaviour:
   repulsionForce: 0.1
   repulsionRadius: 0.1
   exponentialFalloff: 2
-  groundClearance: 0.5
+  groundClearance: -0.5
   groundApproachBand: 1.5
   groundRecoverySpeed: 4
   isCagable: 0
@@ -126,7 +126,7 @@ MonoBehaviour:
   moveSpeed: 4
   sneakingOpacity: 0.25
   spawnRadius: 12
-  breakingDistance: 1.25
+  farSideStandoff: 2
   takesDamageInSneakingState: 0
   breakCountdown: 5
   explosionRadius: 3

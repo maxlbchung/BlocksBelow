@@ -33,9 +33,9 @@ public class FanTower : MonoBehaviour
     {
         pushForce = (cageStack != null ? cageStack.PowerLevel : 0f) * forcePerPowerLevel;
 
-        // The fan winds down for the building phase or when unpowered, and
-        // spins back up smoothly once the round starts.
-        float targetActivation = WaveSpawner.IsWaveActive && pushForce > 0f ? 1f : 0f;
+        // The fan winds down when unpowered and spins back up smoothly once
+        // cages are restored.
+        float targetActivation = pushForce > 0f ? 1f : 0f;
         float rampTime = targetActivation > activation ? spinUpTime : spinDownTime;
         activation = rampTime > 0f
             ? Mathf.MoveTowards(activation, targetActivation, Time.deltaTime / rampTime)

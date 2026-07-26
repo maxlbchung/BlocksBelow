@@ -70,11 +70,10 @@ public class TeslaTower : MonoBehaviour
         // so power N hits exactly N enemies. Only damage is tunable.
         chainCount = Mathf.Max(0, powerLevel - 1);
 
-        // Bolts keep fading even outside a wave; only new zaps are gated.
         UpdateBolts(Time.deltaTime);
         UpdateOrb(powerLevel, Time.deltaTime);
 
-        if (powerLevel <= 0 || !WaveSpawner.IsWaveActive || Time.time < nextZapTime)
+        if (powerLevel <= 0 || Time.time < nextZapTime)
         {
             return;
         }

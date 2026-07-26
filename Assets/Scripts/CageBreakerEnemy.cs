@@ -16,7 +16,10 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField, Min(0f)] private float moveSpeed = 4f;
     [SerializeField, Range(0f, 1f)] private float sneakingOpacity = 0.25f;
     [SerializeField, Min(0.1f)] private float spawnRadius = 12f;
-    [SerializeField, Min(0f)] private float breakingDistance = 1.25f;
+    [SerializeField, Min(0f), Tooltip("How far past the cage, on the side away from the player, "
+        + "the breaker plants itself before starting its countdown. Held inside the explosion "
+        + "radius, so the cage is still taken by the blast.")]
+    private float farSideStandoff = 2f;
     [SerializeField] private bool takesDamageInSneakingState;
 
     [Header("Breaking")]
@@ -41,11 +44,28 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField, AudioClipDropdown, Tooltip("Played once when the breaker detonates.")]
     private AudioClip explosionSfx;
 
+    // Shown instead of the explosion when the player runs the breaker down before its
+    // countdown ends: a tight puff where the blast would have been, so the two outcomes
+    // never look alike.
+    [Header("Defeat Effect")]
+    [SerializeField, Min(0f), Tooltip("How wide the puff opens, in world units. 0 turns it off.")]
+    private float defeatFlashRadius = 0.7f;
+    [SerializeField, Min(0f), Tooltip("How long the puff takes to open and fade. 0 turns it off.")]
+    private float defeatFlashDuration = 0.16f;
+    [SerializeField, Min(0), Tooltip("Debris left by the defeat. 0 turns it off.")]
+    private int defeatSparkCount = 14;
+    [SerializeField, AudioClipDropdown, Tooltip("Played once when the player runs the breaker down.")]
+    private AudioClip defeatSfx;
+
     // Shard speed lives here rather than on the prefab: the burst is one system shared by
     // every breaker, and EmitParams can override a particle's size and lifetime but not
     // its speed, so a per-breaker value could not actually be honoured.
     private const float ShardMinSpeed = 14f;
     private const float ShardMaxSpeed = 26f;
+
+    // Ceiling on the standoff as a share of the explosion radius, leaving room for the
+    // overshoot at the end of the approach to still land inside the blast.
+    private const float MaximumStandoffShareOfBlast = 0.75f;
 
     // One shared blast system for every breaker, the same way HitParticles pools its
     // bursts: the effect has to outlive the breaker, which is released to the pool in
@@ -143,16 +163,70 @@ public sealed class CageBreakerEnemy : Enemy
             return Vector2.zero;
         }
 
-        Vector2 toTarget = (Vector2)targetCage.transform.position - Position;
-        float distanceSquared = toTarget.sqrMagnitude;
-        float stopDistance = Mathf.Max(0f, breakingDistance);
-        if (distanceSquared <= stopDistance * stopDistance)
+        Vector2 position = Position;
+        Vector2 cagePosition = targetCage.transform.position;
+        Vector2 farSide = ResolveFarSideDirection(player, cagePosition);
+
+        // Held inside the blast: a standoff set further out than the explosion reaches
+        // would leave the breaker unable to satisfy both halves of the arm check below, so
+        // it would circle the cage forever and hold the round open.
+        float standoff = Mathf.Min(
+            farSideStandoff,
+            Mathf.Max(0f, explosionRadius) * MaximumStandoffShareOfBlast);
+
+        // Armed once it is a clear standoff past the cage on the side away from the player,
+        // and still near enough to take the cage with it. The far side is measured as a
+        // projection rather than a distance to the standoff point: the approach sweeps
+        // through that point rather than settling on it, and a decision tick can step over
+        // a tolerance around a point, but not over a half-space it has already crossed.
+        Vector2 fromCage = position - cagePosition;
+        if (Vector2.Dot(fromCage, farSide) >= standoff
+            && fromCage.sqrMagnitude <= explosionRadius * explosionRadius)
         {
             EnterBreakingState();
             return Vector2.zero;
         }
 
-        return toTarget * (Mathf.Max(0f, moveSpeed) / Mathf.Sqrt(distanceSquared));
+        // Aimed past the cage rather than at it, which is what carries the breaker around
+        // to that side. The player moving shifts the point, so the arm check above is what
+        // ends the approach - the breaker need never come to rest on it exactly.
+        Vector2 toStandoff = cagePosition + farSide * standoff - position;
+        float distanceSquared = toStandoff.sqrMagnitude;
+        if (distanceSquared <= 0.000001f)
+        {
+            EnterBreakingState();
+            return Vector2.zero;
+        }
+
+        return toStandoff * (Mathf.Max(0f, moveSpeed) / Mathf.Sqrt(distanceSquared));
+    }
+
+    /// <summary>
+    /// Unit direction from the player through the cage - the side of it the breaker arms
+    /// on. Never points below the cage: the far side of one the player is standing on top
+    /// of is inside the island, which the breaker cannot reach, and it would circle there
+    /// forever instead of arming. Levelling the direction out still keeps the cage between
+    /// the two of them.
+    /// </summary>
+    private Vector2 ResolveFarSideDirection(Transform player, Vector2 cagePosition)
+    {
+        Vector2 fromPlayer = player != null
+            ? cagePosition - (Vector2)player.position
+            : Position - cagePosition;
+        if (fromPlayer.y < 0f)
+        {
+            fromPlayer.y = 0f;
+        }
+
+        if (fromPlayer.sqrMagnitude > 0.0001f)
+        {
+            return fromPlayer.normalized;
+        }
+
+        // Player level with the cage and on top of it, so there is no far side to speak
+        // of: hold the side the breaker is already coming in on.
+        Vector2 fromCage = new Vector2(Position.x - cagePosition.x, 0f);
+        return fromCage.sqrMagnitude > 0.0001f ? fromCage.normalized : Vector2.right;
     }
 
     protected override void OnStrategicTick(Transform player, float elapsed)
@@ -353,6 +427,7 @@ public sealed class CageBreakerEnemy : Enemy
     {
         if (state == BreakerState.Breaking && IsPlayerCollider(other))
         {
+            PlayDefeatEffect();
             ReleaseOrDestroy();
         }
     }
@@ -399,14 +474,33 @@ public sealed class CageBreakerEnemy : Enemy
 
         EmitShards(Position, explosionShardCount);
         HitParticles.EmitDeathBurst(Position, explosionSparkCount);
+        EmitFlash(Position, explosionRadius, explosionFlashDuration);
+    }
 
-        float radius = Mathf.Max(0f, explosionRadius);
-        if (radius <= 0f || explosionFlashDuration <= 0f)
+    /// <summary>
+    /// The breaker going down to the player instead of detonating. Deliberately the small
+    /// version of the blast - a puff and a little debris, no shards and nothing the width
+    /// of the explosion radius - so a defused breaker never reads as one that went off.
+    /// </summary>
+    private void PlayDefeatEffect()
+    {
+        if (defeatSfx != null)
+        {
+            AudioController.Play(defeatSfx);
+        }
+
+        HitParticles.EmitDeathBurst(Position, defeatSparkCount);
+        EmitFlash(Position, defeatFlashRadius, defeatFlashDuration);
+    }
+
+    private static void EmitFlash(Vector2 position, float radius, float duration)
+    {
+        if (radius <= 0f || duration <= 0f)
         {
             return;
         }
 
-        // A scene change destroys the system; the next explosion just rebuilds it.
+        // A scene change destroys the system; the next one of these just rebuilds it.
         if (flashSystem == null)
         {
             flashSystem = CreateFlashSystem();
@@ -414,10 +508,10 @@ public sealed class CageBreakerEnemy : Enemy
 
         ParticleSystem.EmitParams emitParams = new ParticleSystem.EmitParams
         {
-            position = Position,
+            position = position,
             applyShapeToPosition = true,
             startSize = radius * 2f,
-            startLifetime = explosionFlashDuration
+            startLifetime = duration
         };
         flashSystem.Emit(emitParams, 1);
     }

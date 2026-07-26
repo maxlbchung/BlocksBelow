@@ -40,13 +40,13 @@ public class Bird : Enemy
 
     [Header("Stealth Puff")]
     [Tooltip("Burst fired where the bird drops into stealth and where it breaks back out "
-        + "of it. Left empty, a ring of puffs is built in code. A system assigned here "
+        + "of it. Left empty, a puff of smoke is built in code. A system assigned here "
         + "should be a child of the bird, since it is only told when to emit.")]
     [SerializeField] private ParticleSystem stealthPuff;
-    [Tooltip("Puffs per burst. Zero turns the effect off.")]
-    [SerializeField, Min(0)] private int stealthPuffParticles = 16;
+    [Tooltip("Smoke blobs per burst. Zero turns the effect off.")]
+    [SerializeField, Min(0)] private int stealthPuffParticles = 12;
     [Tooltip("Colour and size of the built-in puff. Ignored when a system is assigned above.")]
-    [SerializeField] private Color stealthPuffColor = new Color(1f, 0.94f, 0.7f, 0.85f);
+    [SerializeField] private Color stealthPuffColor = new Color(0.86f, 0.86f, 0.89f, 0.8f);
     [SerializeField, Min(0.01f)] private float stealthPuffRadius = 0.35f;
 
     [Header("Contact Damage")]
@@ -65,7 +65,9 @@ public class Bird : Enemy
     private SpriteRenderer[] spriteRenderers;
     private BirdState state;
     private bool escaping;
+    private const int PuffTextureSize = 64;
     private static Material puffMaterial;
+    private static Texture2D puffTexture;
 
     public BirdState State => state;
     public float CountdownRemaining => countdownRemaining;
@@ -307,13 +309,15 @@ public class Bird : Enemy
         // later Emit() simulate. A one-shot system stops itself and swallows the burst.
         main.loop = true;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.2f, 0.45f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(1f, 2.5f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.28f);
+        // Smoke lingers: it lasts far longer than it travels, so the cloud is still
+        // thinning out well after it has stopped moving.
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.55f, 1f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.4f, 1.3f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.22f, 0.45f);
         main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
         main.startColor = stealthPuffColor;
-        // Puffs hang in the air rather than dropping out of it.
-        main.gravityModifier = 0f;
+        // Negative gravity: the cloud creeps upward as it thins, the way warm smoke does.
+        main.gravityModifier = -0.12f;
         // Sized in world units off this object's own scale, ignoring the bird's. Enemies
         // flip by negating localScale.y to face the other way, and a puff measured through
         // that would turn itself inside out every time the bird changed direction.
@@ -323,19 +327,29 @@ public class Bird : Enemy
         ParticleSystem.EmissionModule emission = stealthPuff.emission;
         emission.enabled = false;
 
-        // Spawned on the rim of a circle and pushed outward along it, so the burst opens
-        // as a ring around where the bird was rather than a blob on top of it.
+        // Filled circle rather than its rim, so the blobs overlap into one cloud sitting
+        // over the bird instead of an expanding ring with a hole in the middle.
         ParticleSystem.ShapeModule shape = stealthPuff.shape;
         shape.shapeType = ParticleSystemShapeType.Circle;
         shape.radius = Mathf.Max(0.01f, stealthPuffRadius);
-        shape.radiusThickness = 0f;
+        shape.radiusThickness = 1f;
 
-        // Each puff swells as it drifts, so the ring thins out into nothing instead of
-        // staying a tight cluster of dots to the end of its life.
+        // Billowing: each blob roughly triples, most of it in the first third of its life,
+        // so the cloud boils outward and then coasts while it fades.
         ParticleSystem.SizeOverLifetimeModule sizeOverLifetime = stealthPuff.sizeOverLifetime;
         sizeOverLifetime.enabled = true;
         sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(
-            1f, AnimationCurve.EaseInOut(0f, 0.6f, 1f, 1.6f));
+            1f,
+            new AnimationCurve(
+                new Keyframe(0f, 0.45f),
+                new Keyframe(0.35f, 1.3f),
+                new Keyframe(1f, 1.8f)));
+
+        // Slow tumble in either direction. With a lumpy blob texture that churns the
+        // silhouette of the cloud, which is most of what separates smoke from a soft glow.
+        ParticleSystem.RotationOverLifetimeModule roll = stealthPuff.rotationOverLifetime;
+        roll.enabled = true;
+        roll.z = new ParticleSystem.MinMaxCurve(-0.9f, 0.9f);
 
         ParticleSystem.ColorOverLifetimeModule colorOverLifetime = stealthPuff.colorOverLifetime;
         colorOverLifetime.enabled = true;
@@ -348,19 +362,22 @@ public class Bird : Enemy
             },
             new[]
             {
-                new GradientAlphaKey(1f, 0f),
-                new GradientAlphaKey(0.8f, 0.35f),
+                // Fading in over the first frames stops the cloud popping into existence
+                // at full strength; the long tail is it dissipating.
+                new GradientAlphaKey(0f, 0f),
+                new GradientAlphaKey(1f, 0.12f),
+                new GradientAlphaKey(0.5f, 0.5f),
                 new GradientAlphaKey(0f, 1f)
             });
         colorOverLifetime.color = fade;
 
-        // Drag: the ring pushes out quickly and then settles, which is what separates a
-        // puff of air from a spark burst flying apart at full speed.
+        // Heavy drag: the blobs push out for a moment and then all but stall, which is
+        // what makes it read as a puff of smoke rather than a burst flying apart.
         ParticleSystem.LimitVelocityOverLifetimeModule drag =
             stealthPuff.limitVelocityOverLifetime;
         drag.enabled = true;
-        drag.limit = new ParticleSystem.MinMaxCurve(0.5f);
-        drag.dampen = 0.35f;
+        drag.limit = new ParticleSystem.MinMaxCurve(0.15f);
+        drag.dampen = 0.7f;
 
         ParticleSystemRenderer puffRenderer = puffObject.GetComponent<ParticleSystemRenderer>();
         puffRenderer.renderMode = ParticleSystemRenderMode.Billboard;
@@ -378,7 +395,8 @@ public class Bird : Enemy
     }
 
     /// <summary>
-    /// Untextured white quads on the sprite shader, matching the hit and death bursts.
+    /// The sprite shader carrying the soft blob texture below. The hit and death bursts
+    /// leave their quads untextured, but a hard-edged square cannot read as smoke.
     /// One material serves every bird, since none of them ever changes it.
     /// </summary>
     private static Material GetPuffMaterial()
@@ -391,12 +409,61 @@ public class Bird : Enemy
                 puffMaterial = new Material(spriteShader)
                 {
                     name = "Shared Stealth Puff Material",
-                    hideFlags = HideFlags.HideAndDontSave
+                    hideFlags = HideFlags.HideAndDontSave,
+                    mainTexture = GetPuffTexture()
                 };
             }
         }
 
         return puffMaterial;
+    }
+
+    /// <summary>
+    /// A soft round blob, drawn in code so the bird still needs no art asset. Alpha falls
+    /// off toward the rim and the rim itself is knocked in and out by noise, so a handful
+    /// of these overlapping look like one clump of smoke rather than a row of dots.
+    /// </summary>
+    private static Texture2D GetPuffTexture()
+    {
+        if (puffTexture != null)
+        {
+            return puffTexture;
+        }
+
+        puffTexture = new Texture2D(PuffTextureSize, PuffTextureSize, TextureFormat.RGBA32, false)
+        {
+            name = "Shared Stealth Puff Texture",
+            hideFlags = HideFlags.HideAndDontSave,
+            wrapMode = TextureWrapMode.Clamp
+        };
+
+        Color[] pixels = new Color[PuffTextureSize * PuffTextureSize];
+        float center = (PuffTextureSize - 1) * 0.5f;
+        for (int y = 0; y < PuffTextureSize; y++)
+        {
+            for (int x = 0; x < PuffTextureSize; x++)
+            {
+                float offsetX = (x - center) / center;
+                float offsetY = (y - center) / center;
+                float distance = Mathf.Sqrt(offsetX * offsetX + offsetY * offsetY);
+
+                // Noise sampled around a circle rather than off the angle directly, so the
+                // lumps meet up where the sweep wraps instead of leaving a seam.
+                float angle = Mathf.Atan2(offsetY, offsetX);
+                float lump = Mathf.PerlinNoise(
+                    2f + Mathf.Cos(angle) * 1.7f, 2f + Mathf.Sin(angle) * 1.7f);
+                float edge = Mathf.Lerp(0.7f, 1f, lump);
+
+                // Squared falloff: solid through the middle, feathering out to nothing at
+                // the rim. Left linear the blobs have a visible circular outline.
+                float alpha = Mathf.Clamp01(1f - distance / edge);
+                pixels[y * PuffTextureSize + x] = new Color(1f, 1f, 1f, alpha * alpha);
+            }
+        }
+
+        puffTexture.SetPixels(pixels);
+        puffTexture.Apply();
+        return puffTexture;
     }
 
     private void SetSpriteOpacity(float opacity)

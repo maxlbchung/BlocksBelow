@@ -48,6 +48,7 @@ public class SquarePlacement : MonoBehaviour
     private GameObject ghostObject;
     private SpriteRenderer ghostRenderer;
     private GameObject ghostAimIndicator;
+    private SpriteRenderer ghostAimRenderer;
     private static Sprite repairHighlightSprite;
     private TowerShopUI.TowerOffer selectedTower;
     private int rotationSteps;
@@ -244,6 +245,7 @@ public class SquarePlacement : MonoBehaviour
         {
             Destroy(ghostObject);
             ghostAimIndicator = null;
+            ghostAimRenderer = null;
         }
 
         ghostObject = new GameObject("Square Placement Ghost");
@@ -284,6 +286,7 @@ public class SquarePlacement : MonoBehaviour
                 ghostObject.transform,
                 TowerShopUI.GetAimDirection(selectedTower),
                 cellSize);
+            ghostAimRenderer = ghostAimIndicator.GetComponent<SpriteRenderer>();
         }
         else
         {
@@ -318,7 +321,25 @@ public class SquarePlacement : MonoBehaviour
         Vector2 cellPosition = SnapToGrid(worldPosition);
         ghostObject.transform.position = new Vector3(cellPosition.x, cellPosition.y, 0f);
         ghostRenderer.color = IsGhostCellPlaceable(cellPosition) ? validGhostColor : invalidGhostColor;
+        MatchAimIndicatorAlpha();
         SetGhostVisible(true);
+    }
+
+    /// <summary>
+    /// The aim arrow is part of the preview, so it fades with it. Only the alpha is
+    /// copied - the arrow keeps its white so it stays readable over the red the ghost
+    /// turns on an unbuildable cell.
+    /// </summary>
+    private void MatchAimIndicatorAlpha()
+    {
+        if (ghostAimRenderer == null)
+        {
+            return;
+        }
+
+        Color arrowColor = ghostAimRenderer.color;
+        arrowColor.a = ghostRenderer.color.a;
+        ghostAimRenderer.color = arrowColor;
     }
 
     /// <summary>

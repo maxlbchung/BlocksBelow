@@ -30,7 +30,9 @@ public class PlayerDamageTaker : MonoBehaviour
             playerController.DamagePlayer(
                 bullet.damage,
                 CalculateKnockbackDirection(transform.position, other.transform.position));
-            Destroy(bullet.gameObject);
+            // The bullet bursts into sparks and returns itself to the pool. Destroying it
+            // here instead would leave the pool holding a dead object to hand out again.
+            bullet.Explode();
         }
     }
 
