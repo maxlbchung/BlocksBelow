@@ -1393,11 +1393,18 @@ public class TowerShopUI : MonoBehaviour
         icon.sprite = GetOfferSprite(offer);
         icon.preserveAspect = true;
         LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
-        // A minimum as well as a preferred size: a long name asks for more width than the
-        // row has, and without the floor the icon would be squeezed to make room for it.
-        iconLayout.minWidth = 52f * buttonContentScale;
-        iconLayout.preferredWidth = 52f * buttonContentScale;
-        iconLayout.preferredHeight = 52f * buttonContentScale;
+        // The cell is as wide as this sprite needs to fill that height, not a fixed square.
+        // preserveAspect fits the art inside whichever side is tighter, so a square cell
+        // drew every wider-than-tall icon smaller than its height allowed. Sizing the cell
+        // to the sprite draws the art at full height again and leaves the width it does not
+        // use to the name beside it - which is where the extra room for long names comes
+        // from, rather than from taking it off the icon. A minimum as well as a preferred
+        // size, so a long name cannot squeeze the icon back down to make room for itself.
+        float iconHeight = 52f * buttonContentScale;
+        float iconWidth = IconCellWidth(icon.sprite, iconHeight);
+        iconLayout.minWidth = iconWidth;
+        iconLayout.preferredWidth = iconWidth;
+        iconLayout.preferredHeight = iconHeight;
 
         Text label = CreateText(
             "Label", buttonObject.transform, ScaledFontSize(24), TextAnchor.MiddleLeft);
@@ -1418,6 +1425,21 @@ public class TowerShopUI : MonoBehaviour
         towerLabels.Add(label);
         towerIcons.Add(icon);
         return button;
+    }
+
+    /// <summary>
+    /// Width a button's icon cell needs to draw <paramref name="sprite"/> at the full
+    /// <paramref name="height"/> with its aspect kept. Capped at twice the height, so one
+    /// unusually wide piece of art cannot take the row from the name next to it.
+    /// </summary>
+    private static float IconCellWidth(Sprite sprite, float height)
+    {
+        if (sprite == null || sprite.rect.height <= 0f)
+        {
+            return height;
+        }
+
+        return Mathf.Min(height * sprite.rect.width / sprite.rect.height, height * 2f);
     }
 
     private void RefreshUI()
