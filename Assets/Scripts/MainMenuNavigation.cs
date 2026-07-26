@@ -6,6 +6,15 @@ public class MainMenuNavigation : MonoBehaviour
 {
     private const string GameSceneName = "MainGame";
 
+    [Header("Button Hover")]
+    [Tooltip("How quickly buttons grow and return to normal size.")]
+    [Min(0.01f)]
+    [SerializeField] private float x = 8f;
+
+    [Tooltip("Button size while the pointer is hovering over it.")]
+    [Min(1f)]
+    [SerializeField] private float hoverSize = 1.1f;
+
     [Header("Pages")]
     [SerializeField] private GameObject mainPage;
     [SerializeField] private GameObject settingsPage;
@@ -16,8 +25,13 @@ public class MainMenuNavigation : MonoBehaviour
     [SerializeField] private Slider sfxVolumeSlider;
     [SerializeField] private Slider musicVolumeSlider;
 
+    public float X => x;
+    public float HoverSize => hoverSize;
+
     private void Start()
     {
+        SetUpButtonHoverEffects();
+
         if (fullscreenToggle != null)
         {
             fullscreenToggle.SetIsOnWithoutNotify(SettingsMenu.FullscreenEnabled);
@@ -27,6 +41,21 @@ public class MainMenuNavigation : MonoBehaviour
         AudioController.VolumesChanged += RefreshVolumeSliders;
 
         ShowMainMenu();
+    }
+
+    private void SetUpButtonHoverEffects()
+    {
+        Button[] buttons = GetComponentsInChildren<Button>(true);
+        foreach (Button button in buttons)
+        {
+            ButtonHoverScale hoverEffect = button.GetComponent<ButtonHoverScale>();
+            if (hoverEffect == null)
+            {
+                hoverEffect = button.gameObject.AddComponent<ButtonHoverScale>();
+            }
+
+            hoverEffect.Initialize(this);
+        }
     }
 
     private void OnDestroy()
