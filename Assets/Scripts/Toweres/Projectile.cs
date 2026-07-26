@@ -18,6 +18,8 @@ public class Projectile : MonoBehaviour, IPoolable
     public float damage;
     public float Lifetime => lifetime;
 
+    public bool armorPen = false;
+
     private void Awake()
     {
         CaptureBaseScale();
@@ -148,7 +150,13 @@ public class Projectile : MonoBehaviour, IPoolable
             return;
         }
 
-        if (enemy.TryTakeDamage(damage))
+        float damageMultiplier = 1f;
+        if (armorPen && enemy.GetComponent<HeavyEnemy>() != null && enemy.GetComponent<HeavyEnemy>().ShieldHealth > 0)
+        {
+            damageMultiplier = 3f; // Example multiplier for armor penetration
+        }
+
+        if (enemy.TryTakeDamage(damage * damageMultiplier))
         {
             // Pooled projectiles must be released rather than directly destroyed.
             // An invulnerable enemy returns false so the shot continues through it.
