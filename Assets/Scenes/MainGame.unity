@@ -406,6 +406,8 @@ MonoBehaviour:
       count: 240
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       count: 20
+    - enemyPrefab: {fileID: 7412998300155624011, guid: 3b7c41d8e9f0a2b4c85d61390fa7e2c6, type: 3}
+      count: 1
     birdCount: 15
     breakerCount: 15
     targetTime: 30
@@ -415,6 +417,7 @@ MonoBehaviour:
   spawnArcDegrees: 180
   bird: {fileID: 1216375964642885722, guid: 2b9c538861347054d93ec6b37701f143, type: 3}
   breaker: {fileID: 1216375964642885722, guid: 5802ff3c787d4892a93b831268d7e852, type: 3}
+  lastStandBoss: {fileID: 0}
   prewarmPerEnemyType: 20
   maxPoolSizePerType: 512
   strictPrewarmedPools: 0
@@ -820,7 +823,7 @@ Transform:
   m_GameObject: {fileID: 570355583}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.88, y: -1.9, z: 0}
+  m_LocalPosition: {x: 1.88, y: 1.59, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1164,7 +1167,7 @@ Transform:
   m_GameObject: {fileID: 978957326}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.613, y: 0.188, z: 0}
+  m_LocalPosition: {x: -1.613, y: 0.188, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1276,7 +1279,7 @@ Transform:
   m_GameObject: {fileID: 1247827615}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.11032, y: 1.52992, z: 0}
+  m_LocalPosition: {x: -2.82, y: 0.61, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1490,6 +1493,8 @@ MonoBehaviour:
   faceCamera: 1
   reverseFacingDirection: 1
   messageFadeSeconds: 0.35
+  textSortingLayer: Foreground
+  textSortingOrder: 100
   talkingHeadSprite: {fileID: -7235225426806857176, guid: 488f5a81101cfff4994262923597e150, type: 3}
   talkingHeadSize: 1
   talkingHeadDistanceFromText: 0.35
@@ -1509,7 +1514,7 @@ MonoBehaviour:
   delayedMessageDuration: 5
   delayedMessageTalkingHeadSize: 0
   delayedMessageTextSize: 0
-  delayedMessageTalkingHeadOffset: {x: -3, y: -0.05, z: 0}
+  delayedMessageTalkingHeadOffset: {x: -2, y: -0.05, z: 0}
   enableBuildingMessage: 1
   buildingMessageUpcomingWaveIndex: 1
   buildingIntroMessage: 'Towers are powered by these birds.
