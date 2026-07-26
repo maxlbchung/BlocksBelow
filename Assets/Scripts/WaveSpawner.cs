@@ -64,6 +64,10 @@ public class WaveSpawner : MonoBehaviour
     [Header("Waves")]
     [SerializeField] private List<Wave> waves = new List<Wave>();
     [SerializeField] private float timeForFirstWave = 0f;
+    [SerializeField, Min(1), Tooltip("The round the campaign is aimed at: clearing it takes the "
+        + "enemy leader and shows the victory screen. Rounds past it are extra, and the last "
+        + "round on the list is marked the same way when it is cleared.")]
+    private int bossRound = 20;
 
     [Header("Spawning")]
     [SerializeField] private Transform player;
@@ -118,6 +122,13 @@ public class WaveSpawner : MonoBehaviour
     private int currentWaveIndex = -1;
     private bool finishedSpawning;
     private bool firstWaveHeld;
+
+    /// <summary>
+    /// The round the victory screen was last shown for, so a round cannot be celebrated
+    /// twice - a last stand survived after a landmark round would otherwise end that
+    /// same round a second time.
+    /// </summary>
+    private int celebratedRound = -1;
 
     public int CurrentWaveIndex => currentWaveIndex;
     public int LivingEnemyCount => livingEnemies.Count;
@@ -733,15 +744,55 @@ public class WaveSpawner : MonoBehaviour
         {
             RestorePlayerHealth();
             PayOutEnergyTowers();
+            // Last, so the screen it may put up pauses a board that is already settled:
+            // healed, paid out, and back in its build phase behind the panel.
+            ShowVictoryIfLandmarkRoundCleared();
         }
+    }
+
+    /// <summary>
+    /// Puts the victory screen up for the two rounds a run is built around - the one that
+    /// takes the enemy leader, and the last round on the list. Every other round ends
+    /// quietly.
+    /// </summary>
+    private void ShowVictoryIfLandmarkRoundCleared()
+    {
+        // Below zero when no round has been fought, which a scene fielding no waves at all
+        // reaches on its first state change.
+        if (currentWaveIndex < 0)
+        {
+            return;
+        }
+
+        int roundCleared = currentWaveIndex + 1;
+        bool finalRound = !HasNextWave;
+        if (roundCleared == celebratedRound || (roundCleared != bossRound && !finalRound))
+        {
+            return;
+        }
+
+        // A player killed as the last enemy fell has the game over screen already on its
+        // way, and that is the ending the run actually got.
+        PlayerController playerController = ResolvePlayerController();
+        if (playerController != null && !playerController.IsAlive)
+        {
+            return;
+        }
+
+        celebratedRound = roundCleared;
+        VictoryScreen.Show(roundCleared, finalRound);
     }
 
     private void RestorePlayerHealth()
     {
-        PlayerController playerController = player != null
+        ResolvePlayerController()?.RestoreFullHealth();
+    }
+
+    private PlayerController ResolvePlayerController()
+    {
+        return player != null
             ? player.GetComponent<PlayerController>()
             : FindFirstObjectByType<PlayerController>();
-        playerController?.RestoreFullHealth();
     }
 
     private static void PayOutEnergyTowers()

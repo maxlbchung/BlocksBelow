@@ -414,6 +414,7 @@ MonoBehaviour:
     breakerCount: 15
     targetTime: 50
   timeForFirstWave: 6
+  bossRound: 20
   player: {fileID: 0}
   spawnRadius: 12
   spawnArcDegrees: 180
@@ -1023,7 +1024,7 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: eee6ec3c2de394e47844f8c9b719ec70, type: 3}
     volume: 1
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.05
   - clipName: Explosion Enemy Self-Destruct
     clip: {fileID: 8300000, guid: 22729ce66932c0143b7c975ebcd4a161, type: 3}
     volume: 1
@@ -1033,52 +1034,52 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: 8a42cef6b6eab6641895a2c7e6207664, type: 3}
     volume: 0.3
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.05
   - clipName: Flying wings
     clip: {fileID: 8300000, guid: 3c206f5f93f58f249838509628b005fd, type: 3}
     volume: 0.3
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.05
   - clipName: Footstep (1)
     clip: {fileID: 8300000, guid: 1e27bb638db6a6b479904f6e3320bcac, type: 3}
     volume: 1
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.1
   - clipName: Hurt
     clip: {fileID: 8300000, guid: 648da0e26e500254d84cc508ef3bdfb9, type: 3}
-    volume: 1
+    volume: 0.025
     pitch: 1
     pitchShift: 0
   - clipName: Jump (1)
     clip: {fileID: 8300000, guid: 6a2f7d6b87917aa448eb75b19bc9fe92, type: 3}
     volume: 1
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.05
   - clipName: Land
     clip: {fileID: 8300000, guid: a34ab5ae070ffd44da54f620c23fde59, type: 3}
     volume: 1
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.05
   - clipName: MonsterDeath
     clip: {fileID: 8300000, guid: 3fe661cffb9cf55438d61e30bfcd1b0e, type: 3}
-    volume: 0.5
+    volume: 0.008
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.1
   - clipName: MC Jump v2
     clip: {fileID: 8300000, guid: 5dc9b57a38d0aca4f9c1399f5da0b5af, type: 3}
     volume: 1
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.05
   - clipName: MC Jump
     clip: {fileID: 8300000, guid: ec7b391fa6f637c43b24b85d2ba6fb52, type: 3}
     volume: 1
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.05
   - clipName: PlayerHit
     clip: {fileID: 8300000, guid: 8068a46faa451ee4baf7194f116bdd37, type: 3}
-    volume: 1
+    volume: 0.021
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.1
   - clipName: Bullet Orb
     clip: {fileID: 8300000, guid: a723204c5cbe1434f9746b566c0ca0aa, type: 3}
     volume: 1
@@ -1101,43 +1102,43 @@ MonoBehaviour:
     pitchShift: 0
   - clipName: Metal Placement
     clip: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
-    volume: 1
+    volume: 0.5
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.1
   - clipName: Saw Blade Standby
     clip: {fileID: 8300000, guid: f89e308e3fc13cd43bd1b21012198e8b, type: 3}
-    volume: 1
+    volume: 0.5
     pitch: 1
     pitchShift: 0
   - clipName: Shotgun v1
     clip: {fileID: 8300000, guid: ba8ba2a767922f143baee7fbb577a988, type: 3}
-    volume: 1
+    volume: 0.5
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.1
   - clipName: Shotgun v2
     clip: {fileID: 8300000, guid: c4bd30de22dc6b04e917a497093819e9, type: 3}
-    volume: 1
+    volume: 0.5
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.1
   - clipName: Whoosh
     clip: {fileID: 8300000, guid: fd6dfcadc2760ef47921864c9865c585, type: 3}
     volume: 1
     pitch: 1
-    pitchShift: 0
+    pitchShift: 0.05
   musicTracks:
   - clipName: BuildingTheme
     clip: {fileID: 8300000, guid: bd5e12d74bab6c04487d53c0f9d4b53e, type: 3}
-    volume: 1
+    volume: 0.25
     pitch: 1
     pitchShift: 0
   - clipName: FightingTheme
     clip: {fileID: 8300000, guid: 58917f786e5fa474d989b910dbc1d9e4, type: 3}
-    volume: 1
+    volume: 0.25
     pitch: 1
     pitchShift: 0
   audioMixer: {fileID: 24100000, guid: c06ee77f558d7e7458083183ac3fe289, type: 2}
-  sfxVolume: 1
-  musicVolume: 1
+  sfxVolume: 0.3712658
+  musicVolume: 0.098480776
   musicOnStart: 
   musicCrossfadeDuration: 1.5
   sfxVoiceCount: 24

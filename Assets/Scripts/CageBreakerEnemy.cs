@@ -37,6 +37,10 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField, Min(0f)] private float countdownTextScale = 0.1f;
     [SerializeField] private Sprite countdownBackgroundSprite;
     [SerializeField, Min(0f)] private float countdownSpriteScale = 1f;
+    [SerializeField, Tooltip("Where the number sits in the timer artwork, in the artwork's own "
+        + "units, turning with it. The artwork's pivot is the middle of the whole sprite, its "
+        + "point included, so the number wants pushing back off the point to land in the face.")]
+    private Vector2 countdownTextOffset = new Vector2(0f, -0.55f);
     [SerializeField, Tooltip("Rotation added to the countdown-to-breaker direction. Use this to match which way the timer artwork points at zero rotation.")]
     private float countdownSpriteRotationOffset = 90f;
     [SerializeField, Min(0f), Tooltip("Pixels of screen edge the countdown is kept clear of when it "
@@ -48,7 +52,7 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField, ColorUsage(true, true), Tooltip("Colour of that disc. Held still through the "
         + "countdown, so it backs the number rather than pulling the eye off it. Past 1 it blooms, "
         + "the scene's threshold being 0.9.")]
-    private Color countdownGlowColor = new Color(1f, 0.45f, 0.12f, 0.75f);
+    private Color countdownGlowColor = new Color(1f, 1f, 1f, 0.75f);
     [SerializeField] private TextMeshPro countdownText;
     [SerializeField] private SpriteRenderer countdownBackground;
     [SerializeField] private SpriteRenderer countdownGlow;
@@ -1415,22 +1419,31 @@ public sealed class CageBreakerEnemy : Enemy
     }
 
     /// <summary>
-    /// Divides the charge-up's growth back out of the countdown. Both parts of it hang off
-    /// the breaker, so swelling the breaker swells them too, which a readout pinned to the
-    /// edge of the screen has no business doing.
+    /// Divides the breaker's scale back out of the countdown. All three parts of it hang off
+    /// the breaker, so the charge-up's swell swells them too - which a readout pinned to the
+    /// edge of the screen has no business doing - and the flip that turns the breaker to face
+    /// the player mirrors them, which prints the number back to front. Taken off the whole
+    /// scale, sign included, so both come out at once.
     /// </summary>
     private void ApplyCountdownScale()
     {
-        float inverse = chargeScale > 0.0001f ? 1f / chargeScale : 1f;
-        countdownText.transform.localScale = countdownTextBaseScale * inverse;
+        Vector3 lossyScale = transform.lossyScale;
+        Vector3 inverse = new Vector3(
+            Mathf.Approximately(lossyScale.x, 0f) ? 1f : 1f / lossyScale.x,
+            Mathf.Approximately(lossyScale.y, 0f) ? 1f : 1f / lossyScale.y,
+            1f);
+
+        countdownText.transform.localScale = Vector3.Scale(countdownTextBaseScale, inverse);
         if (countdownBackground != null)
         {
-            countdownBackground.transform.localScale = countdownBackgroundBaseScale * inverse;
+            countdownBackground.transform.localScale =
+                Vector3.Scale(countdownBackgroundBaseScale, inverse);
         }
 
         if (countdownGlow != null)
         {
-            countdownGlow.transform.localScale = countdownGlowBaseScale * inverse;
+            countdownGlow.transform.localScale =
+                Vector3.Scale(countdownGlowBaseScale, inverse);
         }
     }
 
@@ -1596,15 +1609,41 @@ public sealed class CageBreakerEnemy : Enemy
             }
         }
 
+        // Taken from where the readout ended up rather than from the player, so the artwork
+        // holds its facing after it has been pushed along the line. It runs from the breaker
+        // outwards, the artwork pointing back down the line it is given. Worked out whether or
+        // not there is artwork to turn: the number is placed in this same frame.
+        Vector2 awayFromBreaker =
+            (Vector2)displayWorldPosition - (Vector2)anchorPosition;
+        if (awayFromBreaker.sqrMagnitude <= 0.000001f)
+        {
+            awayFromBreaker = towardsPlayer;
+        }
+
+        float directionAngle =
+            Mathf.Atan2(awayFromBreaker.y, awayFromBreaker.x) * Mathf.Rad2Deg;
+        Quaternion artworkRotation = Quaternion.Euler(
+            0f,
+            0f,
+            directionAngle + countdownSpriteRotationOffset);
+
+        // Set inside the artwork rather than on its pivot, and turned with it: the pivot is
+        // the middle of the whole sprite, point included, which leaves the number riding high
+        // towards the point - and swinging out of the face entirely once the artwork turns.
+        Vector3 faceWorldPosition = displayWorldPosition
+            + artworkRotation
+                * (Vector3)(countdownTextOffset * Mathf.Max(0f, countdownSpriteScale));
+
         countdownText.gameObject.SetActive(true);
-        countdownText.transform.position = displayWorldPosition;
+        countdownText.transform.position = faceWorldPosition;
         countdownText.transform.rotation = Quaternion.identity;
         if (countdownGlow != null)
         {
-            // Left unturned: a disc has no facing, and spinning it with the artwork would
-            // only shimmer its edge as the breaker and the player move around each other.
+            // Sat with the number rather than on the pivot, the whole point of it being to
+            // back the number. Left unturned: a disc has no facing, and spinning it with the
+            // artwork would only shimmer its edge as the breaker and player move about.
             countdownGlow.gameObject.SetActive(HasCountdownGlow);
-            countdownGlow.transform.position = displayWorldPosition;
+            countdownGlow.transform.position = faceWorldPosition;
             countdownGlow.transform.rotation = Quaternion.identity;
         }
 
@@ -1613,23 +1652,7 @@ public sealed class CageBreakerEnemy : Enemy
             countdownBackground.gameObject.SetActive(
                 countdownBackgroundSprite != null);
             countdownBackground.transform.position = displayWorldPosition;
-
-            // Taken from where the readout ended up rather than from the player, so the
-            // artwork keeps pointing at the breaker after it has been pushed along the line.
-            Vector2 towardsBreaker =
-                (Vector2)anchorPosition - (Vector2)displayWorldPosition;
-            if (towardsBreaker.sqrMagnitude <= 0.000001f)
-            {
-                towardsBreaker = -towardsPlayer;
-            }
-
-            float directionAngle =
-                Mathf.Atan2(towardsBreaker.y, towardsBreaker.x) * Mathf.Rad2Deg;
-            countdownBackground.transform.rotation =
-                Quaternion.Euler(
-                    0f,
-                    0f,
-                    directionAngle + countdownSpriteRotationOffset);
+            countdownBackground.transform.rotation = artworkRotation;
         }
     }
 
