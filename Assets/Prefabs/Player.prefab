@@ -83,8 +83,8 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: 1065751919
+  m_SortingLayer: 3
   m_SortingOrder: 10
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: b2d0c94c259c44948923c8a81151de71, type: 3}
@@ -145,6 +145,8 @@ MonoBehaviour:
   walkAnimationThreshold: 0.1
   gameOverDelay: 2.5
   deathParticleCount: 40
+  fallLimitY: -12
+  fallRespawnClearance: 0.2
   healthBarSize: {x: 2.8, y: 0.4}
   healthBarHeight: 1.1
   healthBarColor: {r: 0.2, g: 0.85, b: 0.25, a: 1}

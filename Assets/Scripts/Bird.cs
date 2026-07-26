@@ -130,6 +130,33 @@ public class Bird : Enemy
         ResetBirdState();
     }
 
+    /// <summary>
+    /// Coming back on means being let out of a cage, where the opacity below was forced to
+    /// full. The state the bird returns in decides what it should look like: the Enter*State
+    /// methods only repaint on a change, so a bird released while still sneaking would
+    /// otherwise keep wearing its caged look until it happened to switch states.
+    /// </summary>
+    protected override void OnEnable()
+    {
+        base.OnEnable();
+        SetSpriteOpacity(state == BirdState.Attacking ? 1f : sneakingOpacity);
+    }
+
+    /// <summary>
+    /// Being caged is nothing more than this script being switched off - the only notice the
+    /// bird gets that it has been caught - and a caught bird has to read through the bars at
+    /// full strength rather than at its sneaking fade. A bird taken mid-dive is already
+    /// opaque, but one a round retry puts back in its cage comes out of the pool sneaking and
+    /// is frozen before it can ever look at the player, so without this it sits there nearly
+    /// invisible. Despawning trips this too, harmlessly: it is already out of sight, and the
+    /// pool sets the opacity again on the way back out.
+    /// </summary>
+    protected override void OnDisable()
+    {
+        base.OnDisable();
+        SetSpriteOpacity(1f);
+    }
+
     private void Update()
     {
         if (escaping)

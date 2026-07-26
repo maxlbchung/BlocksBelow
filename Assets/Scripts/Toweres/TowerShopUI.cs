@@ -81,7 +81,7 @@ public class TowerShopUI : MonoBehaviour
     /// Width of the menu column in reference pixels, before <see cref="menuScaleX"/> and
     /// the screen fit are applied.
     /// </summary>
-    private const float MenuWidth = 375f;
+    private const float MenuWidth = 400f;
 
     private readonly List<Button> towerButtons = new List<Button>();
     private readonly List<Text> towerLabels = new List<Text>();
@@ -938,7 +938,10 @@ public class TowerShopUI : MonoBehaviour
         outline.Thickness = Mathf.Max(1f, outlineThickness * 0.6f);
 
         VerticalLayoutGroup layout = box.AddComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset(10, 10, 8, 8);
+        // Only enough side padding to clear the outline itself. Every pixel taken off the
+        // sides is a pixel the body text has to wrap in, and a narrow box is what makes
+        // the wrap fall inside a word instead of between two of them.
+        layout.padding = new RectOffset(4, 4, 8, 8);
         layout.spacing = 2f;
         layout.childAlignment = TextAnchor.UpperLeft;
         layout.childControlHeight = true;
@@ -1378,13 +1381,21 @@ public class TowerShopUI : MonoBehaviour
         row.spacing = 10f;
         row.childAlignment = TextAnchor.MiddleLeft;
         row.childControlHeight = true;
-        row.childControlWidth = false;
+        // Widths under the layout's control, so the name label's flexible width below is
+        // honoured and it spans everything the icon leaves rather than keeping the narrow
+        // default box, which is what broke long tower names across lines. Force-expand
+        // stays off so the slack all goes to the label instead of stretching the icon too.
+        row.childControlWidth = true;
+        row.childForceExpandWidth = false;
 
         GameObject iconObject = CreateUIObject("Icon", buttonObject.transform);
         Image icon = iconObject.AddComponent<Image>();
         icon.sprite = GetOfferSprite(offer);
         icon.preserveAspect = true;
         LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
+        // A minimum as well as a preferred size: a long name asks for more width than the
+        // row has, and without the floor the icon would be squeezed to make room for it.
+        iconLayout.minWidth = 52f * buttonContentScale;
         iconLayout.preferredWidth = 52f * buttonContentScale;
         iconLayout.preferredHeight = 52f * buttonContentScale;
 

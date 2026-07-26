@@ -1495,7 +1495,7 @@ MonoBehaviour:
   messageFadeSeconds: 0.35
   textSortingLayer: Foreground
   textSortingOrder: 100
-  talkingHeadSprite: {fileID: -7235225426806857176, guid: 488f5a81101cfff4994262923597e150, type: 3}
+  talkingHeadSprite: {fileID: 21300000, guid: 04a9b60e5632d3f4e896639fb780b416, type: 3}
   talkingHeadSize: 1
   talkingHeadDistanceFromText: 0.35
   talkingHeadAdditionalOffset: {x: 0, y: 0, z: 0}
