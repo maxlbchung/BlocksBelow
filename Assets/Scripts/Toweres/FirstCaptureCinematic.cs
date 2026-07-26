@@ -545,8 +545,12 @@ public class FirstCaptureCinematic : MonoBehaviour
     /// <summary>
     /// A solid left-pointing arrow, one world unit wide. Sampled several times per pixel
     /// so the diagonals of the head do not come out as stair steps at this size.
+    /// <para>
+    /// Public so the tutorial's shop arrows are the same shape as the one the player was
+    /// first shown here, rather than a second arrow drawn slightly differently.
+    /// </para>
     /// </summary>
-    private static Sprite GetArrowSprite()
+    public static Sprite GetArrowSprite()
     {
         if (arrowSprite != null)
         {

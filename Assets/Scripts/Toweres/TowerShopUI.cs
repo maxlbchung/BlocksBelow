@@ -121,6 +121,9 @@ public class TowerShopUI : MonoBehaviour
     public int Energy => energy;
     public Button StartRoundButton { get; private set; }
 
+    /// <summary>The tab that opens the round page, exposed so the tutorial can point at it.</summary>
+    public Button RoundTabButton { get; private set; }
+
     /// <summary>The configured offers, exposed for the prefab build tool.</summary>
     public IReadOnlyList<TowerOffer> Towers => towers;
 
@@ -736,6 +739,11 @@ public class TowerShopUI : MonoBehaviour
     {
         Button button = CreateBareButton(tabName + " Tab", parent, 56f);
         button.onClick.AddListener(() => ShowTab(opensRoundTab));
+
+        if (opensRoundTab)
+        {
+            RoundTabButton = button;
+        }
 
         // Open at the bottom: the top line of the box below closes the tab off, so the
         // tab and the menu it opens read as one shape rather than two stacked boxes.

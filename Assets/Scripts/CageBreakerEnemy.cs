@@ -29,16 +29,29 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField, Min(0f)] private float breakCountdown = 5f;
     [SerializeField, Min(0f)] private float explosionRadius = 3f;
     [SerializeField] private bool takesDamageInBreakingState = true;
-    [SerializeField] private Vector2 countdownOffset = new Vector2(0f, 1.2f);
+    [SerializeField, Min(0f), Tooltip("How far off the breaker the countdown sits, on the side the "
+        + "player is on. It is never brought nearer than this, not even when it is pushed towards "
+        + "the player to stay on screen.")]
+    private float countdownDistance = 1.5f;
     [SerializeField, Min(1f)] private float countdownFontSize = 10f;
     [SerializeField, Min(0f)] private float countdownTextScale = 0.1f;
     [SerializeField] private Sprite countdownBackgroundSprite;
     [SerializeField, Min(0f)] private float countdownSpriteScale = 1f;
-    [SerializeField, Tooltip("Rotation added to the player-to-breaker direction. Use this to match which way the timer artwork points at zero rotation.")]
+    [SerializeField, Tooltip("Rotation added to the countdown-to-breaker direction. Use this to match which way the timer artwork points at zero rotation.")]
     private float countdownSpriteRotationOffset = 90f;
-    [SerializeField, Min(0f)] private float countdownScreenEdgeInset = 48f;
+    [SerializeField, Min(0f), Tooltip("Pixels of screen edge the countdown is kept clear of when it "
+        + "is pushed towards the player to stay in view.")]
+    private float countdownScreenEdgeInset = 48f;
+    [SerializeField, Min(0f), Tooltip("Width of the soft disc sat under the countdown so it reads "
+        + "over a busy background, in world units. 0 turns it off.")]
+    private float countdownGlowSize = 1.5f;
+    [SerializeField, ColorUsage(true, true), Tooltip("Colour of that disc. Held still through the "
+        + "countdown, so it backs the number rather than pulling the eye off it. Past 1 it blooms, "
+        + "the scene's threshold being 0.9.")]
+    private Color countdownGlowColor = new Color(1f, 0.45f, 0.12f, 0.75f);
     [SerializeField] private TextMeshPro countdownText;
     [SerializeField] private SpriteRenderer countdownBackground;
+    [SerializeField] private SpriteRenderer countdownGlow;
     [SerializeField] private float startExplosionAnimationTime = 0.5f;
     [SerializeField, AudioClipDropdown, Tooltip("Repeated throughout the countdown and stopped immediately before the explosion or defeat sound.")]
     private AudioClip countdownLoopSfx;
@@ -122,6 +135,11 @@ public sealed class CageBreakerEnemy : Enemy
     // at full width the instant the countdown starts.
     private const float HaloStartShare = 0.35f;
 
+    // The frontmost layer in the project, shared with the rest of the effects that have to
+    // read over the field. The order is picked well clear of anything else on the layer.
+    private const string CountdownSortingLayer = "Foreground";
+    private const int CountdownSortingOrder = 1000;
+
     // One shared blast system for every breaker, the same way HitParticles pools its
     // bursts: the effect has to outlive the breaker, which is released to the pool in
     // the same frame it explodes.
@@ -157,6 +175,7 @@ public sealed class CageBreakerEnemy : Enemy
     private bool baseScaleCaptured;
     private Vector3 countdownTextBaseScale = Vector3.one;
     private Vector3 countdownBackgroundBaseScale = Vector3.one;
+    private Vector3 countdownGlowBaseScale = Vector3.one;
 
     // The charge-up's own visuals. Both hang off the breaker rather than living at the
     // scene root like the blast does: they are only ever wanted while it is still standing,
@@ -420,8 +439,8 @@ public sealed class CageBreakerEnemy : Enemy
     }
 
     /// <summary>
-    /// The breaker's own sprites, which the glow drives. The countdown backdrop is left out:
-    /// it is a readout hanging off the breaker, and has no business glowing with it.
+    /// The breaker's own sprites, which the glow drives. The countdown's backdrop and glow are
+    /// left out: they are a readout hanging off the breaker, and have no business glowing with it.
     /// </summary>
     private void CaptureGlowRenderers()
     {
@@ -430,7 +449,7 @@ public sealed class CageBreakerEnemy : Enemy
         for (int i = 0; spriteRenderers != null && i < spriteRenderers.Length; i++)
         {
             SpriteRenderer spriteRenderer = spriteRenderers[i];
-            if (spriteRenderer != null && spriteRenderer != countdownBackground)
+            if (spriteRenderer != null && !IsCountdownRenderer(spriteRenderer))
             {
                 renderers.Add(spriteRenderer);
             }
@@ -549,7 +568,7 @@ public sealed class CageBreakerEnemy : Enemy
         for (int i = 0; spriteRenderers != null && i < spriteRenderers.Length; i++)
         {
             SpriteRenderer spriteRenderer = spriteRenderers[i];
-            if (spriteRenderer != null && spriteRenderer != countdownBackground)
+            if (spriteRenderer != null && !IsCountdownRenderer(spriteRenderer))
             {
                 return spriteRenderer;
             }
@@ -557,6 +576,14 @@ public sealed class CageBreakerEnemy : Enemy
 
         return null;
     }
+
+    /// <summary>
+    /// Whether a sprite belongs to the countdown readout rather than to the breaker. The
+    /// readout is placed, coloured and sized on its own terms, so everything that sweeps the
+    /// breaker's sprites has to step over it.
+    /// </summary>
+    private bool IsCountdownRenderer(SpriteRenderer spriteRenderer) =>
+        spriteRenderer == countdownBackground || spriteRenderer == countdownGlow;
 
     /// <summary>
     /// Puts the breaker back to its normal colour and takes the charge-up's visuals down.
@@ -796,15 +823,7 @@ public sealed class CageBreakerEnemy : Enemy
             enemyCollider.enabled = true;
         }
 
-        if (countdownText != null)
-        {
-            countdownText.gameObject.SetActive(false);
-        }
-
-        if (countdownBackground != null)
-        {
-            countdownBackground.gameObject.SetActive(false);
-        }
+        HideCountdown();
     }
 
     /// <summary>
@@ -930,15 +949,7 @@ public sealed class CageBreakerEnemy : Enemy
         state = hiddenState;
         countdownRemaining = 0f;
         SetSpriteOpacity(sneakingOpacity);
-        if (countdownText != null)
-        {
-            countdownText.gameObject.SetActive(false);
-        }
-
-        if (countdownBackground != null)
-        {
-            countdownBackground.gameObject.SetActive(false);
-        }
+        HideCountdown();
     }
 
     private void EnterBreakingState()
@@ -973,6 +984,14 @@ public sealed class CageBreakerEnemy : Enemy
         {
             countdownBackground.gameObject.SetActive(
                 countdownBackgroundSprite != null);
+        }
+
+        if (countdownGlow != null)
+        {
+            // Re-tinted on the way in: the sneak's fade runs over every sprite hanging off the
+            // breaker, and one authored on the prefab would come out of it flattened to opaque.
+            countdownGlow.color = countdownGlowColor;
+            countdownGlow.gameObject.SetActive(HasCountdownGlow);
         }
 
         UpdateCountdownText();
@@ -1036,15 +1055,7 @@ public sealed class CageBreakerEnemy : Enemy
             animator.Play("Breaker", 0, 0f);
         }
 
-        if (countdownText != null)
-        {
-            countdownText.gameObject.SetActive(false);
-        }
-
-        if (countdownBackground != null)
-        {
-            countdownBackground.gameObject.SetActive(false);
-        }
+        HideCountdown();
     }
 
     /// <summary>
@@ -1384,17 +1395,23 @@ public sealed class CageBreakerEnemy : Enemy
             countdownText.rectTransform.sizeDelta = new Vector2(20f, 5f);
         }
 
-        countdownText.transform.localPosition = countdownOffset;
+        // Placed in world space every frame, so the local offset is only a starting point.
+        countdownText.transform.localPosition = Vector3.zero;
         countdownText.transform.localScale =
             Vector3.one * Mathf.Max(0f, countdownTextScale);
         countdownText.alignment = TextAlignmentOptions.Center;
         countdownText.fontSize = Mathf.Max(1f, countdownFontSize);
         countdownText.textWrappingMode = TextWrappingModes.NoWrap;
-        countdownText.sortingOrder = 100;
+
+        // The frontmost sorting layer the project has: the readout is the one thing on the
+        // breaker that must never end up behind a tower, a cage or the blast it is counting to.
+        countdownText.sortingLayerID = SortingLayer.NameToID(CountdownSortingLayer);
+        countdownText.sortingOrder = CountdownSortingOrder;
         countdownText.gameObject.SetActive(false);
         countdownTextBaseScale = countdownText.transform.localScale;
 
         EnsureCountdownBackground();
+        EnsureCountdownGlow();
     }
 
     /// <summary>
@@ -1409,6 +1426,11 @@ public sealed class CageBreakerEnemy : Enemy
         if (countdownBackground != null)
         {
             countdownBackground.transform.localScale = countdownBackgroundBaseScale * inverse;
+        }
+
+        if (countdownGlow != null)
+        {
+            countdownGlow.transform.localScale = countdownGlowBaseScale * inverse;
         }
     }
 
@@ -1439,6 +1461,67 @@ public sealed class CageBreakerEnemy : Enemy
         countdownBackgroundBaseScale = countdownBackground.transform.localScale;
     }
 
+    /// <summary>
+    /// A soft disc laid under the readout - the same one the charge halo is drawn with - so
+    /// the number holds up over whatever the field has put behind it. Set once and left
+    /// alone: it does not beat with the charge-up, which would pull the eye off the number.
+    /// </summary>
+    private void EnsureCountdownGlow()
+    {
+        if (countdownGlow == null)
+        {
+            Transform existingGlow = transform.Find("Break Countdown Glow");
+            if (existingGlow != null)
+            {
+                countdownGlow = existingGlow.GetComponent<SpriteRenderer>();
+            }
+        }
+
+        if (countdownGlow == null)
+        {
+            GameObject glowObject = new GameObject("Break Countdown Glow");
+            glowObject.transform.SetParent(transform, false);
+            countdownGlow = glowObject.AddComponent<SpriteRenderer>();
+        }
+
+        countdownGlow.sprite = GetGlowSprite();
+        countdownGlow.color = countdownGlowColor;
+        countdownGlow.transform.localScale =
+            Vector3.one * Mathf.Max(0f, countdownGlowSize);
+
+        // Under both the number and the artwork it backs, which is the whole point of it,
+        // and on their layer so it is still in front of the field they are read over.
+        countdownGlow.sortingLayerID = countdownText.sortingLayerID;
+        countdownGlow.sortingOrder = countdownText.sortingOrder - 2;
+        countdownGlow.gameObject.SetActive(false);
+        countdownGlowBaseScale = countdownGlow.transform.localScale;
+    }
+
+    /// <summary>Whether the glow has been given a width worth drawing.</summary>
+    private bool HasCountdownGlow => countdownGlow != null && countdownGlowSize > 0f;
+
+    /// <summary>
+    /// Takes the whole readout - number, artwork and glow - off the field. Run wherever a
+    /// countdown ends, so none of the three can be left hanging over an empty spot.
+    /// </summary>
+    private void HideCountdown()
+    {
+        if (countdownText != null)
+        {
+            countdownText.gameObject.SetActive(false);
+        }
+
+        if (countdownBackground != null)
+        {
+            countdownBackground.gameObject.SetActive(false);
+        }
+
+        if (countdownGlow != null)
+        {
+            countdownGlow.gameObject.SetActive(false);
+        }
+    }
+
     private void UpdateCountdownText()
     {
         if (countdownText != null)
@@ -1448,6 +1531,11 @@ public sealed class CageBreakerEnemy : Enemy
         }
     }
 
+    /// <summary>
+    /// Sits the countdown a fixed step off the breaker, on the line towards the player, and
+    /// slides it further along that line when the spot is off screen - so a breaker that has
+    /// wandered out of view leaves its readout at the edge, pointing back at where it stands.
+    /// </summary>
     private void UpdateCountdownPosition()
     {
         if (countdownText == null)
@@ -1461,89 +1549,153 @@ public sealed class CageBreakerEnemy : Enemy
         ApplyCountdownScale();
 
         Vector3 anchorPosition = breakingAnchor;
-        Vector3 normalWorldPosition = anchorPosition + (Vector3)countdownOffset;
-        Vector3 displayWorldPosition = normalWorldPosition;
-        Camera worldCamera = Camera.main;
-        bool breakerIsOnScreen = false;
+        Transform player = EnemySimulationManager.InstanceOrNull?.Player;
 
-        if (worldCamera != null)
+        // Up is the fallback the whole placement leans on with no player to take a side from,
+        // which is what the countdown did before it took sides at all.
+        Vector2 towardsPlayer = player != null
+            ? (Vector2)player.position - (Vector2)anchorPosition
+            : Vector2.up;
+        if (towardsPlayer.sqrMagnitude <= 0.000001f)
         {
-            Vector3 breakerViewportPosition =
-                worldCamera.WorldToViewportPoint(transform.position);
-            breakerIsOnScreen =
-                breakerViewportPosition.z > 0f
-                && breakerViewportPosition.x >= 0f
-                && breakerViewportPosition.x <= 1f
-                && breakerViewportPosition.y >= 0f
-                && breakerViewportPosition.y <= 1f;
+            towardsPlayer = Vector2.up;
+        }
 
-            if (!breakerIsOnScreen)
+        towardsPlayer.Normalize();
+
+        float standoff = Mathf.Max(0f, countdownDistance);
+        Vector3 displayWorldPosition =
+            anchorPosition + (Vector3)(towardsPlayer * standoff);
+
+        Camera worldCamera = Camera.main;
+        if (worldCamera != null && player != null)
+        {
+            float travel = ResolveOnScreenTravel(
+                worldCamera,
+                displayWorldPosition,
+                player.position,
+                countdownScreenEdgeInset);
+            if (travel > 0f)
             {
-                Vector3 breakerScreenPosition =
-                    worldCamera.WorldToScreenPoint(anchorPosition);
-                Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-                Vector2 direction =
-                    (Vector2)breakerScreenPosition - screenCenter;
+                Vector3 towardsPlayerPosition = new Vector3(
+                    player.position.x,
+                    player.position.y,
+                    displayWorldPosition.z);
+                displayWorldPosition = Vector3.Lerp(
+                    displayWorldPosition, towardsPlayerPosition, travel);
 
-                if (breakerScreenPosition.z < 0f)
+                // A player standing nearer than the standoff puts the walk back towards the
+                // breaker rather than away from it, which would sit the readout on top of the
+                // thing it is counting down for. The step off the breaker is the floor.
+                Vector2 fromAnchor = (Vector2)displayWorldPosition - (Vector2)anchorPosition;
+                if (fromAnchor.magnitude < standoff)
                 {
-                    direction = -direction;
+                    displayWorldPosition =
+                        anchorPosition + (Vector3)(towardsPlayer * standoff);
                 }
-
-                if (direction.sqrMagnitude <= 0.0001f)
-                {
-                    direction = Vector2.up;
-                }
-
-                float inset = Mathf.Clamp(
-                    countdownScreenEdgeInset,
-                    0f,
-                    Mathf.Min(Screen.width, Screen.height) * 0.5f);
-                Vector2 halfBounds = new Vector2(
-                    Mathf.Max(0f, Screen.width * 0.5f - inset),
-                    Mathf.Max(0f, Screen.height * 0.5f - inset));
-                float scaleToEdge = Mathf.Min(
-                    direction.x == 0f
-                        ? float.PositiveInfinity
-                        : halfBounds.x / Mathf.Abs(direction.x),
-                    direction.y == 0f
-                        ? float.PositiveInfinity
-                        : halfBounds.y / Mathf.Abs(direction.y));
-                Vector2 clampedScreenPosition =
-                    screenCenter + direction * scaleToEdge;
-                Vector3 screenPosition = new Vector3(
-                    clampedScreenPosition.x,
-                    clampedScreenPosition.y,
-                    worldCamera.WorldToScreenPoint(normalWorldPosition).z);
-                displayWorldPosition =
-                    worldCamera.ScreenToWorldPoint(screenPosition);
             }
         }
 
         countdownText.gameObject.SetActive(true);
         countdownText.transform.position = displayWorldPosition;
         countdownText.transform.rotation = Quaternion.identity;
+        if (countdownGlow != null)
+        {
+            // Left unturned: a disc has no facing, and spinning it with the artwork would
+            // only shimmer its edge as the breaker and the player move around each other.
+            countdownGlow.gameObject.SetActive(HasCountdownGlow);
+            countdownGlow.transform.position = displayWorldPosition;
+            countdownGlow.transform.rotation = Quaternion.identity;
+        }
+
         if (countdownBackground != null)
         {
             countdownBackground.gameObject.SetActive(
                 countdownBackgroundSprite != null);
             countdownBackground.transform.position = displayWorldPosition;
-            Transform player = EnemySimulationManager.InstanceOrNull?.Player;
-            Vector2 direction = player != null
-                ? Position - (Vector2)player.position
-                : Vector2.up;
-            if (direction.sqrMagnitude <= 0.000001f)
+
+            // Taken from where the readout ended up rather than from the player, so the
+            // artwork keeps pointing at the breaker after it has been pushed along the line.
+            Vector2 towardsBreaker =
+                (Vector2)anchorPosition - (Vector2)displayWorldPosition;
+            if (towardsBreaker.sqrMagnitude <= 0.000001f)
             {
-                direction = Vector2.up;
+                towardsBreaker = -towardsPlayer;
             }
 
-            float directionAngle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            float directionAngle =
+                Mathf.Atan2(towardsBreaker.y, towardsBreaker.x) * Mathf.Rad2Deg;
             countdownBackground.transform.rotation =
                 Quaternion.Euler(
                     0f,
                     0f,
                     directionAngle + countdownSpriteRotationOffset);
         }
+    }
+
+    /// <summary>
+    /// How far along the line from <paramref name="idealPosition"/> to the player the readout
+    /// has to be dragged before it clears the screen edge, as a share of that line. 0 when it
+    /// already shows, 1 when even the player's own spot will not do.
+    /// </summary>
+    private static float ResolveOnScreenTravel(
+        Camera worldCamera,
+        Vector3 idealPosition,
+        Vector3 playerPosition,
+        float screenEdgeInset)
+    {
+        Vector3 idealViewportPosition = worldCamera.WorldToViewportPoint(idealPosition);
+        Vector3 playerViewportPosition = worldCamera.WorldToViewportPoint(playerPosition);
+
+        // Behind the camera the viewport point mirrors through the centre and reads as
+        // on-screen when it is not, so the walk is taken as far as it goes.
+        if (idealViewportPosition.z <= 0f)
+        {
+            return 1f;
+        }
+
+        // The inset is in pixels, and everything below this is in viewport shares. Half a
+        // screen is the ceiling: a wider inset would leave no strip to aim at.
+        float insetX = worldCamera.pixelWidth > 0f
+            ? Mathf.Clamp(screenEdgeInset / worldCamera.pixelWidth, 0f, 0.49f)
+            : 0f;
+        float insetY = worldCamera.pixelHeight > 0f
+            ? Mathf.Clamp(screenEdgeInset / worldCamera.pixelHeight, 0f, 0.49f)
+            : 0f;
+
+        float travel = ResolveAxisEntryTravel(
+            idealViewportPosition.x, playerViewportPosition.x, insetX, 1f - insetX);
+        travel = Mathf.Max(
+            travel,
+            ResolveAxisEntryTravel(
+                idealViewportPosition.y, playerViewportPosition.y, insetY, 1f - insetY));
+
+        return Mathf.Clamp01(travel);
+    }
+
+    /// <summary>
+    /// The share of the walk at which one axis first falls inside the visible strip. The
+    /// larger of the two axes is where the point as a whole comes into view, the screen being
+    /// a rectangle and the walk a straight line across it.
+    /// </summary>
+    private static float ResolveAxisEntryTravel(float from, float to, float minimum, float maximum)
+    {
+        if (from >= minimum && from <= maximum)
+        {
+            return 0f;
+        }
+
+        float span = to - from;
+        if (Mathf.Abs(span) <= 0.000001f)
+        {
+            return 1f;
+        }
+
+        float edge = from < minimum ? minimum : maximum;
+        float travel = (edge - from) / span;
+
+        // Negative means the walk heads away from the strip on this axis, so it never enters.
+        return travel <= 0f ? 1f : Mathf.Min(1f, travel);
     }
 
     private void SetSpriteOpacity(float opacity)
@@ -1557,8 +1709,9 @@ public sealed class CageBreakerEnemy : Enemy
         for (int i = 0; i < spriteRenderers.Length; i++)
         {
             SpriteRenderer spriteRenderer = spriteRenderers[i];
-            if (spriteRenderer == null)
+            if (spriteRenderer == null || spriteRenderer == countdownGlow)
             {
+                // The glow carries its own alpha, and the sneak's fade would flatten it.
                 continue;
             }
 

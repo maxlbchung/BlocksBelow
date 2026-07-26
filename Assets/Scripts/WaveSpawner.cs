@@ -117,6 +117,7 @@ public class WaveSpawner : MonoBehaviour
     private Coroutine spawnRoutine;
     private int currentWaveIndex = -1;
     private bool finishedSpawning;
+    private bool firstWaveHeld;
 
     public int CurrentWaveIndex => currentWaveIndex;
     public int LivingEnemyCount => livingEnemies.Count;
@@ -263,9 +264,39 @@ public class WaveSpawner : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Keeps the opening round from starting until <see cref="ReleaseFirstWave"/> is called.
+    /// The tutorial's opening card holds it while the player reads, so the birds it is about
+    /// are not already in the air behind it. Only has an effect if it is set before
+    /// <see cref="Start"/>, which any other component's Awake is.
+    /// </summary>
+    public void HoldFirstWave()
+    {
+        firstWaveHeld = true;
+    }
+
+    public void ReleaseFirstWave()
+    {
+        firstWaveHeld = false;
+    }
+
     private IEnumerator StartFirstWave()
     {
-        yield return new WaitForSeconds(timeForFirstWave);
+        if (firstWaveHeld)
+        {
+            // A hold replaces the opening pause rather than being added to it: whoever is
+            // holding is already filling that moment, and serving the wait afterwards would
+            // leave the player looking at an empty field having just asked to begin.
+            while (firstWaveHeld)
+            {
+                yield return null;
+            }
+        }
+        else
+        {
+            yield return new WaitForSeconds(timeForFirstWave);
+        }
+
         StartNextWave();
     }
 
