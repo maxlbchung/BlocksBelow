@@ -1,4 +1,5 @@
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class Bird : Enemy
@@ -177,7 +178,9 @@ public class Bird : Enemy
         CageTower[] cages = FindObjectsByType<CageTower>(FindObjectsSortMode.None);
         for (int i = 0; i < cages.Length; i++)
         {
-            if (CageBreakerEnemy.IsValidTarget(cages[i]))
+            CageTower cage = cages[i];
+            if (cage != null
+            && cage.State == CageTower.CageState.Empty)
             {
                 return true;
             }

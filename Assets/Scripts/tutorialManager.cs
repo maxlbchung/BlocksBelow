@@ -61,7 +61,8 @@ public class tutorialManager : MonoBehaviour
     [Header("Wave 0 - Delayed Help")]
     [SerializeField] private bool enableWaveZeroMessage = true;
     [SerializeField, Min(0)] private int delayedMessageWaveIndex = 0;
-    [SerializeField, Min(0f)] private float delayedMessageSeconds = 10f;
+    [SerializeField, Min(0f), Tooltip("Seconds after the game scene starts before message one appears.")]
+    private float delayedMessageSeconds = 10f;
     [SerializeField, TextArea(2, 5)] private string delayedMessage =
         "Still fighting? Use your towers to help defeat the remaining enemies.";
     [SerializeField, Tooltip("The fixed world location where this message appears.")]
@@ -153,6 +154,8 @@ public class tutorialManager : MonoBehaviour
     private bool fadingOut;
     private WaveSpawner.GameState previousState;
     private float stateStartedAt;
+    private float gameStartedAt;
+    private bool firstFightEnded;
     private bool buildingIntroStarted;
     private float buildingIntroEndsAt;
 
@@ -178,6 +181,7 @@ public class tutorialManager : MonoBehaviour
 
         previousState = CurrentState;
         stateStartedAt = Time.time;
+        gameStartedAt = Time.time;
     }
 
     private void Update()
@@ -213,8 +217,9 @@ public class tutorialManager : MonoBehaviour
         
 
         if (enableWaveZeroMessage
-            
-            && SecondsInCurrentState >= delayedMessageSeconds
+            && !firstFightEnded
+            && CurrentWaveIndex <= delayedMessageWaveIndex
+            && Time.time - gameStartedAt >= delayedMessageSeconds
             && delayedMessageLocation != null)
         {
             ShowTextOnce(
@@ -717,6 +722,13 @@ public class tutorialManager : MonoBehaviour
         if (CurrentState == previousState)
         {
             return;
+        }
+
+        if (previousState == WaveSpawner.GameState.Wave
+            && CurrentState == WaveSpawner.GameState.Building
+            && CurrentWaveIndex == delayedMessageWaveIndex)
+        {
+            firstFightEnded = true;
         }
 
         previousState = CurrentState;
