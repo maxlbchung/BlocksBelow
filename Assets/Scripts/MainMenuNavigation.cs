@@ -4,9 +4,10 @@ using UnityEngine.UI;
 
 public class MainMenuNavigation : MonoBehaviour
 {
+    private const string GameSceneName = "MainGame";
+
     [Header("Pages")]
     [SerializeField] private GameObject mainPage;
-    [SerializeField] private GameObject levelSelectionPage;
     [SerializeField] private GameObject settingsPage;
     [SerializeField] private GameObject aboutPage;
 
@@ -40,11 +41,6 @@ public class MainMenuNavigation : MonoBehaviour
         ShowPage(mainPage);
     }
 
-    public void ShowLevelSelection()
-    {
-        ShowPage(levelSelectionPage);
-    }
-
     public void ShowSettings()
     {
         ShowPage(settingsPage);
@@ -55,9 +51,9 @@ public class MainMenuNavigation : MonoBehaviour
         ShowPage(aboutPage);
     }
 
-    public void LoadLevel(string sceneName)
+    public void PlayGame()
     {
-        SceneManager.LoadScene(sceneName);
+        SceneManager.LoadScene(GameSceneName);
     }
 
     public void SetSfxVolume(float volume)
@@ -78,7 +74,6 @@ public class MainMenuNavigation : MonoBehaviour
     private void ShowPage(GameObject pageToShow)
     {
         mainPage.SetActive(pageToShow == mainPage);
-        levelSelectionPage.SetActive(pageToShow == levelSelectionPage);
         settingsPage.SetActive(pageToShow == settingsPage);
         aboutPage.SetActive(pageToShow == aboutPage);
     }
