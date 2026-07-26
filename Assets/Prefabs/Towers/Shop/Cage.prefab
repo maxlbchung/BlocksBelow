@@ -157,8 +157,8 @@ MonoBehaviour:
   brokenSprite: {fileID: -4290933271646154427, guid: 617ba9ddc793cc441b1e0bb2ae2e3dee, type: 3}
   captureRadius: 0.75
   state: 0
-  captureSfx: {fileID: 0}
-  breakSfx: {fileID: 0}
+  captureSfx: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
+  breakSfx: {fileID: 8300000, guid: 22729ce66932c0143b7c975ebcd4a161, type: 3}
   waveSpawner: {fileID: 0}
 --- !u!58 &8524803418637272731
 CircleCollider2D:

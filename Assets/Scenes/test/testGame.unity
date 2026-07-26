@@ -243,8 +243,6 @@ MonoBehaviour:
     prefab: {fileID: 5157854673919590627, guid: f37d943d75669644d82ff8f9695e8822, type: 3}
     price: 300
   placement: {fileID: 0}
-  potionHealAmount: 5
-  potionPrice: 25
   player: {fileID: 0}
   cageRepairPrice: 25
   panelColor: {r: 0.08, g: 0.1, b: 0.14, a: 0.92}

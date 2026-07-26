@@ -472,8 +472,6 @@ MonoBehaviour:
     price: 5
     unlockRound: 0
   placement: {fileID: 0}
-  potionHealAmount: 5
-  potionPrice: 25
   player: {fileID: 1877898232}
   cageRepairPrice: 10
   menuScaleX: 1
@@ -1060,10 +1058,22 @@ MonoBehaviour:
     volume: 1
     pitch: 1
     pitchShift: 0
-  musicTracks: []
+  musicTracks:
+  - clipName: BuildingTheme
+    clip: {fileID: 8300000, guid: bd5e12d74bab6c04487d53c0f9d4b53e, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: FightingTheme
+    clip: {fileID: 8300000, guid: 58917f786e5fa474d989b910dbc1d9e4, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
   audioMixer: {fileID: 24100000, guid: c06ee77f558d7e7458083183ac3fe289, type: 2}
   sfxVolume: 1
   musicVolume: 1
+  musicOnStart: 
+  musicCrossfadeDuration: 1.5
   sfxVoiceCount: 24
 --- !u!1 &839863292
 GameObject:

@@ -109,7 +109,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::BigEnemy
   health: 100
-  hitSfx: {fileID: 0}
+  hitSfx: {fileID: 8300000, guid: fc9a63098ef406a46bfd5c74fd520b8f, type: 3}
   hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
   hitFlashDuration: 0.1
   hitFlashCount: 3

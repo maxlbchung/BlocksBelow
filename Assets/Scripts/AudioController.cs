@@ -43,6 +43,9 @@ public class AudioController : MonoBehaviour
     [Header("Starting Volumes")]
     [SerializeField, Range(0f, 1f)] private float sfxVolume = 1f;
     [SerializeField, Range(0f, 1f)] private float musicVolume = 1f;
+    [SerializeField, Tooltip("Optional music track started when this scene loads.")]
+    private string musicOnStart;
+    [SerializeField, Min(0f)] private float musicCrossfadeDuration = 1.5f;
 
     [Header("SFX Voices")]
     [SerializeField, Min(1), Tooltip("Sound effects that may overlap. Built once at Awake and "
@@ -57,7 +60,9 @@ public class AudioController : MonoBehaviour
     /// </summary>
     public static event Action VolumesChanged;
 
-    private AudioSource musicSource;
+    private AudioSource[] musicSources;
+    private int activeMusicSource;
+    private Coroutine musicCrossfadeRoutine;
     private AudioMixerGroup sfxMixerGroup;
     private AudioMixerGroup musicMixerGroup;
 
@@ -92,14 +97,18 @@ public class AudioController : MonoBehaviour
 
         BuildEntryLookups();
 
-        GameObject musicObject = new("Music Audio Source");
-        musicObject.transform.SetParent(transform);
-
-        musicSource = musicObject.AddComponent<AudioSource>();
-        musicSource.outputAudioMixerGroup = musicMixerGroup;
-        musicSource.loop = true;
-        musicSource.playOnAwake = false;
-        musicSource.spatialBlend = 0f;
+        musicSources = new AudioSource[2];
+        for (int i = 0; i < musicSources.Length; i++)
+        {
+            GameObject musicObject = new($"Music Audio Source {i + 1}");
+            musicObject.transform.SetParent(transform);
+            AudioSource source = musicObject.AddComponent<AudioSource>();
+            source.outputAudioMixerGroup = musicMixerGroup;
+            source.loop = true;
+            source.playOnAwake = false;
+            source.spatialBlend = 0f;
+            musicSources[i] = source;
+        }
 
         BuildSfxVoices();
     }
@@ -207,6 +216,10 @@ public class AudioController : MonoBehaviour
     {
         ApplySavedVolumes();
         StartCoroutine(ReassertSavedVolumes());
+        if (!string.IsNullOrWhiteSpace(musicOnStart))
+        {
+            CrossfadeMusic(musicOnStart, musicCrossfadeDuration);
+        }
     }
 
     private IEnumerator ReassertSavedVolumes()
@@ -277,6 +290,56 @@ public class AudioController : MonoBehaviour
         instance.PlayOnVoice(clip, entryVolume * volume, finalPitch);
     }
 
+    /// <summary>
+    /// Starts a looping SFX on its owner. Looping sounds use a dedicated source so the
+    /// shared one-shot voice pool cannot cut them off. The source still runs through the
+    /// SFX mixer and honours the clip's library volume and pitch.
+    /// </summary>
+    public static AudioSource PlayLoop(
+        AudioClip clip,
+        GameObject owner,
+        float volume = 1f,
+        float pitch = 1f)
+    {
+        if (instance == null || clip == null || owner == null)
+        {
+            return null;
+        }
+
+        AudioSource source = owner.GetComponent<AudioSource>();
+        if (source == null)
+        {
+            source = owner.AddComponent<AudioSource>();
+        }
+
+        instance.entriesByClip.TryGetValue(clip, out AudioEntry entry);
+        source.Stop();
+        source.clip = clip;
+        source.volume = Mathf.Clamp01((entry != null ? entry.volume : 1f) * volume);
+        source.pitch = Mathf.Clamp(
+            (entry != null ? entry.pitch : 1f) * pitch,
+            0.01f,
+            3f);
+        source.outputAudioMixerGroup = instance.sfxMixerGroup;
+        source.playOnAwake = false;
+        source.spatialBlend = 0f;
+        source.loop = true;
+        source.Play();
+        return source;
+    }
+
+    public static void StopLoop(AudioSource source)
+    {
+        if (source == null)
+        {
+            return;
+        }
+
+        source.Stop();
+        source.clip = null;
+        source.loop = false;
+    }
+
     public static void PlayMusic(string trackName, float volume = 1f, float pitch = 1f)
     {
         if (instance == null)
@@ -293,17 +356,98 @@ public class AudioController : MonoBehaviour
             return;
         }
 
-        instance.musicSource.clip = track;
-        instance.musicSource.volume = Mathf.Clamp01(volume);
-        instance.musicSource.pitch = Mathf.Clamp(pitch, 0.01f, 3f);
-        instance.musicSource.Play();
+        if (instance.musicCrossfadeRoutine != null)
+        {
+            instance.StopCoroutine(instance.musicCrossfadeRoutine);
+            instance.musicCrossfadeRoutine = null;
+        }
+
+        AudioSource source = instance.musicSources[instance.activeMusicSource];
+        source.clip = track;
+        source.volume = Mathf.Clamp01(volume);
+        source.pitch = Mathf.Clamp(pitch, 0.01f, 3f);
+        source.Play();
+    }
+
+    public static void CrossfadeMusic(string trackName, float duration = 1.5f)
+    {
+        if (instance == null)
+        {
+            return;
+        }
+
+        AudioEntry entry = instance.FindEntry(trackName, instance.musicTracks);
+        if (entry == null || entry.clip == null)
+        {
+            Debug.LogWarning($"Music track '{trackName}' was not found in the AudioController.", instance);
+            return;
+        }
+
+        AudioSource current = instance.musicSources[instance.activeMusicSource];
+        if (current.isPlaying && current.clip == entry.clip)
+        {
+            return;
+        }
+
+        if (instance.musicCrossfadeRoutine != null)
+        {
+            instance.StopCoroutine(instance.musicCrossfadeRoutine);
+        }
+
+        instance.musicCrossfadeRoutine =
+            instance.StartCoroutine(instance.CrossfadeMusicRoutine(entry, duration));
+    }
+
+    private IEnumerator CrossfadeMusicRoutine(AudioEntry entry, float duration)
+    {
+        AudioSource outgoing = musicSources[activeMusicSource];
+        int incomingIndex = 1 - activeMusicSource;
+        AudioSource incoming = musicSources[incomingIndex];
+        float targetVolume = Mathf.Clamp01(entry.volume);
+        float outgoingStartVolume = outgoing.volume;
+
+        incoming.Stop();
+        incoming.clip = entry.clip;
+        incoming.pitch = Mathf.Clamp(entry.pitch, 0.01f, 3f);
+        incoming.volume = 0f;
+        incoming.Play();
+
+        float fadeDuration = Mathf.Max(0f, duration);
+        if (fadeDuration > 0f)
+        {
+            float elapsed = 0f;
+            while (elapsed < fadeDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float progress = Mathf.Clamp01(elapsed / fadeDuration);
+                outgoing.volume = Mathf.Lerp(outgoingStartVolume, 0f, progress);
+                incoming.volume = Mathf.Lerp(0f, targetVolume, progress);
+                yield return null;
+            }
+        }
+
+        outgoing.Stop();
+        outgoing.clip = null;
+        outgoing.volume = 0f;
+        incoming.volume = targetVolume;
+        activeMusicSource = incomingIndex;
+        musicCrossfadeRoutine = null;
     }
 
     public static void StopMusic()
     {
         if (instance != null)
         {
-            instance.musicSource.Stop();
+            if (instance.musicCrossfadeRoutine != null)
+            {
+                instance.StopCoroutine(instance.musicCrossfadeRoutine);
+                instance.musicCrossfadeRoutine = null;
+            }
+
+            for (int i = 0; i < instance.musicSources.Length; i++)
+            {
+                instance.musicSources[i].Stop();
+            }
         }
     }
 

@@ -163,7 +163,7 @@ MonoBehaviour:
   reshapeInterval: 0.055
   lineWidth: 0.14
   lightningColor: {r: 1, g: 0.9, b: 0.3, a: 1}
-  zapSfx: {fileID: 0}
+  zapSfx: {fileID: 8300000, guid: 246ae2e1dbb030e4790d9038d70130a0, type: 3}
   sparksPerHit: 10
   orbSize: 0.6
   orbFlareDuration: 0.35

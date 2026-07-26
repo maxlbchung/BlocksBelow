@@ -155,7 +155,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MoneyTower
   energyPerPower: 100
   towerShop: {fileID: 0}
-  paymentSfx: {fileID: 0}
+  paymentSfx: {fileID: 8300000, guid: a723204c5cbe1434f9746b566c0ca0aa, type: 3}
   unpoweredSprite: {fileID: 2244537257139846633, guid: 0cce292fa3659e94ea2060b87b0cd5ac, type: 3}
   powerLevel1Sprite: {fileID: -3168354349275551047, guid: d0a44ea126d36a342b178bc22ae4977c, type: 3}
   powerLevel2Sprite: {fileID: -7823670345209195976, guid: 4056b4d6d1fabcb42a1872ac3e80ffe6, type: 3}

@@ -110,7 +110,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   health: 5
-  hitSfx: {fileID: 0}
+  hitSfx: {fileID: 8300000, guid: fc9a63098ef406a46bfd5c74fd520b8f, type: 3}
   hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
   hitFlashDuration: 0.06
   hitFlashCount: 2
@@ -140,6 +140,9 @@ MonoBehaviour:
   jumpDustCount: 6
   landDustMinFallSpeed: 4
   landDustMaxCount: 12
+  jumpSfx: {fileID: 8300000, guid: 5dc9b57a38d0aca4f9c1399f5da0b5af, type: 3}
+  landSfx: {fileID: 8300000, guid: a34ab5ae070ffd44da54f620c23fde59, type: 3}
+  footstepSfx: {fileID: 8300000, guid: 1e27bb638db6a6b479904f6e3320bcac, type: 3}
   animator: {fileID: 464871150817697749}
   spriteRenderer: {fileID: 7912393881069136176}
   walkAnimationThreshold: 0.1
@@ -152,7 +155,7 @@ MonoBehaviour:
   healthBarColor: {r: 0.2, g: 0.85, b: 0.25, a: 1}
   healthBarBackgroundColor: {r: 0.15, g: 0.15, b: 0.15, a: 0.9}
   healthBarSortingOrder: 100
-  maxHealth: 15
+  maxHealth: 30
 --- !u!50 &8186934828032893683
 Rigidbody2D:
   serializedVersion: 5

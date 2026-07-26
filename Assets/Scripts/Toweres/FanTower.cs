@@ -14,6 +14,7 @@ public class FanTower : MonoBehaviour
     [SerializeField, Min(0.1f)] private float windRange = 5f;
     [SerializeField, Min(0.1f)] private float windWidth = 2f;
     [SerializeField] private Color windColor = new Color(0.94f, 0.98f, 1f, 0.3f);
+    [SerializeField, AudioClipDropdown] private AudioClip runningSfx;
 
     private static readonly int StrengthId = Shader.PropertyToID("_Strength");
 
@@ -21,6 +22,7 @@ public class FanTower : MonoBehaviour
     private TowerCageStack cageStack;
     private Vector2 windForce;
     private float activation;
+    private AudioSource runningAudioSource;
     private const int FunnelSegments = 16;
 
     private void Start()
@@ -40,6 +42,16 @@ public class FanTower : MonoBehaviour
         activation = rampTime > 0f
             ? Mathf.MoveTowards(activation, targetActivation, Time.deltaTime / rampTime)
             : targetActivation;
+
+        if (targetActivation > 0f && runningAudioSource == null)
+        {
+            runningAudioSource = AudioController.PlayLoop(runningSfx, gameObject);
+        }
+        else if (targetActivation <= 0f && runningAudioSource != null)
+        {
+            AudioController.StopLoop(runningAudioSource);
+            runningAudioSource = null;
+        }
 
         if (windMaterial != null)
         {
@@ -205,6 +217,7 @@ public class FanTower : MonoBehaviour
 
     private void OnDestroy()
     {
+        AudioController.StopLoop(runningAudioSource);
         if (windMaterial != null)
         {
             Destroy(windMaterial);

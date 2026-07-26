@@ -108,7 +108,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CageBreakerEnemy
   health: 10000
-  hitSfx: {fileID: 0}
+  hitSfx: {fileID: 8300000, guid: fc9a63098ef406a46bfd5c74fd520b8f, type: 3}
   hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
   hitFlashDuration: 0.06
   hitFlashCount: 2
@@ -141,6 +141,7 @@ MonoBehaviour:
   countdownText: {fileID: 0}
   countdownBackground: {fileID: 0}
   startExplosionAnimationTime: 0.46777
+  countdownLoopSfx: {fileID: 8300000, guid: 163e047e3d96d814193d6a45ee815d3d, type: 3}
   chargeShakeDistance: 0.12
   chargeGrowth: 0.4
   chargeGlowColor: {r: 1, g: 1, b: 1, a: 1}
@@ -152,11 +153,11 @@ MonoBehaviour:
   explosionFlashDuration: 0.3
   explosionShardCount: 28
   explosionSparkCount: 32
-  explosionSfx: {fileID: 0}
+  explosionSfx: {fileID: 8300000, guid: 22729ce66932c0143b7c975ebcd4a161, type: 3}
   defeatFlashRadius: 0.7
   defeatFlashDuration: 0.16
   defeatSparkCount: 14
-  defeatSfx: {fileID: 0}
+  defeatSfx: {fileID: 8300000, guid: fc9a63098ef406a46bfd5c74fd520b8f, type: 3}
   defeatFlingSpeed: 6
   defeatFallGravity: 22
   defeatFallScreenMargin: 0.25

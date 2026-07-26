@@ -40,6 +40,8 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField] private TextMeshPro countdownText;
     [SerializeField] private SpriteRenderer countdownBackground;
     [SerializeField] private float startExplosionAnimationTime = 0.5f;
+    [SerializeField, AudioClipDropdown, Tooltip("Repeated throughout the countdown and stopped immediately before the explosion or defeat sound.")]
+    private AudioClip countdownLoopSfx;
 
     [Header("Charge Up")]
     [SerializeField, Min(0f), Tooltip("How far the breaker rattles off the spot it planted itself, "
@@ -147,6 +149,7 @@ public sealed class CageBreakerEnemy : Enemy
     private float chargeScale = 1f;
     private Vector2 fallVelocity;
     private float fallElapsed;
+    private AudioSource countdownLoopSource;
 
     // The prefab's own transform, restored on the way back into the pool so a breaker never
     // respawns still swollen from a charge-up or belly-up from a fall.
@@ -232,6 +235,7 @@ public sealed class CageBreakerEnemy : Enemy
 
     protected override void OnDisable()
     {
+        StopCountdownSound();
         ReleaseTarget();
         base.OnDisable();
     }
@@ -922,6 +926,7 @@ public sealed class CageBreakerEnemy : Enemy
     /// </summary>
     private void EnterHiddenState(BreakerState hiddenState)
     {
+        StopCountdownSound();
         state = hiddenState;
         countdownRemaining = 0f;
         SetSpriteOpacity(sneakingOpacity);
@@ -972,6 +977,7 @@ public sealed class CageBreakerEnemy : Enemy
 
         UpdateCountdownText();
         UpdateCountdownPosition();
+        countdownLoopSource = AudioController.PlayLoop(countdownLoopSfx, gameObject);
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -989,6 +995,7 @@ public sealed class CageBreakerEnemy : Enemy
     /// </summary>
     private void EnterFallingState()
     {
+        StopCountdownSound();
         // Ahead of the puff, so the charge-up is off the breaker in the same frame it is
         // knocked out: a corpse dropping off the screen still glowing, with motes chasing
         // it down, would read as one still about to go off.
@@ -1074,6 +1081,7 @@ public sealed class CageBreakerEnemy : Enemy
 
     private void Explode()
     {
+        StopCountdownSound();
         // The charge collapses into the blast rather than carrying on through it: the blast
         // is its own effect, and it lives at the scene root so it outlives the body.
         StopChargeEffects();
@@ -1101,6 +1109,12 @@ public sealed class CageBreakerEnemy : Enemy
         }
 
         ReleaseOrDestroy();
+    }
+
+    private void StopCountdownSound()
+    {
+        AudioController.StopLoop(countdownLoopSource);
+        countdownLoopSource = null;
     }
 
     /// <summary>
