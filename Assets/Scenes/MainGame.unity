@@ -185,80 +185,80 @@ MonoBehaviour:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 6
     birdCount: 2
-    breakerCount: 2
-    targetTime: 12
+    breakerCount: 1
+    targetTime: 22
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 7
     birdCount: 2
-    breakerCount: 2
-    targetTime: 13
+    breakerCount: 1
+    targetTime: 26
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 5
     - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
       count: 4
     birdCount: 2
-    breakerCount: 1
-    targetTime: 14
+    breakerCount: 0
+    targetTime: 28
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 5
     - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
       count: 5
     birdCount: 3
-    breakerCount: 3
-    targetTime: 14
+    breakerCount: 2
+    targetTime: 28
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 7
     - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
       count: 6
     birdCount: 3
-    breakerCount: 4
-    targetTime: 15
+    breakerCount: 2
+    targetTime: 30
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 8
     - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
       count: 7
     birdCount: 3
-    breakerCount: 3
-    targetTime: 16
+    breakerCount: 2
+    targetTime: 32
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 9
     - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
       count: 9
     birdCount: 3
-    breakerCount: 2
-    targetTime: 17
+    breakerCount: 1
+    targetTime: 40
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 11
     - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
       count: 11
     birdCount: 4
-    breakerCount: 4
-    targetTime: 18
+    breakerCount: 3
+    targetTime: 40
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 13
     - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
       count: 13
     birdCount: 4
-    breakerCount: 4
-    targetTime: 18
+    breakerCount: 3
+    targetTime: 40
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
-      count: 16
+      count: 40
     - enemyPrefab: {fileID: 1976008961032260324, guid: f431ecc49c3da944981eca60c858a972, type: 3}
       count: 15
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       count: 1
     birdCount: 4
-    breakerCount: 5
-    targetTime: 19
+    breakerCount: 4
+    targetTime: 40
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 19
@@ -267,8 +267,8 @@ MonoBehaviour:
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       count: 1
     birdCount: 5
-    breakerCount: 4
-    targetTime: 20
+    breakerCount: 3
+    targetTime: 40
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 23
@@ -277,8 +277,8 @@ MonoBehaviour:
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       count: 1
     birdCount: 5
-    breakerCount: 5
-    targetTime: 21
+    breakerCount: 4
+    targetTime: 43
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 27
@@ -287,8 +287,8 @@ MonoBehaviour:
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       count: 2
     birdCount: 5
-    breakerCount: 5
-    targetTime: 22
+    breakerCount: 4
+    targetTime: 43
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 32
@@ -297,8 +297,8 @@ MonoBehaviour:
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       count: 2
     birdCount: 6
-    breakerCount: 6
-    targetTime: 22
+    breakerCount: 5
+    targetTime: 43
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 38
@@ -307,8 +307,8 @@ MonoBehaviour:
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       count: 3
     birdCount: 6
-    breakerCount: 7
-    targetTime: 23
+    breakerCount: 6
+    targetTime: 43
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 46
@@ -318,7 +318,7 @@ MonoBehaviour:
       count: 3
     birdCount: 7
     breakerCount: 7
-    targetTime: 24
+    targetTime: 50
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 56
@@ -328,7 +328,7 @@ MonoBehaviour:
       count: 4
     birdCount: 8
     breakerCount: 8
-    targetTime: 25
+    targetTime: 50
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 67
@@ -338,7 +338,7 @@ MonoBehaviour:
       count: 5
     birdCount: 8
     breakerCount: 8
-    targetTime: 26
+    targetTime: 50
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 80
@@ -348,7 +348,7 @@ MonoBehaviour:
       count: 6
     birdCount: 9
     breakerCount: 8
-    targetTime: 26
+    targetTime: 50
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 96
@@ -358,7 +358,7 @@ MonoBehaviour:
       count: 7
     birdCount: 10
     breakerCount: 11
-    targetTime: 27
+    targetTime: 50
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 115
@@ -368,7 +368,7 @@ MonoBehaviour:
       count: 9
     birdCount: 11
     breakerCount: 11
-    targetTime: 28
+    targetTime: 50
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 139
@@ -378,7 +378,7 @@ MonoBehaviour:
       count: 11
     birdCount: 12
     breakerCount: 12
-    targetTime: 29
+    targetTime: 50
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 167
@@ -388,7 +388,7 @@ MonoBehaviour:
       count: 13
     birdCount: 13
     breakerCount: 12
-    targetTime: 30
+    targetTime: 50
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 200
@@ -398,7 +398,7 @@ MonoBehaviour:
       count: 16
     birdCount: 14
     breakerCount: 14
-    targetTime: 30
+    targetTime: 50
   - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
       count: 240
@@ -410,7 +410,7 @@ MonoBehaviour:
       count: 1
     birdCount: 15
     breakerCount: 15
-    targetTime: 30
+    targetTime: 50
   timeForFirstWave: 6
   player: {fileID: 0}
   spawnRadius: 12
@@ -1527,7 +1527,7 @@ MonoBehaviour:
   buildingGhostMessageDelay: 0.15
   buildingIntroTalkingHeadSize: 0
   buildingIntroTextSize: 0
-  buildingIntroTalkingHeadOffset: {x: -3, y: -0.05, z: 0}
+  buildingIntroTalkingHeadOffset: {x: -3, y: 1, z: 0}
   buildingMessage: 'Make a setup like this,
 
     Rotate with R until its facing

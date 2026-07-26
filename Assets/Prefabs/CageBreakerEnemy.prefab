@@ -128,7 +128,7 @@ MonoBehaviour:
   spawnRadius: 12
   farSideStandoff: 1
   takesDamageInSneakingState: 0
-  breakCountdown: 5
+  breakCountdown: 10
   explosionRadius: 3
   takesDamageInBreakingState: 0
   countdownOffset: {x: 0, y: 2}
@@ -141,7 +141,8 @@ MonoBehaviour:
   countdownText: {fileID: 0}
   countdownBackground: {fileID: 0}
   startExplosionAnimationTime: 0.46777
-  spinSpeed: 360
+  chargeShakeDistance: 0.12
+  chargeGrowth: 0.4
   explosionFlashDuration: 0.3
   explosionShardCount: 28
   explosionSparkCount: 32
@@ -150,6 +151,10 @@ MonoBehaviour:
   defeatFlashDuration: 0.16
   defeatSparkCount: 14
   defeatSfx: {fileID: 0}
+  defeatFlingSpeed: 6
+  defeatFallGravity: 22
+  defeatFallScreenMargin: 0.25
+  defeatFallTimeout: 8
 --- !u!50 &4573768113491351581
 Rigidbody2D:
   serializedVersion: 5
