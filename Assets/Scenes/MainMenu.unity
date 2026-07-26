@@ -417,7 +417,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e6132c4c199f5d64d89ac17a85594f39, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioController
-  audioClips: []
+  audioClips:
+  - clipName: Button
+    clip: {fileID: 8300000, guid: eee6ec3c2de394e47844f8c9b719ec70, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
   musicTracks:
   - clipName: BuildingTheme
     clip: {fileID: 8300000, guid: bd5e12d74bab6c04487d53c0f9d4b53e, type: 3}
@@ -3420,6 +3425,11 @@ MonoBehaviour:
     pitchShift: 0
   - clipName: Shotgun v2
     clip: {fileID: 8300000, guid: c4bd30de22dc6b04e917a497093819e9, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Button
+    clip: {fileID: 8300000, guid: eee6ec3c2de394e47844f8c9b719ec70, type: 3}
     volume: 1
     pitch: 1
     pitchShift: 0

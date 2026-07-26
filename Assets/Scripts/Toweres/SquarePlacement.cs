@@ -118,6 +118,14 @@ public class SquarePlacement : MonoBehaviour
         for (int i = 0; i < prePlacedTowersPosition.Length; i++)
         {
             towerShop.CreateTower(prePlacedTowers[i], SnapToGrid(prePlacedTowersPosition[i].position), cellSize, CurrentRotation);
+            if (prePlacedTowers[i] != null
+                && string.Equals(
+                    prePlacedTowers[i].displayName,
+                    "Cage",
+                    System.StringComparison.OrdinalIgnoreCase))
+            {
+                AudioController.Play("Whoosh");
+            }
         }
 
         // A tower maps the cages under it as it is placed, so one listed above its own

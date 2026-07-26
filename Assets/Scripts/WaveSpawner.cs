@@ -252,13 +252,11 @@ public class WaveSpawner : MonoBehaviour
 
         if (startFirstWaveImmediately || gameState == GameState.Wave)
         {
-            AudioController.CrossfadeMusic(FightingMusic, MusicCrossfadeSeconds);
             SetBuildingToolsEnabled(false);
             StartCoroutine(StartFirstWave());
         }
         else
         {
-            AudioController.CrossfadeMusic(BuildingMusic, MusicCrossfadeSeconds);
             SetBuildingToolsEnabled(true);
         }
     }
@@ -340,7 +338,12 @@ public class WaveSpawner : MonoBehaviour
         currentWaveIndex++;
         RunStats.RecordRoundStarted(currentWaveIndex + 1);
         gameState = GameState.Wave;
-        AudioController.CrossfadeMusic(FightingMusic, MusicCrossfadeSeconds);
+        // Wave zero opens in silence. Music begins only after that first fight has
+        // been cleared and its following build phase has begun.
+        if (currentWaveIndex > 0)
+        {
+            AudioController.CrossfadeMusic(FightingMusic, MusicCrossfadeSeconds);
+        }
         finishedSpawning = false;
         livingEnemies.Clear();
         SetBuildingToolsEnabled(false);

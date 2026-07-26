@@ -108,12 +108,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CageBreakerEnemy
   health: 10000
-  hitSfx: {fileID: 8300000, guid: fc9a63098ef406a46bfd5c74fd520b8f, type: 3}
+  hitSfx: {fileID: 0}
   hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
   hitFlashDuration: 0.06
   hitFlashCount: 2
   hitParticleCount: 8
   invincibilityTime: 0.1
+  deathSfx: {fileID: 8300000, guid: 3fe661cffb9cf55438d61e30bfcd1b0e, type: 3}
   repulsionForce: 0.1
   repulsionRadius: 0.1
   exponentialFalloff: 2
@@ -157,7 +158,7 @@ MonoBehaviour:
   defeatFlashRadius: 0.7
   defeatFlashDuration: 0.16
   defeatSparkCount: 14
-  defeatSfx: {fileID: 8300000, guid: fc9a63098ef406a46bfd5c74fd520b8f, type: 3}
+  defeatSfx: {fileID: 8300000, guid: 3fe661cffb9cf55438d61e30bfcd1b0e, type: 3}
   defeatFlingSpeed: 6
   defeatFallGravity: 22
   defeatFallScreenMargin: 0.25
