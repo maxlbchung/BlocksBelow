@@ -126,7 +126,7 @@ MonoBehaviour:
   moveSpeed: 4
   sneakingOpacity: 0.25
   spawnRadius: 12
-  farSideStandoff: 2
+  farSideStandoff: 1
   takesDamageInSneakingState: 0
   breakCountdown: 5
   explosionRadius: 3
@@ -138,6 +138,14 @@ MonoBehaviour:
   countdownText: {fileID: 0}
   countdownBackground: {fileID: 0}
   startExplosionAnimationTime: 0.46777
+  explosionFlashDuration: 0.3
+  explosionShardCount: 28
+  explosionSparkCount: 32
+  explosionSfx: {fileID: 0}
+  defeatFlashRadius: 0.7
+  defeatFlashDuration: 0.16
+  defeatSparkCount: 14
+  defeatSfx: {fileID: 0}
 --- !u!50 &4573768113491351581
 Rigidbody2D:
   serializedVersion: 5

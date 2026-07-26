@@ -99,6 +99,15 @@ public class Enemy : Entity, IPoolable
     /// <summary>Lowest this enemy's centre may sit above the terrain surface.</summary>
     protected float GroundClearance => groundClearance;
 
+    /// <summary>
+    /// How sharply this enemy's velocity closes on the velocity its AI asked for, in
+    /// multiples per second. 1 - what every enemy has always run at - takes about a second
+    /// to swap direction, which reads as a heavy drifting turn. Raise it for enemies that
+    /// have to change heading quickly: at 1, a diving enemy coasts most of a second past its
+    /// target before it can pull out, however hard its AI steers.
+    /// </summary>
+    protected virtual float SteeringResponse => 1f;
+
     /// <summary>Lifts <paramref name="position"/> out of the terrain, for code that places an enemy directly.</summary>
     internal static Vector2 ClampAboveGround(Vector2 position, float clearance)
     {
@@ -208,11 +217,16 @@ public class Enemy : Entity, IPoolable
         // Integrated here rather than handed to AddForce, which would apply exactly this
         // delta for ForceMode2D.Force: the velocity the step will actually run with has to
         // be known before the body gets it, so ground avoidance can trim it.
+        //
+        // Steering closes on the desired velocity at this enemy's own response rate, while
+        // separation stays a force and keeps its own scaling - a sharp turner should not
+        // also be flung further by its neighbours. The clamp stops a very high response
+        // from overshooting the target velocity inside one step.
         Vector2 velocity = rb.linearVelocity;
-        Vector2 acceleration = desiredVelocity - velocity + separationForce / rb.mass;
-        rb.linearVelocity = ApplyGroundAvoidance(
-            velocity + acceleration * fixedDeltaTime,
-            fixedDeltaTime);
+        velocity += (desiredVelocity - velocity)
+                * Mathf.Clamp01(SteeringResponse * fixedDeltaTime)
+            + separationForce * (fixedDeltaTime / rb.mass);
+        rb.linearVelocity = ApplyGroundAvoidance(velocity, fixedDeltaTime);
     }
 
     /// <summary>

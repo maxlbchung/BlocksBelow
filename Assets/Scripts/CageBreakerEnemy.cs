@@ -19,7 +19,7 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField, Min(0f), Tooltip("How far past the cage, on the side away from the player, "
         + "the breaker plants itself before starting its countdown. Held inside the explosion "
         + "radius, so the cage is still taken by the blast.")]
-    private float farSideStandoff = 2f;
+    private float farSideStandoff = 1.5f;
     [SerializeField] private bool takesDamageInSneakingState;
 
     [Header("Breaking")]

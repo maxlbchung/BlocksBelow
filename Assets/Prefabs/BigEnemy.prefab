@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 7412998300155624015}
   - component: {fileID: 7412998300155624016}
   - component: {fileID: 7412998300155624017}
+  - component: {fileID: 7412998300155624018}
   m_Layer: 7
   m_Name: BigEnemy
   m_TagString: Enemy
@@ -31,7 +32,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -7.158, y: 2.942, z: 0}
-  m_LocalScale: {x: 3, y: 3, z: 3}
+  m_LocalScale: {x: 10, y: 10, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -104,26 +105,40 @@ MonoBehaviour:
   m_GameObject: {fileID: 7412998300155624011}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 38f07c98f8f9cf84b962518a250438f1, type: 3}
+  m_Script: {fileID: 11500000, guid: 6c2f80a15d7b4e3fa9184b3ce07d21af, type: 3}
   m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::BasicEnemy
-  health: 50
+  m_EditorClassIdentifier: Assembly-CSharp::BigEnemy
+  health: 100
   hitSfx: {fileID: 0}
   hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
-  hitFlashDuration: 0.06
-  hitFlashCount: 2
-  hitParticleCount: 8
+  hitFlashDuration: 0.1
+  hitFlashCount: 3
+  hitParticleCount: 15
   invincibilityTime: 0.1
-  repulsionForce: 1
-  repulsionRadius: 3
+  repulsionForce: 3
+  repulsionRadius: 5
   exponentialFalloff: 3
-  groundClearance: 0.5
+  groundClearance: 3
   groundApproachBand: 1.5
   groundRecoverySpeed: 4
   isCagable: 0
-  description: A hulking basic enemy. Slow and hard to kill, but it hits hard on contact.
+  description: A hulking basic enemy. Slow and hard to kill, but it hits hard on
+    contact.
   moveSpeed: 2.5
   damage: 5
+  chargeDuration: 1.4
+  flashDuration: 0.07
+  shakeAmplitude: 0.35
+  shakeFrequency: 40
+  peakBrightness: 9
+  streaksPerSecond: 45
+  streakColor: {r: 1, g: 0.95, b: 0.6, a: 1}
+  explosionParticleCount: 90
+  explosionColor: {r: 1, g: 0.75, b: 0.35, a: 1}
+  chargeVolume: 0.45
+  crackleVolume: 0.35
+  explosionVolume: 0.9
+  crackleInterval: 0.16
 --- !u!50 &7412998300155624015
 Rigidbody2D:
   serializedVersion: 5
@@ -214,8 +229,26 @@ Animator:
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
-  m_WarningMessage:
+  m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &7412998300155624018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7412998300155624011}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e1a9c7f43b0d24e8a6f21c7b90d4e35, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyHealthBar
+  barSize: {x: 7.2, y: 0.84}
+  gapAboveEntity: 0.6
+  fillColor: {r: 0.85, g: 0.22, b: 0.2, a: 0.6}
+  backgroundColor: {r: 0.1, g: 0.1, b: 0.1, a: 0.45}
+  hideWhenFull: 0
+  sortingOrder: 100

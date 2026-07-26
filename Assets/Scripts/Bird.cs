@@ -9,9 +9,44 @@ public class Bird : Enemy
         Attacking
     }
 
+    /// <summary>Which half of the strafing run the bird is on: the dive in, or the climb out.</summary>
+    private enum DiveState
+    {
+        Diving,
+        PullingUp
+    }
+
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 8f;
-    [SerializeField] private float acceleration = 5f;
+    [SerializeField] private float acceleration = 10f;
+    [SerializeField, Min(0.1f), Tooltip("How sharply the bird snaps onto a new heading, in "
+        + "multiples per second, and the dial that decides whether this reads as a fly-by. "
+        + "Other enemies run at 1, which takes a full second to reverse - the bird coasts "
+        + "roughly its own speed in units past the player before it can turn, and cannot get "
+        + "back up to speed for the next run. Too high is just as wrong: past about 5 it turns "
+        + "inside its own body length and corners like a robot instead of arcing through.")]
+    private float steeringResponse = 1.6f;
+
+    [Header("Dive")]
+    [SerializeField, Min(0f), Tooltip("Distance from the player at which the bird locks its dive "
+        + "heading. Inside this it stops steering, so it flies through the player instead of "
+        + "curving in and hovering on them.")]
+    private float diveCommitDistance = 2.5f;
+    [SerializeField, Min(0f), Tooltip("How long the bird climbs away after a pass before turning "
+        + "back for the next dive. Together with the speed it holds, this is what sets how far "
+        + "past the player it gets.")]
+    private float pullUpDuration = 0.4f;
+    [SerializeField, Min(0f), Tooltip("Speed the bird bleeds down towards during that climb. A "
+        + "short pull-up never quite reaches it, which is what makes the climb read as a "
+        + "slowdown rather than a stop.")]
+    private float pullUpSpeed = 4f;
+    [SerializeField, Min(0f), Tooltip("How quickly speed comes off during the climb.")]
+    private float pullUpDeceleration = 2f;
+    [SerializeField, Range(0f, 90f), Tooltip("How steeply the bird climbs away after a pass, in "
+        + "degrees above horizontal. Shallow runs flat and wide; steep climbs high and stays "
+        + "over the player. Height gained is roughly the pull-up distance times the sine of "
+        + "this.")]
+    private float pullUpClimbAngle = 55f;
 
     [Header("States")]
     [SerializeField, Min(0f), Tooltip("The bird attacks once it is this close to the player.")]
@@ -64,6 +99,11 @@ public class Bird : Enemy
     private float attackExitTimeRemaining;
     private SpriteRenderer[] spriteRenderers;
     private BirdState state;
+    private DiveState diveState;
+    private Vector2 diveHeading = Vector2.right;
+    private Vector2 pullUpDirection = Vector2.up;
+    private bool diveHeadingLocked;
+    private float pullUpTimeRemaining;
     private bool escaping;
     private const int PuffTextureSize = 64;
     private static Material puffMaterial;
@@ -76,6 +116,10 @@ public class Bird : Enemy
         && state == BirdState.Attacking
         && Time.time >= cageableAgainTime
         && !escaping;
+
+    // A diver has to be able to reverse in its own body length or the pull-up coasts it
+    // halfway across the arena, so it turns far harder than the drifting default.
+    protected override float SteeringResponse => steeringResponse;
 
     // A bird rushing for the sky is done with the player, so its escape run is harmless.
     public override int ContactDamage =>
@@ -106,7 +150,7 @@ public class Bird : Enemy
             return;
         }
 
-        currentSpeed = Mathf.Clamp(currentSpeed + acceleration * Time.deltaTime, 0f, moveSpeed);
+        UpdateDiveSpeed(Time.deltaTime);
         countdownRemaining = Mathf.Max(0f, countdownRemaining - Time.deltaTime);
         UpdateCombatState();
         UpdateCountdownText();
@@ -128,6 +172,14 @@ public class Bird : Enemy
         countdownText.transform.rotation = Quaternion.identity;
     }
 
+    /// <summary>
+    /// A strafing run rather than a chase. The bird tracks the player only up to its commit
+    /// distance, then holds that heading straight through them at full speed, and afterwards
+    /// climbs away shedding speed before turning back in for the next dive. Tracking the
+    /// player the whole way is what used to make it slow to a hover on their face: the
+    /// heading has to stop turning before the bird arrives, or the steering bends the last
+    /// stretch of the dive into an orbit.
+    /// </summary>
     protected override Vector2 CalculateDesiredVelocity(Transform player, float elapsed)
     {
         if (escaping)
@@ -140,14 +192,79 @@ public class Bird : Enemy
             return Vector2.zero;
         }
 
-        Vector2 direction = (Vector2)player.position - Position;
-        float distanceSquared = direction.sqrMagnitude;
-        if (distanceSquared <= 0.000001f)
+        Vector2 toPlayer = (Vector2)player.position - Position;
+        if (diveState == DiveState.PullingUp)
         {
-            return Vector2.zero;
+            pullUpTimeRemaining -= elapsed;
+            if (pullUpTimeRemaining > 0f)
+            {
+                return pullUpDirection * currentSpeed;
+            }
+
+            BeginDive();
         }
 
-        return direction * (currentSpeed / Mathf.Sqrt(distanceSquared));
+        float distanceSquared = toPlayer.sqrMagnitude;
+        if (!diveHeadingLocked)
+        {
+            if (distanceSquared <= 0.000001f)
+            {
+                return Vector2.zero;
+            }
+
+            // Steered right up to the commit point, and on rails from there in.
+            diveHeading = toPlayer / Mathf.Sqrt(distanceSquared);
+            diveHeadingLocked = distanceSquared <= diveCommitDistance * diveCommitDistance;
+        }
+        else if (Vector2.Dot(toPlayer, diveHeading) < 0f)
+        {
+            // The player is behind the bird, so the pass is spent. Tested as a half-space
+            // rather than a distance: once crossed it stays crossed, so however fast the
+            // bird is going, it cannot fly past between two decision ticks unnoticed.
+            BeginPullUp();
+            return pullUpDirection * currentSpeed;
+        }
+
+        return diveHeading * currentSpeed;
+    }
+
+    private void BeginDive()
+    {
+        diveState = DiveState.Diving;
+        diveHeadingLocked = false;
+    }
+
+    /// <summary>
+    /// Turns the bird up and away after a pass. It keeps running the way the dive was
+    /// already going and only tilts up by the climb angle, so it sweeps out and over
+    /// instead of braking to turn - and, being a sharp turner, it holds that line rather
+    /// than drifting wide the way a heavier enemy would.
+    /// </summary>
+    private void BeginPullUp()
+    {
+        diveState = DiveState.PullingUp;
+        pullUpTimeRemaining = pullUpDuration;
+        diveHeadingLocked = false;
+
+        float radians = pullUpClimbAngle * Mathf.Deg2Rad;
+        float horizontalSign = diveHeading.x >= 0f ? 1f : -1f;
+        pullUpDirection = new Vector2(
+            horizontalSign * Mathf.Cos(radians),
+            Mathf.Sin(radians));
+    }
+
+    /// <summary>
+    /// Speed only comes off on the way out. The dive itself runs all the way in at the
+    /// bird's top pace, so it never brakes in front of the player - it is past them before
+    /// it starts slowing, and sheds the speed into the climb.
+    /// </summary>
+    private void UpdateDiveSpeed(float deltaTime)
+    {
+        bool pullingUp = diveState == DiveState.PullingUp;
+        currentSpeed = Mathf.MoveTowards(
+            currentSpeed,
+            pullingUp ? pullUpSpeed : moveSpeed,
+            (pullingUp ? pullUpDeceleration : acceleration) * deltaTime);
     }
 
     public override bool TryTakeDamage(float damage)
@@ -198,6 +315,11 @@ public class Bird : Enemy
         escapeTimeRemaining = 0f;
         attackExitTimeRemaining = 0f;
         state = BirdState.Sneaking;
+        diveState = DiveState.Diving;
+        diveHeading = Vector2.right;
+        pullUpDirection = Vector2.up;
+        diveHeadingLocked = false;
+        pullUpTimeRemaining = 0f;
         escaping = false;
         SetSpriteOpacity(sneakingOpacity);
         if (countdownText != null)

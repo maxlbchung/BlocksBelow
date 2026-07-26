@@ -197,7 +197,7 @@ MonoBehaviour:
   description: Flies in stealth mode. Only capturable when it reveals itself. Use
     it to power cages.
   moveSpeed: 8
-  acceleration: 5
+  acceleration: 30
   attackDistance: 4
   attackExitDelay: 1
   sneakingOpacity: 0.05

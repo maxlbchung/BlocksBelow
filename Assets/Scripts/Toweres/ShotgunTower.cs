@@ -16,6 +16,8 @@ public class ShotgunTower : MonoBehaviour
     private int muzzleSparkCountPerPellet = 4;
     [SerializeField, Min(0f), Tooltip("How far along the shot direction the flash sits, in world units.")]
     private float muzzleOffset = 0.5f;
+    [SerializeField, Tooltip("Sparks and smoke take this tint. Defaults to the tower's pale purple.")]
+    private Color muzzleColor = new Color(0.76f, 0.62f, 1f, 1f);
 
     private float nextShotTime;
     private TowerCageStack cageStack;
@@ -86,6 +88,7 @@ public class ShotgunTower : MonoBehaviour
             (Vector2)transform.position + blastDirection * muzzleOffset,
             blastDirection,
             muzzleSparkCountPerPellet * shotCount,
+            muzzleColor,
             spread + 10f);
 
         if (shootAnimation != null)

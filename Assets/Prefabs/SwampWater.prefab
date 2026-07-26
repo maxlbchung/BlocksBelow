@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6118344207905632418
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4471902658310275933}
+  - component: {fileID: 8290617743100428061}
+  m_Layer: 0
+  m_Name: SwampWater
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4471902658310275933
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6118344207905632418}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: -1.86, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8290617743100428061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6118344207905632418}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d3e91b45a6c48f2ab5c0d7e13f96825, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::SwampWater
+  width: 26
+  depth: 3
+  shallowColor: {r: 0.221, g: 0.298, b: 0.145, a: 1}
+  deepColor: {r: 0.043, g: 0.066, b: 0.02, a: 1}
+  waterlineColor: {r: 0.478, g: 0.573, b: 0.302, a: 1}
+  waveHeight: 0.02
+  waveSpeed: 0.55
+  waterOpacity: 0.7
+  shoreDepth: 1.6
+  fogHeight: 5
+  fogColor: {r: 0.45, g: 0.52, b: 0.38, a: 0.36}
+  backFogDensity: 1.15
+  frontFogDensity: 0.4
+  riseSpeed: 0.11
+  particleAmount: 0.3
+  waterSortingLayer: Background
+  waterSortingOrder: 10
+  backFogSortingLayer: Background
+  backFogSortingOrder: 20
+  frontFogSortingLayer: Foreground
+  frontFogSortingOrder: 60

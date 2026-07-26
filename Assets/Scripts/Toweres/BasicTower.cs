@@ -24,6 +24,8 @@ public class BasicTower : MonoBehaviour
     private float muzzleOffset = 0.5f;
     [SerializeField, Range(0f, 180f), Tooltip("Width of the spark cone.")]
     private float muzzleSparkSpread = 26f;
+    [SerializeField, Tooltip("Sparks and smoke take this tint. Defaults to the light blue of the bullet sprite.")]
+    private Color muzzleColor = new Color(0.42f, 0.86f, 1f, 1f);
 
     private float nextShotTime;
     private TowerCageStack cageStack;
@@ -84,6 +86,7 @@ public class BasicTower : MonoBehaviour
                 (Vector2)transform.position + direction * muzzleOffset,
                 direction,
                 muzzleSparkCount,
+                muzzleColor,
                 muzzleSparkSpread);
             if (shootAnimation != null)
             {
