@@ -15,17 +15,23 @@ public class GameOverScreen : MonoBehaviour
     private const string MainMenuSceneName = "MainMenu";
     private const float FadeDuration = 0.35f;
 
+    // The main menu's scheme, the same one the pause popup is drawn in: white type, the green
+    // its sliders fill with, and the slate its tracks are drawn in.
+    private static readonly Color LabelColor = Color.white;
+    private static readonly Color HighlightColor = new Color(0.32549f, 0.494118f, 0.423529f, 1f);
+    private static readonly Color OutlineColor = new Color(1f, 1f, 1f, 0.85f);
+    private static readonly Color DimLabelColor = new Color(1f, 1f, 1f, 0.6f);
     private static readonly Color BackdropColor = new Color(0f, 0f, 0f, 0.75f);
-    private static readonly Color PanelColor = new Color(0.08f, 0.1f, 0.14f, 0.96f);
-    private static readonly Color TitleColor = new Color(0.9f, 0.28f, 0.26f, 1f);
-    private static readonly Color StatLabelColor = new Color(0.72f, 0.76f, 0.82f, 1f);
-    private static readonly Color StatValueColor = new Color(1f, 0.84f, 0.25f, 1f);
-    private static readonly Color RetryRoundColor = new Color(0.16f, 0.45f, 0.22f, 1f);
-    private static readonly Color PlayAgainColor = new Color(0.2f, 0.3f, 0.42f, 1f);
-    private static readonly Color MainMenuColor = new Color(0.2f, 0.24f, 0.3f, 1f);
+    private static readonly Color PanelColor = new Color(0.03f, 0.05f, 0.08f, 0.9f);
+    private static readonly Color StatRowColor = new Color(1f, 1f, 1f, 0.05f);
 
-    /// <summary>Panel height with the two buttons every game over shows.</summary>
-    private const float BasePanelHeight = 620f;
+    private const float OutlineThickness = 3f;
+
+    /// <summary>
+    /// Panel height with the two buttons every game over shows. Sized for the menu font, which
+    /// asks for noticeably more height per point than the built-in one.
+    /// </summary>
+    private const float BasePanelHeight = 690f;
 
     /// <summary>Added for the retry button, when the run has a round to go back to.</summary>
     private const float ExtraButtonHeight = 82f;
@@ -144,6 +150,7 @@ public class GameOverScreen : MonoBehaviour
 
         GameObject panel = CreateUIObject("Panel", canvasObject.transform);
         panel.AddComponent<Image>().color = PanelColor;
+        AddOutline(panel);
 
         RectTransform panelRect = panel.GetComponent<RectTransform>();
         panelRect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -164,14 +171,14 @@ public class GameOverScreen : MonoBehaviour
 
         Text title = CreateText("Title", panel.transform, 72, TextAnchor.MiddleCenter);
         title.text = "GAME OVER";
-        title.color = TitleColor;
+        title.color = LabelColor;
         title.fontStyle = FontStyle.Bold;
-        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 92f;
+        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 110f;
 
         Text subtitle = CreateText("Subtitle", panel.transform, 24, TextAnchor.MiddleCenter);
         subtitle.text = "You were overrun.";
-        subtitle.color = StatLabelColor;
-        subtitle.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
+        subtitle.color = DimLabelColor;
+        subtitle.gameObject.AddComponent<LayoutElement>().preferredHeight = 40f;
 
         CreateSpacer(panel.transform, 14f);
 
@@ -183,19 +190,22 @@ public class GameOverScreen : MonoBehaviour
 
         // Listed first: retrying the round is the cheaper of the two ways back in, so it
         // is the one offered before starting the whole run over.
+        // The way back in that costs the least is picked out in the accent colour; the rest
+        // read as plain choices, which is the only hierarchy the menu palette has to spend.
         if (canRetryRound)
         {
-            CreateButton(panel.transform, "Retry Round", RetryRoundColor, RetryRound);
+            CreateButton(panel.transform, "Retry Round", HighlightColor, RetryRound);
         }
 
-        CreateButton(panel.transform, "Play Again", PlayAgainColor, PlayAgain);
-        CreateButton(panel.transform, "Main Menu", MainMenuColor, GoToMainMenu);
+        CreateButton(
+            panel.transform, "Play Again", canRetryRound ? LabelColor : HighlightColor, PlayAgain);
+        CreateButton(panel.transform, "Main Menu", LabelColor, GoToMainMenu);
     }
 
     private static void CreateStatRow(Transform parent, string label, string value)
     {
         GameObject row = CreateUIObject(label + " Row", parent);
-        row.AddComponent<LayoutElement>().preferredHeight = 52f;
+        row.AddComponent<LayoutElement>().preferredHeight = 58f;
 
         HorizontalLayoutGroup rowLayout = row.AddComponent<HorizontalLayoutGroup>();
         rowLayout.padding = new RectOffset(16, 16, 0, 0);
@@ -205,43 +215,76 @@ public class GameOverScreen : MonoBehaviour
         rowLayout.childControlWidth = true;
 
         Image rowBackground = row.AddComponent<Image>();
-        rowBackground.color = new Color(1f, 1f, 1f, 0.05f);
+        rowBackground.color = StatRowColor;
 
         Text labelText = CreateText("Label", row.transform, 28, TextAnchor.MiddleLeft);
         labelText.text = label;
-        labelText.color = StatLabelColor;
+        labelText.color = DimLabelColor;
         labelText.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
 
         Text valueText = CreateText("Value", row.transform, 32, TextAnchor.MiddleRight);
         valueText.text = value;
-        valueText.color = StatValueColor;
+        valueText.color = HighlightColor;
         valueText.fontStyle = FontStyle.Bold;
         valueText.gameObject.AddComponent<LayoutElement>().preferredWidth = 140f;
     }
 
+    /// <summary>
+    /// A button with no fill of its own: it lights up faintly under the pointer and leaves the
+    /// wireframe box and the label to carry it, the way the pause popup and the shop do.
+    /// </summary>
     private static Button CreateButton(
         Transform parent,
         string label,
-        Color color,
+        Color labelColor,
         UnityEngine.Events.UnityAction onClick)
     {
         GameObject buttonObject = CreateUIObject(label, parent);
         Image background = buttonObject.AddComponent<Image>();
-        background.color = color;
+        background.color = Color.white;
 
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = background;
         button.onClick.AddListener(onClick);
         buttonObject.AddComponent<LayoutElement>().preferredHeight = 68f;
 
+        ColorBlock colors = ColorBlock.defaultColorBlock;
+        colors.normalColor = new Color(1f, 1f, 1f, 0f);
+        colors.highlightedColor = new Color(1f, 1f, 1f, 0.12f);
+        colors.pressedColor = new Color(1f, 1f, 1f, 0.22f);
+        colors.selectedColor = new Color(1f, 1f, 1f, 0f);
+        colors.disabledColor = new Color(1f, 1f, 1f, 0f);
+        button.colors = colors;
+
+        AddOutline(buttonObject);
+
         Text buttonLabel = CreateText("Label", buttonObject.transform, 28, TextAnchor.MiddleCenter);
         buttonLabel.text = label;
+        buttonLabel.color = labelColor;
         RectTransform labelRect = buttonLabel.rectTransform;
         labelRect.anchorMin = Vector2.zero;
         labelRect.anchorMax = Vector2.one;
         labelRect.offsetMin = Vector2.zero;
         labelRect.offsetMax = Vector2.zero;
         return button;
+    }
+
+    /// <summary>Traces a wireframe box around <paramref name="target"/> without joining its layout.</summary>
+    private static void AddOutline(GameObject target)
+    {
+        GameObject outlineObject = CreateUIObject("Outline", target.transform);
+
+        RectTransform outlineRect = outlineObject.GetComponent<RectTransform>();
+        outlineRect.anchorMin = Vector2.zero;
+        outlineRect.anchorMax = Vector2.one;
+        outlineRect.offsetMin = Vector2.zero;
+        outlineRect.offsetMax = Vector2.zero;
+
+        outlineObject.AddComponent<LayoutElement>().ignoreLayout = true;
+
+        UIWireframeBox outline = outlineObject.AddComponent<UIWireframeBox>();
+        outline.Color = OutlineColor;
+        outline.Thickness = OutlineThickness;
     }
 
     private static void CreateSpacer(Transform parent, float height)
@@ -261,11 +304,15 @@ public class GameOverScreen : MonoBehaviour
     {
         GameObject textObject = CreateUIObject(objectName, parent);
         Text text = textObject.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = MenuFont.Regular;
         text.fontSize = fontSize;
         text.alignment = alignment;
         text.color = Color.white;
         text.raycastTarget = false;
+        // Truncate, the default, drops a line whole rather than clipping it, so a label whose
+        // line runs past its box vanishes outright - and the menu font is taller per point
+        // than the built-in one these boxes were first measured against.
+        text.verticalOverflow = VerticalWrapMode.Overflow;
         return text;
     }
 

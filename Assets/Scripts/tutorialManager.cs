@@ -39,6 +39,10 @@ public class tutorialManager : MonoBehaviour
     private bool reverseFacingDirection;
     [SerializeField, Min(0f), Tooltip("Seconds used to fade every message and talking head in and out.")]
     private float messageFadeSeconds = 0.35f;
+    [SerializeField, Tooltip("Sorting layer used by the tutorial text so it draws over the scene.")]
+    private string textSortingLayer = "Foreground";
+    [SerializeField, Tooltip("Sorting order used by the tutorial text within its sorting layer.")]
+    private int textSortingOrder = 100;
 
     [Header("Talking Head (All Messages)")]
     [SerializeField, Tooltip("Optional sprite displayed to the left of every tutorial message.")]
@@ -513,6 +517,7 @@ public class tutorialManager : MonoBehaviour
 
         currentText.gameObject.name = "Current Tutorial Text";
         currentText.gameObject.SetActive(true);
+        ApplyTextSortingLayer();
         if (textSizeOverride > 0f)
         {
             currentText.characterSize = textSizeOverride;
@@ -559,6 +564,27 @@ public class tutorialManager : MonoBehaviour
         }
 
         return generatedText;
+    }
+
+    /// <summary>
+    /// A TextMesh renders through a MeshRenderer, which sits on the Default sorting
+    /// layer at order 0 unless it is told otherwise, so scene sprites cover it.
+    /// </summary>
+    private void ApplyTextSortingLayer()
+    {
+        if (currentText == null || string.IsNullOrEmpty(textSortingLayer))
+        {
+            return;
+        }
+
+        MeshRenderer textRenderer = currentText.GetComponent<MeshRenderer>();
+        if (textRenderer == null)
+        {
+            return;
+        }
+
+        textRenderer.sortingLayerName = textSortingLayer;
+        textRenderer.sortingOrder = textSortingOrder;
     }
 
     private void CreateTalkingHead(float headSizeOverride, Vector3 messageHeadOffset)

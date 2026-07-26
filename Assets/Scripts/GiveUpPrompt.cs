@@ -33,6 +33,10 @@ public class GiveUpPrompt : MonoBehaviour
     private const float GraceSeconds = 2f;
     private const float FadeDuration = 0.25f;
 
+    /// <summary>What answering yes fields, all at once.</summary>
+    private const int BossCount = 10;
+    private const int GruntCount = 50;
+
     private static readonly Color PanelColor = new Color(0.08f, 0.1f, 0.14f, 0.96f);
     private static readonly Color MessageColor = new Color(0.72f, 0.76f, 0.82f, 1f);
     private static readonly Color GiveUpColor = new Color(0.55f, 0.16f, 0.16f, 1f);
@@ -48,6 +52,7 @@ public class GiveUpPrompt : MonoBehaviour
     private float darkSince = -1f;
     private bool armed;
     private bool shown;
+    private bool surrendered;
 
     // Statics outlive a scene, so the spawn hook is re-subscribed on every load rather
     // than left from whichever scene happened to run first.
@@ -100,7 +105,7 @@ public class GiveUpPrompt : MonoBehaviour
         }
 
         // A dead player already has the game over screen on the way, so the offer is moot.
-        if (player == null || !player.IsAlive)
+        if (surrendered || player == null || !player.IsAlive)
         {
             shown = false;
             return;
@@ -205,12 +210,22 @@ public class GiveUpPrompt : MonoBehaviour
                 || stack.GetComponent<SawBladeTower>() != null);
     }
 
+    /// <summary>
+    /// Answering yes does not kill the player outright - it sends the run the ending it
+    /// asked for. The board cannot shoot back, so a swarm this size finishes the job on
+    /// its own, and a player who somehow lives through it has earned the round.
+    /// </summary>
     private void OnGiveUpClicked()
     {
         shown = false;
-        if (player != null)
+        // Asked once. The board is still dark afterwards, so without this the prompt
+        // would fade straight back in on top of the swarm it just called down.
+        surrendered = true;
+
+        WaveSpawner spawner = FindFirstObjectByType<WaveSpawner>();
+        if (spawner != null)
         {
-            player.Surrender();
+            spawner.SpawnLastStand(BossCount, GruntCount);
         }
     }
 

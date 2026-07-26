@@ -13,7 +13,9 @@ using UnityEngine.UI;
 /// </summary>
 public static class MainMenuFontSetup
 {
-    private const string FontPath = "Assets/Sprites/HennyPenny-Regular.ttf";
+    // Under Resources because the panels that build their own UI at runtime - the pause popup
+    // and the tower shop - can only reach it by loading it. See MenuFont.
+    private const string FontPath = "Assets/Resources/Fonts/HennyPenny-Regular.ttf";
     private const string SceneName = "MainMenu";
 
     [MenuItem("Tools/Blocks Below/Apply Menu Font")]

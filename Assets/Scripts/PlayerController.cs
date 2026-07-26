@@ -825,17 +825,6 @@ public class PlayerController : Entity
     public bool IsAlive => alive;
 
     /// <summary>
-    /// Ends the run at the player's own request, for <see cref="GiveUpPrompt"/>. It
-    /// goes straight to <see cref="Die"/> rather than through
-    /// <see cref="DamagePlayer"/>, so invincibility frames cannot swallow a
-    /// deliberate exit the way they swallow a hit.
-    /// </summary>
-    public void Surrender()
-    {
-        Die();
-    }
-
-    /// <summary>
     /// Stops the player where they are and queues the game over screen. Movement,
     /// input, and knockback are all dropped; Unity's own gravity still settles the
     /// body onto the ground if the killing blow landed mid-air.

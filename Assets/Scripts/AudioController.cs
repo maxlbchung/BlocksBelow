@@ -312,38 +312,26 @@ public class AudioController : MonoBehaviour
         VolumesChanged?.Invoke();
     }
 
-    // Read back off the mixer rather than off the cached field, so a slider always shows the
-    // level the game is actually mixing at - including when the mixer refused the write
-    // because the parameter is not exposed, which used to leave the slider claiming a volume
-    // nothing was playing at.
+    // The saved level is what these report, not what the mixer reads back. Reading the mixer
+    // looked like the more honest answer, but an AudioMixer is an output, not a store: the
+    // editor bakes runtime SetFloat calls into the asset's snapshot, and a parameter that was
+    // never written is simply absent and answers 0 dB. Either way GetFloat can hand back a
+    // level nobody chose, and because the sliders redraw from these, the popup would overwrite
+    // the player's choice with that stale snapshot the instant they made it.
+    //
+    // SetFloat is checked and warned about below, so this is the level the mixer is running at
+    // whenever the write is landing at all.
     public static float SfxVolume => instance != null
-        ? instance.ReadMixerVolume(SfxVolumeParameter, instance.sfxVolume)
+        ? Mathf.Clamp01(instance.sfxVolume)
         : PlayerPrefs.GetFloat(SfxVolumePreference, 1f);
 
     public static float MusicVolume => instance != null
-        ? instance.ReadMixerVolume(MusicVolumeParameter, instance.musicVolume)
+        ? Mathf.Clamp01(instance.musicVolume)
         : PlayerPrefs.GetFloat(MusicVolumePreference, 1f);
-
-    private float ReadMixerVolume(string parameterName, float fallback)
-    {
-        if (audioMixer != null && audioMixer.GetFloat(parameterName, out float decibels))
-        {
-            return DecibelsToNormalized(decibels);
-        }
-
-        return Mathf.Clamp01(fallback);
-    }
 
     private static float NormalizedToDecibels(float normalized)
     {
         return normalized <= 0f ? MinimumDecibels : Mathf.Log10(normalized) * 20f;
-    }
-
-    private static float DecibelsToNormalized(float decibels)
-    {
-        return decibels <= MinimumDecibels
-            ? 0f
-            : Mathf.Clamp01(Mathf.Pow(10f, decibels / 20f));
     }
 
     private AudioClip FindClip(string clipName)

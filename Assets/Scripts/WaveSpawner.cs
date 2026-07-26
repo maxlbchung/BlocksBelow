@@ -67,6 +67,9 @@ public class WaveSpawner : MonoBehaviour
     private float spawnArcDegrees = 180f;
     [SerializeField] private GameObject bird;
     [SerializeField] private GameObject breaker;
+    [SerializeField, Tooltip("Fielded in bulk when the player gives up. Left empty, the heaviest "
+        + "enemy the waves already use stands in.")]
+    private GameObject lastStandBoss;
 
     [Header("Pooling")]
     [SerializeField, Min(0), Tooltip("Minimum inactive instances prepared for each configured enemy type. "
@@ -365,6 +368,108 @@ public class WaveSpawner : MonoBehaviour
         StartNextWave();
     }
 
+    /// <summary>
+    /// Fields one last hopeless fight all at once, for <see cref="GiveUpPrompt"/>: the
+    /// player asked to be finished off rather than walk a board that cannot shoot back.
+    /// <para>
+    /// The swarm joins <c>livingEnemies</c> like any wave, so the round ends normally in
+    /// the unlikely event the player survives it.
+    /// </para>
+    /// </summary>
+    public void SpawnLastStand(int bossCount, int gruntCount)
+    {
+        GameObject boss = lastStandBoss != null
+            ? lastStandBoss
+            : FindWavePrefab<BigEnemy>() ?? FindWavePrefab<HeavyEnemy>();
+        GameObject grunt = FindWavePrefab<BasicEnemy>();
+
+        // Far more of each type than any wave fields, so the pools are grown up front
+        // rather than instantiating mid-burst - that would be one hitch per enemy.
+        PrepareLastStandPool(boss, bossCount);
+        PrepareLastStandPool(grunt, gruntCount);
+
+        // Towers only fire during a wave, and the shop has no business being open while
+        // this lands. StartNextWave is deliberately not used: no new round is beginning.
+        gameState = GameState.Wave;
+        SetBuildingToolsEnabled(false);
+
+        // The bosses come in behind the grunts, so the wall arrives before the weight.
+        SpawnBurst(grunt, gruntCount, spawnRadius);
+        SpawnBurst(boss, bossCount, spawnRadius * 1.4f);
+
+        // Nothing further is coming, so the round is free to end once this is cleared.
+        finishedSpawning = true;
+    }
+
+    /// <summary>
+    /// Spreads <paramref name="count"/> enemies evenly across the spawn arc. Even rather
+    /// than random, because fifty random angles clump, and a clump arrives as one shove
+    /// instead of a wall.
+    /// </summary>
+    private void SpawnBurst(GameObject enemyPrefab, int count, float radius)
+    {
+        if (enemyPrefab == null || count <= 0)
+        {
+            return;
+        }
+
+        float halfArc = spawnArcDegrees * 0.5f * Mathf.Deg2Rad;
+        for (int i = 0; i < count; i++)
+        {
+            float alongArc = count > 1 ? i / (float)(count - 1) : 0.5f;
+            // Staggered over three rings so neighbours are not shoulder to shoulder,
+            // shoving each other off the arc the moment they arrive.
+            float ringOffset = (i % 3) * 1.25f;
+            SpawnEnemyAt(enemyPrefab, Mathf.Lerp(-halfArc, halfArc, alongArc), radius + ringOffset);
+        }
+    }
+
+    private void PrepareLastStandPool(GameObject enemyPrefab, int count)
+    {
+        if (enemyPrefab == null || count <= 0)
+        {
+            return;
+        }
+
+        int size = Mathf.Max(maxPoolSizePerType, count);
+        CombatObjectPool.Configure(enemyPrefab, count, size, false);
+
+        if (enemyPrefab.TryGetComponent(out Enemy enemy))
+        {
+            enemy.PreparePools(count, size, false);
+        }
+    }
+
+    /// <summary>
+    /// The first prefab in the wave list carrying <typeparamref name="T"/>, or null when
+    /// no wave fields one. Reuses what the rounds already reference rather than asking the
+    /// scene to wire the same prefab up a second time.
+    /// </summary>
+    private GameObject FindWavePrefab<T>() where T : Component
+    {
+        for (int waveIndex = 0; waveIndex < waves.Count; waveIndex++)
+        {
+            Wave wave = waves[waveIndex];
+            if (wave == null)
+            {
+                continue;
+            }
+
+            for (int enemyIndex = 0; enemyIndex < wave.enemies.Count; enemyIndex++)
+            {
+                EnemySpawnData spawnData = wave.enemies[enemyIndex];
+                if (spawnData != null
+                    && spawnData.enemyPrefab != null
+                    && spawnData.enemyPrefab.GetComponent<T>() != null)
+                {
+                    return spawnData.enemyPrefab;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private void PreparePools()
     {
         using (PoolPreparationMarker.Auto())
@@ -487,6 +592,17 @@ public class WaveSpawner : MonoBehaviour
 
     private void SpawnEnemy(GameObject enemyPrefab)
     {
+        float halfArc = spawnArcDegrees * 0.5f * Mathf.Deg2Rad;
+        SpawnEnemyAt(enemyPrefab, UnityEngine.Random.Range(-halfArc, halfArc), spawnRadius);
+    }
+
+    /// <summary>
+    /// Places one enemy on the spawn arc at <paramref name="angleRadians"/> from straight
+    /// up, <paramref name="radius"/> out from the player. Waves pick the angle at random;
+    /// <see cref="SpawnLastStand"/> spaces its own out instead.
+    /// </summary>
+    private void SpawnEnemyAt(GameObject enemyPrefab, float angleRadians, float radius)
+    {
         if (enemyPrefab == null)
         {
             return;
@@ -500,9 +616,7 @@ public class WaveSpawner : MonoBehaviour
             }
 
             Vector3 center = player != null ? player.position : transform.position;
-            float halfArc = spawnArcDegrees * 0.5f * Mathf.Deg2Rad;
-            float angle = UnityEngine.Random.Range(-halfArc, halfArc);
-            Vector3 spawnPosition = center + (Vector3)(DirectionOnArc(angle) * spawnRadius);
+            Vector3 spawnPosition = center + (Vector3)(DirectionOnArc(angleRadians) * radius);
             if (!CombatObjectPool.TryAcquire(
                     enemyPrefab,
                     spawnPosition,

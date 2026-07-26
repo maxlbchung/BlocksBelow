@@ -16,13 +16,16 @@ using UnityEngine.UI;
 /// </summary>
 public class SettingsMenu : MonoBehaviour
 {
-    private static readonly Color OutlineColor = new Color(0.78f, 0.88f, 1f, 0.85f);
-    private static readonly Color LabelColor = new Color(0.9f, 0.94f, 1f, 1f);
-    private static readonly Color HighlightColor = new Color(0.45f, 0.95f, 0.6f, 1f);
-    private static readonly Color DimLabelColor = new Color(0.72f, 0.76f, 0.82f, 1f);
+    // Taken from the main menu, so the popup reads as the same screen rather than as a second
+    // menu that happens to sit on top of the game: white type, the green its sliders fill
+    // with, and the slate its tracks are drawn in.
+    private static readonly Color LabelColor = Color.white;
+    private static readonly Color HighlightColor = new Color(0.32549f, 0.494118f, 0.423529f, 1f);
+    private static readonly Color TrackColor = new Color(0.333333f, 0.372549f, 0.423529f, 1f);
+    private static readonly Color OutlineColor = new Color(1f, 1f, 1f, 0.85f);
+    private static readonly Color DimLabelColor = new Color(1f, 1f, 1f, 0.6f);
     private static readonly Color BackdropColor = new Color(0f, 0f, 0f, 0.65f);
     private static readonly Color PanelFillColor = new Color(0.03f, 0.05f, 0.08f, 0.85f);
-    private static readonly Color TrackColor = new Color(1f, 1f, 1f, 0.14f);
 
     private const float OutlineThickness = 3f;
     private const float ButtonSize = 68f;
@@ -340,7 +343,9 @@ public class SettingsMenu : MonoBehaviour
         panelRect.anchorMax = new Vector2(0.5f, 0.5f);
         panelRect.pivot = new Vector2(0.5f, 0.5f);
         panelRect.anchoredPosition = Vector2.zero;
-        panelRect.sizeDelta = new Vector2(680f, 520f);
+        // Taller than the rows strictly need: the menu font asks for noticeably more height
+        // per point than the built-in one this panel was first sized against.
+        panelRect.sizeDelta = new Vector2(680f, 560f);
 
         VerticalLayoutGroup layout = panel.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(36, 36, 30, 30);
@@ -354,12 +359,12 @@ public class SettingsMenu : MonoBehaviour
         title.text = "SETTINGS";
         title.color = LabelColor;
         title.fontStyle = FontStyle.Bold;
-        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 62f;
+        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 78f;
 
         Text subtitle = CreateText("Subtitle", panel.transform, 22, TextAnchor.MiddleCenter);
         subtitle.text = "Paused   |   Esc to close";
         subtitle.color = DimLabelColor;
-        subtitle.gameObject.AddComponent<LayoutElement>().preferredHeight = 30f;
+        subtitle.gameObject.AddComponent<LayoutElement>().preferredHeight = 38f;
 
         BuildFullscreenRow(panel.transform);
         musicSlider = BuildVolumeRow(
@@ -640,11 +645,16 @@ public class SettingsMenu : MonoBehaviour
     {
         GameObject textObject = CreateUIObject(objectName, parent);
         Text text = textObject.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = MenuFont.Regular;
         text.fontSize = fontSize;
         text.alignment = alignment;
         text.color = Color.white;
         text.raycastTarget = false;
+        // Truncate is the default and it drops a line whole rather than clipping it, so a
+        // label whose line is a pixel taller than the box the layout gives it renders as
+        // nothing at all. The menu font is far taller per point than the built-in one every
+        // box here was first measured against, so every label overflows instead.
+        text.verticalOverflow = VerticalWrapMode.Overflow;
         return text;
     }
 

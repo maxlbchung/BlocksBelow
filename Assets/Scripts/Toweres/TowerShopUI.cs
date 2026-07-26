@@ -949,7 +949,7 @@ public class TowerShopUI : MonoBehaviour
             "Title", box.transform, ScaledFontSize(22), TextAnchor.UpperLeft);
         title.fontStyle = FontStyle.Bold;
         title.color = highlightColor;
-        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 28f;
+        title.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
 
         body = CreateText(
             "Body", box.transform, ScaledFontSize(18), TextAnchor.UpperLeft);
@@ -965,7 +965,7 @@ public class TowerShopUI : MonoBehaviour
         hint = CreateText(
             "Hint", box.transform, ScaledFontSize(16), TextAnchor.LowerLeft);
         hint.color = DimmedLabelColor;
-        hint.gameObject.AddComponent<LayoutElement>().preferredHeight = 22f;
+        hint.gameObject.AddComponent<LayoutElement>().preferredHeight = 26f;
     }
 
     private GameObject BuildRoundPage(Transform parent)
@@ -994,7 +994,7 @@ public class TowerShopUI : MonoBehaviour
         blockLayout.childForceExpandHeight = false;
 
         GameObject subtitleRow = CreateUIObject("Round Subtitle Row", nextWaveBlock.transform);
-        subtitleRow.AddComponent<LayoutElement>().preferredHeight = 26f;
+        subtitleRow.AddComponent<LayoutElement>().preferredHeight = 30f;
         // Sits on the bottom of its row, so the label rests on the first enemy rather
         // than being centred in a band of empty space.
         roundSubtitleText = CreateText(
@@ -1613,10 +1613,15 @@ public class TowerShopUI : MonoBehaviour
     {
         GameObject textObject = CreateUIObject(objectName, parent);
         Text text = textObject.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = MenuFont.Regular;
         text.fontSize = fontSize;
         text.alignment = alignment;
         text.color = Color.white;
+        // Truncate, the default, drops a line whole instead of clipping it, so a label whose
+        // line runs a pixel past its box disappears outright. The menu font is taller per
+        // point than the built-in one these boxes were measured against. The tower blurb sets
+        // this back to Truncate on purpose - it shrinks itself to fit instead.
+        text.verticalOverflow = VerticalWrapMode.Overflow;
         return text;
     }
 
