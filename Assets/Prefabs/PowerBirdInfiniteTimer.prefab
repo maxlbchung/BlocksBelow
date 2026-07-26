@@ -204,9 +204,6 @@ MonoBehaviour:
   countdownDuration: 1000
   escapeSpeed: 14
   escapeDuration: 2
-  countdownOffset: {x: 0, y: 1.2}
-  countdownFontSize: 10
-  countdownText: {fileID: 0}
   damageIncreasesTimer: 1
   firstDamageThreshold: 1
   damageThresholdMultiplier: 2

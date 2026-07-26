@@ -131,13 +131,17 @@ MonoBehaviour:
   breakCountdown: 5
   explosionRadius: 3
   takesDamageInBreakingState: 0
-  countdownOffset: {x: 0, y: 1.2}
-  countdownFontSize: 50
-  countdownBackgroundSprite: {fileID: -4099157247953403365, guid: 9771f2098c1efbb4caf7c4557688b578, type: 3}
+  countdownOffset: {x: 0, y: 2}
+  countdownFontSize: 25
+  countdownTextScale: 0.1
+  countdownBackgroundSprite: {fileID: -8801819111103863087, guid: 9197994e2ac0ed248853b645272ffe57, type: 3}
+  countdownSpriteScale: 0.2
+  countdownSpriteRotationOffset: 270
   countdownScreenEdgeInset: 48
   countdownText: {fileID: 0}
   countdownBackground: {fileID: 0}
   startExplosionAnimationTime: 0.46777
+  spinSpeed: 360
   explosionFlashDuration: 0.3
   explosionShardCount: 28
   explosionSparkCount: 32
