@@ -50,6 +50,9 @@ public class WaveSpawner : MonoBehaviour
         Wave
     }
 
+    /// <summary>Loaded by name, because no wave references the big enemy for this to borrow.</summary>
+    private const string BigEnemyResourcePath = "BigEnemy";
+
     private static readonly ProfilerMarker SpawnMarker =
         new ProfilerMarker("EnemySpawning.Spawn");
     private static readonly ProfilerMarker PoolPreparationMarker =
@@ -67,8 +70,8 @@ public class WaveSpawner : MonoBehaviour
     private float spawnArcDegrees = 180f;
     [SerializeField] private GameObject bird;
     [SerializeField] private GameObject breaker;
-    [SerializeField, Tooltip("Fielded in bulk when the player gives up. Left empty, the heaviest "
-        + "enemy the waves already use stands in.")]
+    [SerializeField, Tooltip("Fielded in bulk when the player gives up. Left empty, the big "
+        + "enemy is loaded from Resources, so this only needs setting to field something else.")]
     private GameObject lastStandBoss;
 
     [Header("Pooling")]
@@ -378,10 +381,21 @@ public class WaveSpawner : MonoBehaviour
     /// </summary>
     public void SpawnLastStand(int bossCount, int gruntCount)
     {
+        // No wave fields a big enemy, so there is no prefab reference in the scene to
+        // borrow. It lives under Resources purely so this can reach it without the
+        // spawner having to be wired up by hand.
         GameObject boss = lastStandBoss != null
             ? lastStandBoss
-            : FindWavePrefab<BigEnemy>() ?? FindWavePrefab<HeavyEnemy>();
-        GameObject grunt = FindWavePrefab<BasicEnemy>();
+            : Resources.Load<GameObject>(BigEnemyResourcePath);
+        GameObject grunt = FindWavePrefab<BasicEnemy>(exactType: true);
+
+        if (boss == null)
+        {
+            Debug.LogWarning(
+                $"No big enemy to field: Resources/{BigEnemyResourcePath} is missing and no "
+                + "prefab is set on Last Stand Boss. Giving up will send the small enemies only.",
+                this);
+        }
 
         // Far more of each type than any wave fields, so the pools are grown up front
         // rather than instantiating mid-burst - that would be one hitch per enemy.
@@ -444,8 +458,13 @@ public class WaveSpawner : MonoBehaviour
     /// The first prefab in the wave list carrying <typeparamref name="T"/>, or null when
     /// no wave fields one. Reuses what the rounds already reference rather than asking the
     /// scene to wire the same prefab up a second time.
+    /// <para>
+    /// <paramref name="exactType"/> rejects subclasses. <see cref="BigEnemy"/> is a
+    /// <see cref="BasicEnemy"/>, so a wave that fields one would otherwise answer a
+    /// request for small enemies with the boss.
+    /// </para>
     /// </summary>
-    private GameObject FindWavePrefab<T>() where T : Component
+    private GameObject FindWavePrefab<T>(bool exactType = false) where T : Component
     {
         for (int waveIndex = 0; waveIndex < waves.Count; waveIndex++)
         {
@@ -458,9 +477,13 @@ public class WaveSpawner : MonoBehaviour
             for (int enemyIndex = 0; enemyIndex < wave.enemies.Count; enemyIndex++)
             {
                 EnemySpawnData spawnData = wave.enemies[enemyIndex];
-                if (spawnData != null
-                    && spawnData.enemyPrefab != null
-                    && spawnData.enemyPrefab.GetComponent<T>() != null)
+                if (spawnData == null || spawnData.enemyPrefab == null)
+                {
+                    continue;
+                }
+
+                T match = spawnData.enemyPrefab.GetComponent<T>();
+                if (match != null && (!exactType || match.GetType() == typeof(T)))
                 {
                     return spawnData.enemyPrefab;
                 }
