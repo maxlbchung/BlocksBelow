@@ -20,8 +20,15 @@ public class GameOverScreen : MonoBehaviour
     private static readonly Color TitleColor = new Color(0.9f, 0.28f, 0.26f, 1f);
     private static readonly Color StatLabelColor = new Color(0.72f, 0.76f, 0.82f, 1f);
     private static readonly Color StatValueColor = new Color(1f, 0.84f, 0.25f, 1f);
-    private static readonly Color PlayAgainColor = new Color(0.16f, 0.45f, 0.22f, 1f);
+    private static readonly Color RetryRoundColor = new Color(0.16f, 0.45f, 0.22f, 1f);
+    private static readonly Color PlayAgainColor = new Color(0.2f, 0.3f, 0.42f, 1f);
     private static readonly Color MainMenuColor = new Color(0.2f, 0.24f, 0.3f, 1f);
+
+    /// <summary>Panel height with the two buttons every game over shows.</summary>
+    private const float BasePanelHeight = 620f;
+
+    /// <summary>Added for the retry button, when the run has a round to go back to.</summary>
+    private const float ExtraButtonHeight = 82f;
 
     private static GameOverScreen instance;
 
@@ -56,6 +63,25 @@ public class GameOverScreen : MonoBehaviour
         {
             instance = null;
         }
+    }
+
+    /// <summary>
+    /// Replays the round that was just lost, from the health, energy and cages it began
+    /// with. Falls back to restarting the run if the round could not be put back, so the
+    /// button is never a dead end.
+    /// </summary>
+    public void RetryRound()
+    {
+        Time.timeScale = 1f;
+
+        if (!RoundSnapshot.Restore())
+        {
+            PlayAgain();
+            return;
+        }
+
+        // No scene load to take it down with, so the screen closes itself.
+        Destroy(gameObject);
     }
 
     public void PlayAgain()
@@ -114,6 +140,8 @@ public class GameOverScreen : MonoBehaviour
         backdropRect.offsetMin = Vector2.zero;
         backdropRect.offsetMax = Vector2.zero;
 
+        bool canRetryRound = RoundSnapshot.CanRetry;
+
         GameObject panel = CreateUIObject("Panel", canvasObject.transform);
         panel.AddComponent<Image>().color = PanelColor;
 
@@ -122,7 +150,9 @@ public class GameOverScreen : MonoBehaviour
         panelRect.anchorMax = new Vector2(0.5f, 0.5f);
         panelRect.pivot = new Vector2(0.5f, 0.5f);
         panelRect.anchoredPosition = Vector2.zero;
-        panelRect.sizeDelta = new Vector2(660f, 620f);
+        panelRect.sizeDelta = new Vector2(
+            660f,
+            canRetryRound ? BasePanelHeight + ExtraButtonHeight : BasePanelHeight);
 
         VerticalLayoutGroup layout = panel.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(40, 40, 36, 36);
@@ -150,6 +180,13 @@ public class GameOverScreen : MonoBehaviour
         CreateStatRow(panel.transform, "Towers Placed", RunStats.TowersPlaced.ToString());
 
         CreateSpacer(panel.transform, 18f);
+
+        // Listed first: retrying the round is the cheaper of the two ways back in, so it
+        // is the one offered before starting the whole run over.
+        if (canRetryRound)
+        {
+            CreateButton(panel.transform, "Retry Round", RetryRoundColor, RetryRound);
+        }
 
         CreateButton(panel.transform, "Play Again", PlayAgainColor, PlayAgain);
         CreateButton(panel.transform, "Main Menu", MainMenuColor, GoToMainMenu);

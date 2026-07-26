@@ -9,7 +9,10 @@ public sealed class CageBreakerEnemy : Enemy
         /// <summary>On the field with no cage worth attacking yet, holding position until one appears.</summary>
         Waiting,
         Sneaking,
-        Breaking
+        Breaking,
+
+        /// <summary>Knocked out by the player mid-countdown, tumbling off the bottom of the screen.</summary>
+        Falling
     }
 
     [Header("Sneaking")]
@@ -33,7 +36,14 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField] private TextMeshPro countdownText;
     [SerializeField] private SpriteRenderer countdownBackground;
     [SerializeField] private float startExplosionAnimationTime = 0.5f;
-    [SerializeField] private float spinSpeed = 360f;
+
+    [Header("Charge Up")]
+    [SerializeField, Min(0f), Tooltip("How far the breaker rattles off the spot it planted itself, "
+        + "at the moment it detonates. The shake builds up to this across the countdown. 0 turns it off.")]
+    private float chargeShakeDistance = 0.12f;
+    [SerializeField, Min(0f), Tooltip("How much the breaker has swollen by the moment it detonates, "
+        + "as a share of its normal size. 0 turns the growth off.")]
+    private float chargeGrowth = 0.4f;
 
     [Header("Explosion Effect")]
     [SerializeField, Min(0f), Tooltip("How long the white blast takes to swell to the explosion radius and fade. 0 turns it off.")]
@@ -57,6 +67,16 @@ public sealed class CageBreakerEnemy : Enemy
     private int defeatSparkCount = 14;
     [SerializeField, AudioClipDropdown, Tooltip("Played once when the player runs the breaker down.")]
     private AudioClip defeatSfx;
+    [SerializeField, Min(0f), Tooltip("Upward speed the knock-out flings the breaker with, before gravity takes it back down.")]
+    private float defeatFlingSpeed = 6f;
+    [SerializeField, Min(0f), Tooltip("Downward pull on the flung breaker, in units per second squared.")]
+    private float defeatFallGravity = 22f;
+    [SerializeField, Min(0f), Tooltip("How far below the bottom of the screen, in screen heights, the breaker "
+        + "falls before it is taken off the field.")]
+    private float defeatFallScreenMargin = 0.25f;
+    [SerializeField, Min(0.1f), Tooltip("Backstop on the length of the fall, for scenes with no camera to "
+        + "measure the screen against.")]
+    private float defeatFallTimeout = 8f;
 
     // Shard speed lives here rather than on the prefab: the burst is one system shared by
     // every breaker, and EmitParams can override a particle's size and lifetime but not
@@ -82,20 +102,40 @@ public sealed class CageBreakerEnemy : Enemy
     private float countdownRemaining;
     private Animator animator;
 
+    // The spot the breaker planted itself on. The charge-up shake is measured from here
+    // rather than from where it currently stands, so the jitter cannot walk it off the cage.
+    private Vector2 breakingAnchor;
+    private Vector3 chargeBaseScale = Vector3.one;
+    private float chargeScale = 1f;
+    private Vector2 fallVelocity;
+    private float fallElapsed;
+
+    // The prefab's own transform, restored on the way back into the pool so a breaker never
+    // respawns still swollen from a charge-up or belly-up from a fall.
+    private Vector3 baseScale;
+    private bool baseScaleCaptured;
+    private Vector3 countdownTextBaseScale = Vector3.one;
+    private Vector3 countdownBackgroundBaseScale = Vector3.one;
+
     public BreakerState State => state;
     public CageTower TargetCage => targetCage;
-    // Waiting looks the same as sneaking - faded out, no countdown - so it follows the
-    // sneaking damage rule rather than the breaking one.
-    public override bool CanTakeDamage =>
-        state == BreakerState.Breaking
-            ? takesDamageInBreakingState
-            : takesDamageInSneakingState;
+    public override bool CanTakeDamage => state switch
+    {
+        // Already knocked out and on its way off the screen; there is nothing left to shoot down.
+        BreakerState.Falling => false,
+        BreakerState.Breaking => takesDamageInBreakingState,
+        // Waiting looks the same as sneaking - faded out, no countdown - so it follows the
+        // sneaking damage rule rather than the breaking one.
+        _ => takesDamageInSneakingState
+    };
 
     /// <summary>
     /// A waiting breaker has nothing to do and may well be invincible, so the round is
     /// not held open for it. It still spawned, which is what the wave's count promises.
+    /// A falling one is already spent and only has its drop off the screen left to play.
     /// </summary>
-    public override bool BlocksWaveCompletion => state != BreakerState.Waiting;
+    public override bool BlocksWaveCompletion =>
+        state != BreakerState.Waiting && state != BreakerState.Falling;
 
     internal override bool UsesSeparation => false;
 
@@ -104,7 +144,24 @@ public sealed class CageBreakerEnemy : Enemy
         base.Awake();
         spriteRenderers = GetComponentsInChildren<SpriteRenderer>(true);
         animator = GetComponent<Animator>();
+        CaptureBaseScale();
         EnsureCountdownText();
+    }
+
+    /// <summary>
+    /// Records the prefab's scale the first time it is seen, for the same reason the base
+    /// class captures its health twice: the pool builds its items under an inactive root, so
+    /// the first acquire - and the reset it runs - lands before Awake does.
+    /// </summary>
+    private void CaptureBaseScale()
+    {
+        if (baseScaleCaptured)
+        {
+            return;
+        }
+
+        baseScale = transform.localScale;
+        baseScaleCaptured = true;
     }
 
     protected override void OnEnable()
@@ -133,13 +190,19 @@ public sealed class CageBreakerEnemy : Enemy
 
     private void Update()
     {
+        if (state == BreakerState.Falling)
+        {
+            UpdateDefeatFall();
+            return;
+        }
+
         if (state != BreakerState.Breaking)
         {
             return;
         }
 
         countdownRemaining -= Time.deltaTime;
-        transform.rotation = Quaternion.Euler(0, 0, transform.rotation.z + spinSpeed * Time.deltaTime);
+        UpdateChargeUp();
         UpdateCountdownText();
         if (countdownRemaining <= startExplosionAnimationTime)
             animator.SetBool("DoExplosionEffect", true);
@@ -147,6 +210,31 @@ public sealed class CageBreakerEnemy : Enemy
         {
             Explode();
         }
+    }
+
+    /// <summary>
+    /// The wind-up to the blast: the breaker swells and rattles harder the nearer the
+    /// countdown gets to zero. Both run on the transform, so the wing-flapping clip - and
+    /// the explosion clip that takes over for the last stretch - keep playing underneath.
+    /// </summary>
+    private void UpdateChargeUp()
+    {
+        // Planted, so nothing should be nudging it off its spot. Zeroed every frame rather
+        // than once on arrival: ground recovery underneath can still hand it a velocity, and
+        // a breaker with one gets turned to face its heading by the shared enemy step.
+        rb.linearVelocity = Vector2.zero;
+
+        float charge = breakCountdown > 0f
+            ? Mathf.Clamp01(1f - countdownRemaining / breakCountdown)
+            : 1f;
+
+        chargeScale = 1f + chargeGrowth * charge;
+        transform.localScale = chargeBaseScale * chargeScale;
+
+        // Re-rolled every frame rather than eased along a curve: the point is a rattle that
+        // cannot be followed, not a wobble.
+        transform.position =
+            breakingAnchor + Random.insideUnitCircle * (chargeShakeDistance * charge);
     }
 
     private void LateUpdate()
@@ -233,8 +321,10 @@ public sealed class CageBreakerEnemy : Enemy
 
     protected override void OnStrategicTick(Transform player, float elapsed)
     {
-        // A countdown already running is committed; it explodes wherever it stands.
+        // A countdown already running is committed; it explodes wherever it stands. A
+        // knocked-out breaker is done with cages altogether and just finishes its fall.
         if (state == BreakerState.Breaking
+            || state == BreakerState.Falling
             || (state == BreakerState.Sneaking && IsValidTarget(targetCage)))
         {
             return;
@@ -257,7 +347,27 @@ public sealed class CageBreakerEnemy : Enemy
         ReleaseTarget();
         state = BreakerState.Waiting;
         countdownRemaining = 0f;
+        fallVelocity = Vector2.zero;
+        fallElapsed = 0f;
         SetSpriteOpacity(1f);
+
+        // Everything the charge-up and the fall wrote straight onto the transform, put back:
+        // a breaker out of the pool starts its normal size, upright and on its body, not
+        // swollen, belly-up and a shake's width off it.
+        CaptureBaseScale();
+        chargeScale = 1f;
+        chargeBaseScale = baseScale;
+        transform.localScale = baseScale;
+        transform.rotation = Quaternion.identity;
+        if (rb != null)
+        {
+            transform.position = rb.position;
+        }
+
+        if (enemyCollider != null)
+        {
+            enemyCollider.enabled = true;
+        }
 
         if (countdownText != null)
         {
@@ -413,6 +523,13 @@ public sealed class CageBreakerEnemy : Enemy
         state = BreakerState.Breaking;
         countdownRemaining = Mathf.Max(0f, breakCountdown);
         rb.linearVelocity = Vector2.zero;
+
+        // Captured before the countdown display is placed, which is measured off the anchor
+        // so the number holds still while the breaker underneath it rattles. The scale is
+        // taken as it stands, mirrored side included, so the swell does not flip its facing.
+        breakingAnchor = Position;
+        chargeBaseScale = transform.localScale;
+        chargeScale = 1f;
         SetSpriteOpacity(1f);
         countdownText.gameObject.SetActive(true);
         if (countdownBackground != null)
@@ -429,9 +546,94 @@ public sealed class CageBreakerEnemy : Enemy
     {
         if (state == BreakerState.Breaking && IsPlayerCollider(other))
         {
-            PlayDefeatEffect();
+            EnterFallingState();
+        }
+    }
+
+    /// <summary>
+    /// The player running the breaker down. It is knocked out rather than blown up: the
+    /// countdown stops, it rolls belly-up, takes a small punt upwards and is handed to
+    /// gravity, which carries it off the bottom of the screen.
+    /// </summary>
+    private void EnterFallingState()
+    {
+        PlayDefeatEffect();
+
+        state = BreakerState.Falling;
+        countdownRemaining = 0f;
+        fallVelocity = new Vector2(0f, defeatFlingSpeed);
+        fallElapsed = 0f;
+
+        // Off physics for the drop: the shared enemy step would steer this velocity back to
+        // zero and hold the body above the terrain, and neither suits something on its way
+        // off the screen. A kinematic body with no velocity is also left alone by the step
+        // that turns enemies to face where they are going, so the roll-over sticks.
+        rb.linearVelocity = Vector2.zero;
+        rb.bodyType = RigidbodyType2D.Kinematic;
+        if (enemyCollider != null)
+        {
+            enemyCollider.enabled = false;
+        }
+
+        // Dropped back onto the anchor at its normal size, then mirrored on Y - the same
+        // flip the enemy uses to face left, which upright reads as belly-up.
+        transform.position = breakingAnchor;
+        transform.rotation = Quaternion.identity;
+        chargeScale = 1f;
+        Vector3 scale = chargeBaseScale;
+        scale.y = -Mathf.Abs(scale.y);
+        transform.localScale = scale;
+
+        // Back to the flapping loop. The explosion clip has no transition out of its own
+        // state, so a breaker caught in the last stretch of its countdown would otherwise
+        // fall as a frozen blast frame.
+        if (animator != null)
+        {
+            animator.SetBool("DoExplosionEffect", false);
+            animator.Play("Breaker", 0, 0f);
+        }
+
+        if (countdownText != null)
+        {
+            countdownText.gameObject.SetActive(false);
+        }
+
+        if (countdownBackground != null)
+        {
+            countdownBackground.gameObject.SetActive(false);
+        }
+    }
+
+    /// <summary>
+    /// Integrated here rather than left to the physics body, which the shared enemy step
+    /// would keep flying. Ends the moment the breaker is clear of the bottom of the screen.
+    /// </summary>
+    private void UpdateDefeatFall()
+    {
+        float deltaTime = Time.deltaTime;
+        fallElapsed += deltaTime;
+        fallVelocity.y -= defeatFallGravity * deltaTime;
+
+        Vector2 position = (Vector2)transform.position + fallVelocity * deltaTime;
+        transform.position = position;
+        rb.position = position;
+
+        if (fallElapsed >= defeatFallTimeout || HasFallenOffScreen(position))
+        {
             ReleaseOrDestroy();
         }
+    }
+
+    /// <summary>
+    /// Whether the fall has cleared the bottom of the screen by the margin, so the breaker
+    /// can be taken off the field out of sight. Always false with no camera to measure
+    /// against - the timeout is what ends the fall there.
+    /// </summary>
+    private bool HasFallenOffScreen(Vector2 position)
+    {
+        Camera worldCamera = Camera.main;
+        return worldCamera != null
+            && worldCamera.WorldToViewportPoint(position).y < -defeatFallScreenMargin;
     }
 
     private void Explode()
@@ -736,8 +938,24 @@ public sealed class CageBreakerEnemy : Enemy
         countdownText.textWrappingMode = TextWrappingModes.NoWrap;
         countdownText.sortingOrder = 100;
         countdownText.gameObject.SetActive(false);
+        countdownTextBaseScale = countdownText.transform.localScale;
 
         EnsureCountdownBackground();
+    }
+
+    /// <summary>
+    /// Divides the charge-up's growth back out of the countdown. Both parts of it hang off
+    /// the breaker, so swelling the breaker swells them too, which a readout pinned to the
+    /// edge of the screen has no business doing.
+    /// </summary>
+    private void ApplyCountdownScale()
+    {
+        float inverse = chargeScale > 0.0001f ? 1f / chargeScale : 1f;
+        countdownText.transform.localScale = countdownTextBaseScale * inverse;
+        if (countdownBackground != null)
+        {
+            countdownBackground.transform.localScale = countdownBackgroundBaseScale * inverse;
+        }
     }
 
     private void EnsureCountdownBackground()
@@ -762,6 +980,7 @@ public sealed class CageBreakerEnemy : Enemy
         countdownBackground.sortingLayerID = countdownText.sortingLayerID;
         countdownBackground.sortingOrder = countdownText.sortingOrder - 1;
         countdownBackground.gameObject.SetActive(false);
+        countdownBackgroundBaseScale = countdownBackground.transform.localScale;
     }
 
     private void UpdateCountdownText()
@@ -780,14 +999,20 @@ public sealed class CageBreakerEnemy : Enemy
             return;
         }
 
-        Vector3 normalWorldPosition = transform.position + (Vector3)countdownOffset;
+        // Measured off the anchor rather than the transform, and scaled back out of the
+        // charge-up's swell: the countdown is a readout, so it holds still and holds its
+        // size while the breaker under it rattles and grows.
+        ApplyCountdownScale();
+
+        Vector3 anchorPosition = breakingAnchor;
+        Vector3 normalWorldPosition = anchorPosition + (Vector3)countdownOffset;
         Vector3 displayWorldPosition = normalWorldPosition;
         Camera worldCamera = Camera.main;
 
         if (worldCamera != null)
         {
             Vector3 breakerViewportPosition =
-                worldCamera.WorldToViewportPoint(transform.position);
+                worldCamera.WorldToViewportPoint(anchorPosition);
             bool breakerIsOnScreen =
                 breakerViewportPosition.z > 0f
                 && breakerViewportPosition.x >= 0f
@@ -798,7 +1023,7 @@ public sealed class CageBreakerEnemy : Enemy
             if (!breakerIsOnScreen)
             {
                 Vector3 breakerScreenPosition =
-                    worldCamera.WorldToScreenPoint(transform.position);
+                    worldCamera.WorldToScreenPoint(anchorPosition);
                 Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
                 Vector2 direction =
                     (Vector2)breakerScreenPosition - screenCenter;

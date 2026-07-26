@@ -50,6 +50,16 @@ public static class RunStats
         EnemiesDefeated++;
     }
 
+    /// <summary>
+    /// Puts the kill count back to what it was, for a retry that replays a round from
+    /// its opening state. Round and the once-per-run flags are deliberately left where
+    /// they are: the round was still reached, and its flourish was still spent.
+    /// </summary>
+    public static void RestoreEnemiesDefeated(int count)
+    {
+        EnemiesDefeated = count > 0 ? count : 0;
+    }
+
     public static void RecordTowerPlaced()
     {
         TowersPlaced++;

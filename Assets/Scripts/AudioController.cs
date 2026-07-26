@@ -17,6 +17,10 @@ public class AudioController : MonoBehaviour
     private const string SfxVolumePreference = "Audio.SFXVolume";
     private const string MusicVolumePreference = "Audio.MusicVolume";
 
+    // The mixer's own floor. Anything at or below this reads back as silence rather than as
+    // the very small fraction the decibel curve would otherwise turn it into.
+    private const float MinimumDecibels = -80f;
+
     [Serializable]
     public class AudioEntry
     {
@@ -45,6 +49,13 @@ public class AudioController : MonoBehaviour
     private int sfxVoiceCount = 24;
 
     private static AudioController instance;
+
+    /// <summary>
+    /// Raised whenever a volume is written to the mixer, so every settings page showing that
+    /// volume redraws from the mixer instead of holding whatever it was built with.
+    /// </summary>
+    public static event Action VolumesChanged;
+
     private AudioSource musicSource;
     private AudioMixerGroup sfxMixerGroup;
     private AudioMixerGroup musicMixerGroup;
@@ -77,6 +88,7 @@ public class AudioController : MonoBehaviour
         musicVolume = PlayerPrefs.GetFloat(MusicVolumePreference, musicVolume);
         ApplyMixerVolume(SfxVolumeParameter, sfxVolume);
         ApplyMixerVolume(MusicVolumeParameter, musicVolume);
+        VolumesChanged?.Invoke();
 
         BuildEntryLookups();
 
@@ -267,39 +279,72 @@ public class AudioController : MonoBehaviour
         }
     }
 
+    // Both setters record the choice before looking for a controller: a settings page in a
+    // scene with no AudioManager used to drop the change on the floor, so the slider sprang
+    // back to its old value the next time it was opened.
     public static void SetSfxVolume(float volume)
     {
-        if (instance == null)
+        float clamped = Mathf.Clamp01(volume);
+        PlayerPrefs.SetFloat(SfxVolumePreference, clamped);
+        PlayerPrefs.Save();
+
+        if (instance != null)
         {
-            return;
+            instance.sfxVolume = clamped;
+            instance.ApplyMixerVolume(SfxVolumeParameter, clamped);
         }
 
-        instance.sfxVolume = Mathf.Clamp01(volume);
-        instance.ApplyMixerVolume(SfxVolumeParameter, instance.sfxVolume);
-        PlayerPrefs.SetFloat(SfxVolumePreference, instance.sfxVolume);
-        PlayerPrefs.Save();
+        VolumesChanged?.Invoke();
     }
 
     public static void SetMusicVolume(float volume)
     {
-        if (instance == null)
+        float clamped = Mathf.Clamp01(volume);
+        PlayerPrefs.SetFloat(MusicVolumePreference, clamped);
+        PlayerPrefs.Save();
+
+        if (instance != null)
         {
-            return;
+            instance.musicVolume = clamped;
+            instance.ApplyMixerVolume(MusicVolumeParameter, clamped);
         }
 
-        instance.musicVolume = Mathf.Clamp01(volume);
-        instance.ApplyMixerVolume(MusicVolumeParameter, instance.musicVolume);
-        PlayerPrefs.SetFloat(MusicVolumePreference, instance.musicVolume);
-        PlayerPrefs.Save();
+        VolumesChanged?.Invoke();
     }
 
+    // Read back off the mixer rather than off the cached field, so a slider always shows the
+    // level the game is actually mixing at - including when the mixer refused the write
+    // because the parameter is not exposed, which used to leave the slider claiming a volume
+    // nothing was playing at.
     public static float SfxVolume => instance != null
-        ? instance.sfxVolume
+        ? instance.ReadMixerVolume(SfxVolumeParameter, instance.sfxVolume)
         : PlayerPrefs.GetFloat(SfxVolumePreference, 1f);
 
     public static float MusicVolume => instance != null
-        ? instance.musicVolume
+        ? instance.ReadMixerVolume(MusicVolumeParameter, instance.musicVolume)
         : PlayerPrefs.GetFloat(MusicVolumePreference, 1f);
+
+    private float ReadMixerVolume(string parameterName, float fallback)
+    {
+        if (audioMixer != null && audioMixer.GetFloat(parameterName, out float decibels))
+        {
+            return DecibelsToNormalized(decibels);
+        }
+
+        return Mathf.Clamp01(fallback);
+    }
+
+    private static float NormalizedToDecibels(float normalized)
+    {
+        return normalized <= 0f ? MinimumDecibels : Mathf.Log10(normalized) * 20f;
+    }
+
+    private static float DecibelsToNormalized(float decibels)
+    {
+        return decibels <= MinimumDecibels
+            ? 0f
+            : Mathf.Clamp01(Mathf.Pow(10f, decibels / 20f));
+    }
 
     private AudioClip FindClip(string clipName)
     {
@@ -325,11 +370,7 @@ public class AudioController : MonoBehaviour
             return;
         }
 
-        float decibels = normalizedVolume <= 0f
-            ? -80f
-            : Mathf.Log10(normalizedVolume) * 20f;
-
-        if (!audioMixer.SetFloat(parameterName, decibels))
+        if (!audioMixer.SetFloat(parameterName, NormalizedToDecibels(normalizedVolume)))
         {
             Debug.LogWarning(
                 $"Audio Mixer parameter '{parameterName}' is not exposed or does not exist.",

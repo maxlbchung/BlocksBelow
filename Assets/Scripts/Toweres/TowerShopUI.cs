@@ -99,6 +99,7 @@ public class TowerShopUI : MonoBehaviour
     private Text descriptionHint;
     private int describedIndex = int.MinValue;
     private bool describedRepairMode;
+    private int hoveredIndex = -1;
     private RectTransform canvasRect;
     private RectTransform shopRootRect;
     private Vector2 lastCanvasSize;
@@ -1063,6 +1064,10 @@ public class TowerShopUI : MonoBehaviour
         buildPage?.SetActive(!roundTab);
         roundPage?.SetActive(roundTab);
 
+        // The hidden page's rows report no pointer exit, so a tab switch clears the
+        // hover itself rather than leaving the last row described.
+        hoveredIndex = -1;
+
         if (roundTab)
         {
             RefreshRoundPage();
@@ -1329,10 +1334,26 @@ public class TowerShopUI : MonoBehaviour
 
         potionLabel = CreateText(
             "Label", button.transform, ScaledFontSize(24), TextAnchor.MiddleCenter);
-        potionLabel.text = "Health Potion (+" + potionHealAmount + ")  " + potionPrice;
+        potionLabel.text = PotionLabelText();
         potionLabel.color = labelColor;
         StretchLabel(potionLabel, 8f);
         return button;
+    }
+
+    /// <summary>
+    /// The potion heals a flat amount, but reads as the share of the bar it fills so the
+    /// offer stays meaningful without the player knowing their exact max health.
+    /// </summary>
+    private string PotionLabelText()
+    {
+        if (player == null || player.maxHealth <= 0)
+        {
+            return "Health Potion (+" + potionHealAmount + ")  " + potionPrice;
+        }
+
+        int percent = Mathf.Clamp(
+            Mathf.RoundToInt(100f * potionHealAmount / player.maxHealth), 1, 100);
+        return "Health Potion (+" + percent + "%)  " + potionPrice;
     }
 
     private Button CreateStartRoundButton(Transform parent)
@@ -1375,6 +1396,13 @@ public class TowerShopUI : MonoBehaviour
         labelLayout.flexibleWidth = 1f;
         labelLayout.preferredHeight = 52f;
 
+        // The description box reads the row under the cursor rather than the selected
+        // one, so a piece can be read up on before any of it is paid for. The label and
+        // icon still mark what is selected; this only moves what the box is describing.
+        EventTrigger hover = buttonObject.AddComponent<EventTrigger>();
+        AddPointerTrigger(hover, EventTriggerType.PointerEnter, () => SetHoveredTower(index));
+        AddPointerTrigger(hover, EventTriggerType.PointerExit, () => ClearHoveredTower(index));
+
         // Recorded so the selected offer can be lit up without a button background.
         towerLabels.Add(label);
         towerIcons.Add(icon);
@@ -1398,6 +1426,13 @@ public class TowerShopUI : MonoBehaviour
             towerButtons[i].gameObject.SetActive(released);
             if (!released)
             {
+                // A row that leaves the list never reports the pointer leaving it, so
+                // the description it was filling is dropped here instead.
+                if (hoveredIndex == i)
+                {
+                    hoveredIndex = -1;
+                }
+
                 continue;
             }
 
@@ -1421,6 +1456,7 @@ public class TowerShopUI : MonoBehaviour
             bool affordable = CanAfford(potionPrice);
             potionButton.interactable = healingWouldHelp && affordable;
             potionLabel.color = affordable ? labelColor : DimmedLabelColor;
+            potionLabel.text = PotionLabelText();
         }
 
         if (repairButton != null)
@@ -1454,38 +1490,68 @@ public class TowerShopUI : MonoBehaviour
         }
     }
 
+    /// <summary>Points the description box at the row the cursor has moved onto.</summary>
+    private void SetHoveredTower(int index)
+    {
+        if (hoveredIndex == index)
+        {
+            return;
+        }
+
+        hoveredIndex = index;
+        RefreshDescription();
+    }
+
     /// <summary>
-    /// Rewrites the description box for whatever is selected. Prices and text never
-    /// change on their own, so the work is skipped unless the selection has moved -
-    /// this runs from every energy tick.
+    /// Empties the box as the cursor leaves a row. Moving straight from one row to the
+    /// next can report the new row's enter before the old row's exit, so only the row
+    /// currently being described is allowed to clear it.
+    /// </summary>
+    private void ClearHoveredTower(int index)
+    {
+        if (hoveredIndex != index)
+        {
+            return;
+        }
+
+        hoveredIndex = -1;
+        RefreshDescription();
+    }
+
+    /// <summary>
+    /// Rewrites the description box for the piece under the cursor. Prices and text never
+    /// change on their own, so the work is skipped unless the hover has moved - this runs
+    /// from every energy tick.
     /// </summary>
     private void RefreshDescription()
     {
         if (descriptionTitle == null
-            || (selectedIndex == describedIndex && repairMode == describedRepairMode))
+            || (hoveredIndex == describedIndex && repairMode == describedRepairMode))
         {
             return;
         }
 
-        describedIndex = selectedIndex;
+        describedIndex = hoveredIndex;
         describedRepairMode = repairMode;
 
-        if (repairMode)
-        {
-            descriptionTitle.text = "Repair Cage";
-            descriptionBody.text = "Click a broken cage to fix it. A repaired cage can hold "
-                + "an enemy again and powers the towers stacked above it.";
-            descriptionHint.text = cageRepairPrice + " energy per cage";
-            return;
-        }
-
-        TowerOffer offer = selectedIndex >= 0 && selectedIndex < towers.Count
-            ? towers[selectedIndex]
+        TowerOffer offer = hoveredIndex >= 0 && hoveredIndex < towers.Count
+            ? towers[hoveredIndex]
             : null;
         if (offer == null)
         {
-            descriptionTitle.text = "Nothing selected";
-            descriptionBody.text = "Pick a piece above to see what it does.";
+            // Armed repair still explains itself with the cursor off the list, since
+            // that is the mode the next click is going to act in.
+            if (repairMode)
+            {
+                descriptionTitle.text = "Repair Cage";
+                descriptionBody.text = "Click a broken cage to fix it. A repaired cage can hold "
+                    + "an enemy again and powers the towers stacked above it.";
+                descriptionHint.text = cageRepairPrice + " energy per cage";
+                return;
+            }
+
+            descriptionTitle.text = "Pieces";
+            descriptionBody.text = "Hover a piece above to read what it does.";
             descriptionHint.text = string.Empty;
             return;
         }

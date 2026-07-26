@@ -20,9 +20,23 @@ public class MainMenuNavigation : MonoBehaviour
     {
         if (fullscreenToggle != null)
         {
-            fullscreenToggle.SetIsOnWithoutNotify(Screen.fullScreen);
+            fullscreenToggle.SetIsOnWithoutNotify(SettingsMenu.FullscreenEnabled);
         }
 
+        RefreshVolumeSliders();
+        AudioController.VolumesChanged += RefreshVolumeSliders;
+
+        ShowMainMenu();
+    }
+
+    private void OnDestroy()
+    {
+        AudioController.VolumesChanged -= RefreshVolumeSliders;
+    }
+
+    /// <summary>Puts both sliders back on the levels the mixer is actually running at.</summary>
+    private void RefreshVolumeSliders()
+    {
         if (sfxVolumeSlider != null)
         {
             sfxVolumeSlider.SetValueWithoutNotify(AudioController.SfxVolume);
@@ -32,8 +46,6 @@ public class MainMenuNavigation : MonoBehaviour
         {
             musicVolumeSlider.SetValueWithoutNotify(AudioController.MusicVolume);
         }
-
-        ShowMainMenu();
     }
 
     public void ShowMainMenu()
@@ -68,7 +80,9 @@ public class MainMenuNavigation : MonoBehaviour
 
     public void SetFullscreen(bool fullscreen)
     {
-        Screen.fullScreen = fullscreen;
+        // Saved rather than only applied, so the in-game settings popup shows and restores
+        // the same choice instead of overwriting it when the game scene loads.
+        SettingsMenu.ApplyFullscreen(fullscreen);
     }
 
     private void ShowPage(GameObject pageToShow)

@@ -98,6 +98,7 @@ public class PlayerController : Entity
     private const float PlatformOverlapEpsilon = 0.02f;
 
     private bool alive = true;
+    private RigidbodyConstraints2D constraintsBeforeDeath;
     public int maxHealth;
     private Transform healthBarRoot;
     private Transform healthBarFill;
@@ -820,6 +821,20 @@ public class PlayerController : Entity
 
     }
 
+    /// <summary>False once the killing blow has landed, i.e. the run is over.</summary>
+    public bool IsAlive => alive;
+
+    /// <summary>
+    /// Ends the run at the player's own request, for <see cref="GiveUpPrompt"/>. It
+    /// goes straight to <see cref="Die"/> rather than through
+    /// <see cref="DamagePlayer"/>, so invincibility frames cannot swallow a
+    /// deliberate exit the way they swallow a hit.
+    /// </summary>
+    public void Surrender()
+    {
+        Die();
+    }
+
     /// <summary>
     /// Stops the player where they are and queues the game over screen. Movement,
     /// input, and knockback are all dropped; Unity's own gravity still settles the
@@ -847,7 +862,10 @@ public class PlayerController : Entity
             rb.linearVelocity = Vector2.zero;
             rb.angularVelocity = 0f;
             // Enemies still crowd the body, so lock sideways motion. Vertical stays
-            // free, letting a player killed mid-air drop onto the ground.
+            // free, letting a player killed mid-air drop onto the ground. Recorded
+            // first, so a revive puts back what the body actually had rather than
+            // assuming this one flag was the only thing set.
+            constraintsBeforeDeath = rb.constraints;
             rb.constraints |= RigidbodyConstraints2D.FreezePositionX;
         }
 
@@ -892,6 +910,50 @@ public class PlayerController : Entity
         health = Mathf.Min(maxHealth, health + amount);
         UpdateHealthBar();
         return true;
+    }
+
+    /// <summary>
+    /// Undoes <see cref="Die"/>, standing the player back up at
+    /// <paramref name="position"/> on <paramref name="restoredHealth"/>. Everything the
+    /// death left behind is handed back: the sideways lock, the hidden sprite, and the
+    /// movement state a fresh round has no business inheriting.
+    /// </summary>
+    public void Revive(float restoredHealth, Vector3 position)
+    {
+        alive = true;
+        health = Mathf.Clamp(restoredHealth, 1f, maxHealth);
+
+        transform.position = position;
+        if (rb != null)
+        {
+            rb.constraints = constraintsBeforeDeath;
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+        }
+
+        // The fall, shove, and jump the player died in the middle of are all over.
+        currentHorizontalVelocity = 0f;
+        knockbackTimer = 0f;
+        pendingWindForce = Vector2.zero;
+        jumpBufferCounter = 0f;
+        jumpReleased = false;
+        jumpInProgress = false;
+        peakFallSpeed = 0f;
+        coyoteCounter = 0f;
+        airJumpsRemaining = maxAirJumps;
+        RestoreDroppingPlatforms();
+
+        // Closes the invincibility window left open by the killing blow, so the round
+        // does not start with free hits going spare.
+        ResetHitFeedback();
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = true;
+        }
+
+        UpdateHealthBar();
+        UpdateAnimation();
     }
 }
 

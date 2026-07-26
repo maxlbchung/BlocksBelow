@@ -4,11 +4,14 @@ Shader "TowerDefense/EnemyBolt"
     {
         _CoreColor ("Core Color", Color) = (1, 1, 0.88, 1)
         _BoltColor ("Bolt Color", Color) = (1, 0.92, 0.15, 1)
-        _Intensity ("Intensity", Range(0, 2)) = 1
+        // Both ranges run past 1 on purpose: the camera renders HDR and the global
+        // volume blooms anything over 0.9, so the bolt has to be driven overbright
+        // before it throws any glow at all.
+        _Intensity ("Intensity", Range(0, 8)) = 1
         _CoreRadius ("Core Radius", Range(0, 1)) = 0.16
         _ArcReach ("Arc Reach", Range(0, 1)) = 0.55
         _ArcCount ("Arc Count", Float) = 5
-        _GlowStrength ("Glow Strength", Range(0, 4)) = 1.1
+        _GlowStrength ("Glow Strength", Range(0, 8)) = 1.1
         _CrackleSpeed ("Crackle Speed", Float) = 16
     }
 

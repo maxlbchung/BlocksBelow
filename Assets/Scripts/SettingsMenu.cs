@@ -30,6 +30,8 @@ public class SettingsMenu : MonoBehaviour
     private const float HandleSize = 14f;
     private const float TrackHeight = 6f;
 
+    private const string FullscreenPreference = "Display.Fullscreen";
+
     private static SettingsMenu instance;
     private static Sprite gearSprite;
 
@@ -44,6 +46,21 @@ public class SettingsMenu : MonoBehaviour
     private bool paused;
 
     public bool IsOpen => popupRoot != null && popupRoot.activeSelf;
+
+    /// <summary>
+    /// What the player last picked, rather than what the screen currently is. Screen.fullScreen
+    /// reads back false in the editor whatever it is set to, so using it as the record of the
+    /// choice made the row snap back to Off every time the popup reopened.
+    /// </summary>
+    private static bool FullscreenPreferred
+    {
+        get => PlayerPrefs.GetInt(FullscreenPreference, Screen.fullScreen ? 1 : 0) != 0;
+        set
+        {
+            PlayerPrefs.SetInt(FullscreenPreference, value ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+    }
 
     // Statics outlive a scene, so the spawn hook is re-subscribed on every load rather
     // than left from whichever scene happened to run first.
@@ -74,12 +91,20 @@ public class SettingsMenu : MonoBehaviour
     {
         instance = this;
 
+        // The window is rebuilt from the saved choice on load, so the setting survives the
+        // run rather than lasting only as long as the popup is up.
+        ApplyFullscreen(FullscreenPreferred);
+
         EnsureEventSystem();
         BuildUI();
+
+        AudioController.VolumesChanged += RefreshVolumeControls;
     }
 
     private void OnDestroy()
     {
+        AudioController.VolumesChanged -= RefreshVolumeControls;
+
         // A scene that loads while the popup is up would otherwise start frozen.
         if (paused)
         {
@@ -128,8 +153,10 @@ public class SettingsMenu : MonoBehaviour
             return;
         }
 
-        RefreshControls();
+        // Activated first: a slider rebuilds its handle and fill from its own stored value
+        // when it is enabled, which would undo a refresh applied while it was still hidden.
         popupRoot.SetActive(true);
+        RefreshControls();
 
         timeScaleBeforePause = Time.timeScale;
         Time.timeScale = 0f;
@@ -155,26 +182,54 @@ public class SettingsMenu : MonoBehaviour
     /// <summary>Reads the live values back into the controls each time the popup opens.</summary>
     private void RefreshControls()
     {
-        SetFullscreenLabel(Screen.fullScreen);
+        SetFullscreenLabel(FullscreenPreferred);
+        RefreshVolumeControls();
+    }
 
+    /// <summary>
+    /// Pulls both volume rows back off the mixer. Runs on every mixer write as well as on
+    /// open, so a handle sits where the game is actually mixing rather than where it was
+    /// dropped - if the mixer clamps or refuses a level, the row shows that.
+    /// </summary>
+    private void RefreshVolumeControls()
+    {
+        float musicVolume = AudioController.MusicVolume;
         if (musicSlider != null)
         {
-            musicSlider.SetValueWithoutNotify(AudioController.MusicVolume);
-            musicValueLabel.text = FormatPercent(AudioController.MusicVolume);
+            musicSlider.SetValueWithoutNotify(musicVolume);
+            musicValueLabel.text = FormatPercent(musicVolume);
         }
 
+        float sfxVolume = AudioController.SfxVolume;
         if (sfxSlider != null)
         {
-            sfxSlider.SetValueWithoutNotify(AudioController.SfxVolume);
-            sfxValueLabel.text = FormatPercent(AudioController.SfxVolume);
+            sfxSlider.SetValueWithoutNotify(sfxVolume);
+            sfxValueLabel.text = FormatPercent(sfxVolume);
         }
     }
 
     private void ToggleFullscreen()
     {
-        bool fullscreen = !Screen.fullScreen;
-        Screen.fullScreen = fullscreen;
+        // Flipped off the saved choice, not off Screen.fullScreen, so the row does not stick
+        // on whichever value the screen reports back in the editor.
+        bool fullscreen = !FullscreenPreferred;
+        ApplyFullscreen(fullscreen);
         SetFullscreenLabel(fullscreen);
+    }
+
+    /// <summary>What the fullscreen setting is currently saved as, for other settings pages.</summary>
+    public static bool FullscreenEnabled => FullscreenPreferred;
+
+    /// <summary>
+    /// The one way the fullscreen setting is changed. The main menu page goes through here
+    /// too, so a choice made there is the one this popup restores on the next scene.
+    /// </summary>
+    public static void ApplyFullscreen(bool fullscreen)
+    {
+        FullscreenPreferred = fullscreen;
+        Screen.fullScreenMode = fullscreen
+            ? FullScreenMode.FullScreenWindow
+            : FullScreenMode.Windowed;
     }
 
     private void SetFullscreenLabel(bool fullscreen)
@@ -188,16 +243,16 @@ public class SettingsMenu : MonoBehaviour
         fullscreenValueLabel.color = fullscreen ? HighlightColor : DimLabelColor;
     }
 
+    // Neither of these touches its own row: the write raises the change event, and the refresh
+    // that follows redraws the handle and the readout from what the mixer took.
     private void SetMusicVolume(float volume)
     {
         AudioController.SetMusicVolume(volume);
-        musicValueLabel.text = FormatPercent(volume);
     }
 
     private void SetSfxVolume(float volume)
     {
         AudioController.SetSfxVolume(volume);
-        sfxValueLabel.text = FormatPercent(volume);
     }
 
     private static string FormatPercent(float normalized)
@@ -382,6 +437,13 @@ public class SettingsMenu : MonoBehaviour
     {
         GameObject sliderObject = CreateUIObject("Slider", parent);
         Slider slider = sliderObject.AddComponent<Slider>();
+
+        // The only things drawn here are a six pixel track and a small handle, so those were
+        // also the only things a click could land on - a drag anywhere else in the row missed
+        // the slider entirely and the volume never moved. This invisible graphic fills the row
+        // and takes those clicks, leaving the thin track purely as the way it looks.
+        Image hitArea = sliderObject.AddComponent<Image>();
+        hitArea.color = Color.clear;
 
         GameObject background = CreateUIObject("Background", sliderObject.transform);
         background.AddComponent<Image>().color = TrackColor;

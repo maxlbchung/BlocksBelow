@@ -85,11 +85,83 @@ public class CageTower : MonoBehaviour
             && enemyComponent.isActiveAndEnabled
             && enemyComponent.CanBeCaged)
         {
-            Capture(enemy);
+            Capture(enemy, true);
         }
     }
 
-    private void Capture(GameObject enemy)
+    /// <summary>
+    /// Puts the cage back to <paramref name="restoredState"/>, taking
+    /// <paramref name="captive"/> in when that state is Full. For a round retry replaying
+    /// the round from the state it opened in.
+    /// <para>
+    /// Whatever is caged right now is discarded rather than released: a retry clears the
+    /// field anyway, so a bird set loose here would only have to be swept up again. The
+    /// restored capture is silent for the same reason - a retry would otherwise fire one
+    /// capture sound per cage at once.
+    /// </para>
+    /// </summary>
+    public void RestoreState(CageState restoredState, GameObject captive)
+    {
+        DiscardCaptive();
+
+        // Full is reached by capturing, not by assignment, so the cage is put in the
+        // state a capture expects to find it in and the capture does the rest.
+        state = restoredState == CageState.Full ? CageState.Empty : restoredState;
+        RefreshSprite();
+
+        if (restoredState == CageState.Full && captive != null)
+        {
+            Capture(captive, false);
+        }
+    }
+
+    /// <summary>
+    /// Takes the captive out of the cage and off the field in one step, undoing what
+    /// <see cref="Capture"/> did to it so the pool gets a usable object back rather than
+    /// one still holding disabled scripts and a frozen body.
+    /// </summary>
+    private void DiscardCaptive()
+    {
+        if (capturedEnemy == null)
+        {
+            return;
+        }
+
+        foreach (Collider2D enemyCollider in disabledEnemyColliders)
+        {
+            if (enemyCollider != null)
+            {
+                enemyCollider.enabled = true;
+            }
+        }
+
+        foreach (MonoBehaviour behaviour in disabledEnemyScripts)
+        {
+            if (behaviour != null)
+            {
+                behaviour.enabled = true;
+            }
+        }
+
+        disabledEnemyColliders.Clear();
+        disabledEnemyScripts.Clear();
+
+        if (capturedBody != null)
+        {
+            capturedBody.constraints = originalConstraints;
+            capturedBody.bodyType = originalBodyType;
+            capturedBody.gravityScale = originalGravityScale;
+        }
+
+        // Sorting was moved to the tower layer on capture, and the pool does not reset
+        // it, so a recycled bird would stay drawn among the towers without this.
+        SetEnemySorting(capturedEnemy, "Enemy");
+        capturedEnemy.GetComponent<Enemy>()?.Despawn();
+        capturedEnemy = null;
+        capturedBody = null;
+    }
+
+    private void Capture(GameObject enemy, bool announce)
     {
         capturedEnemy = enemy;
         state = CageState.Full;
@@ -133,8 +205,12 @@ public class CageTower : MonoBehaviour
         }
 
         SetEnemySorting(enemy, "Towers");
-        PlaySfx(captureSfx);
-        FirstCaptureCinematic.TryPlay(this);
+
+        if (announce)
+        {
+            PlaySfx(captureSfx);
+            FirstCaptureCinematic.TryPlay(this);
+        }
     }
 
     public void ReleaseEnemy()

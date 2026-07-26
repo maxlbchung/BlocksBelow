@@ -14,22 +14,35 @@ public class EnemyBullet : MonoBehaviour, IPoolable
         + "sits at scale 1: the bolt is sized by its sprite's pixels-per-unit, so any "
         + "transform scale multiplies on top of this and the number stops meaning world "
         + "units.")]
-    [SerializeField, Min(0.01f)] private float boltSize = 0.4125f;
+    [SerializeField, Min(0.01f)] private float boltSize = 0.78f;
 
     [Header("Impact Sparks")]
     [Tooltip("Sparks thrown off where the bullet hits the player. Zero turns the burst off.")]
-    [SerializeField, Min(0)] private int sparksPerHit = 40;
+    [SerializeField, Min(0)] private int sparksPerHit = 55;
     [SerializeField] private Color sparkColor = new Color(1f, 0.92f, 0.15f, 1f);
 
-    // One bolt material, one blank sprite and one spark system serve every bullet: they
-    // all come off the same prefab, so none of them ever needs its own.
+    [Header("Sparkle Trail")]
+    [Tooltip("Sparkles shed along the flight path. Zero turns the trail off.")]
+    [SerializeField, Min(0)] private float sparklesPerSecond = 55f;
+    [SerializeField] private Color sparkleColor = new Color(1f, 0.86f, 0.3f, 1f);
+
+    // One bolt material, one blank sprite and one system per effect serve every bullet:
+    // they all come off the same prefab, so none of them ever needs its own.
     private static Material boltMaterial;
     private static Sprite boltSprite;
     private static ParticleSystem sparks;
     private static Material sparkMaterial;
+    private static ParticleSystem sparkles;
+    private static Material sparkleMaterial;
+    private static Texture2D sparkleTexture;
+
+    // Fractional sparkles carried between frames, so a rate that does not divide evenly
+    // into the frame time still comes out at the rate asked for instead of rounding away.
+    private float sparkleBacklog;
 
     private static readonly int BoltIntensityId = Shader.PropertyToID("_Intensity");
     private static readonly int BoltGlowStrengthId = Shader.PropertyToID("_GlowStrength");
+    private static readonly int SpriteColorId = Shader.PropertyToID("_Color");
 
     private void Awake()
     {
@@ -81,6 +94,7 @@ public class EnemyBullet : MonoBehaviour, IPoolable
 
     public void OnPoolAcquire()
     {
+        sparkleBacklog = 0f;
         if (body != null)
         {
             body.linearVelocity = Vector2.zero;
@@ -90,11 +104,17 @@ public class EnemyBullet : MonoBehaviour, IPoolable
 
     public void OnPoolRelease()
     {
+        sparkleBacklog = 0f;
         if (body != null)
         {
             body.linearVelocity = Vector2.zero;
             body.angularVelocity = 0f;
         }
+    }
+
+    private void Update()
+    {
+        EmitSparkles(Time.deltaTime);
     }
 
     internal void AssignPoolHandle(PooledObject handle)
@@ -151,10 +171,11 @@ public class EnemyBullet : MonoBehaviour, IPoolable
             hideFlags = HideFlags.HideAndDontSave
         };
 
-        // Driven past the shader's own defaults: a hotter core and a wider halo, so the
-        // bolt still reads as incoming fire against a bright sky rather than as a mote.
-        boltMaterial.SetFloat(BoltIntensityId, 1.6f);
-        boltMaterial.SetFloat(BoltGlowStrengthId, 2.2f);
+        // Driven past the shader's own defaults, and past 1: the scene renders HDR and
+        // the global volume blooms above 0.9, so overbright is what buys the glow. The
+        // bolt reads as incoming fire against a bright sky rather than as a mote.
+        boltMaterial.SetFloat(BoltIntensityId, 2.8f);
+        boltMaterial.SetFloat(BoltGlowStrengthId, 3.2f);
 
         return boltMaterial;
     }
@@ -231,8 +252,8 @@ public class EnemyBullet : MonoBehaviour, IPoolable
         main.loop = true;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
         main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.7f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(4f, 11f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.09f, 0.24f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(5f, 14f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.13f, 0.34f);
         // White at the hot end of the spread, the bolt's own yellow at the other.
         main.startColor = new ParticleSystem.MinMaxGradient(Color.white, color);
         main.gravityModifier = 0.7f;
@@ -243,7 +264,7 @@ public class EnemyBullet : MonoBehaviour, IPoolable
 
         ParticleSystem.ShapeModule shape = system.shape;
         shape.shapeType = ParticleSystemShapeType.Circle;
-        shape.radius = 0.18f;
+        shape.radius = 0.24f;
 
         ParticleSystem.ColorOverLifetimeModule colorOverLifetime = system.colorOverLifetime;
         colorOverLifetime.enabled = true;
@@ -290,9 +311,207 @@ public class EnemyBullet : MonoBehaviour, IPoolable
                 name = "Shared Enemy Bolt Spark Material",
                 hideFlags = HideFlags.HideAndDontSave
             };
+
+            // Tinted past white for the same reason the bolt is: the particle system's
+            // own colours are packed to bytes and can never exceed 1, so the overbright
+            // that the bloom threshold wants has to come from the material.
+            sparkMaterial.SetColor(SpriteColorId, new Color(2.4f, 2.1f, 1.3f, 1f));
         }
 
         return sparkMaterial;
+    }
+
+    /// <summary>
+    /// Sheds sparkles along the path flown since the last frame. They are spaced across
+    /// the segment rather than dropped at the current position, so the trail stays a
+    /// continuous ribbon instead of clumping once per frame at high speed.
+    /// </summary>
+    private void EmitSparkles(float deltaTime)
+    {
+        if (sparklesPerSecond <= 0f)
+        {
+            return;
+        }
+
+        sparkleBacklog += sparklesPerSecond * deltaTime;
+        int count = Mathf.FloorToInt(sparkleBacklog);
+        if (count <= 0)
+        {
+            return;
+        }
+
+        sparkleBacklog -= count;
+
+        if (sparkles == null)
+        {
+            sparkles = CreateSparkleSystem(sparkleColor);
+        }
+
+        Vector2 velocity = body != null ? body.linearVelocity : Vector2.zero;
+        Vector3 travel = new Vector3(velocity.x, velocity.y, 0f) * deltaTime;
+        // Drifting backwards off the bolt, so the trail hangs behind it rather than
+        // travelling along with it.
+        Vector2 drift = velocity * -0.14f;
+        float jitter = boltSize * 0.28f;
+
+        for (int i = 0; i < count; i++)
+        {
+            float back = (i + 1f) / count;
+            Vector2 offset = Random.insideUnitCircle * jitter;
+
+            ParticleSystem.EmitParams emitParams = new ParticleSystem.EmitParams
+            {
+                position = transform.position - travel * back
+                    + new Vector3(offset.x, offset.y, 0f),
+                velocity = drift + Random.insideUnitCircle * 1.1f,
+                applyShapeToPosition = false
+            };
+            sparkles.Emit(emitParams, 1);
+        }
+    }
+
+    private static ParticleSystem CreateSparkleSystem(Color color)
+    {
+        GameObject sparkleObject = new GameObject("Enemy Bolt Sparkles");
+        ParticleSystem system = sparkleObject.AddComponent<ParticleSystem>();
+
+        ParticleSystem.MainModule main = system.main;
+        // Looping for the same reason the impact sparks are: a stopped system swallows
+        // the Emit() calls that are the only thing feeding it.
+        main.loop = true;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.22f, 0.55f);
+        main.startSpeed = 0f;
+        main.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.17f);
+        main.startColor = new ParticleSystem.MinMaxGradient(Color.white, color);
+        main.gravityModifier = 0.18f;
+        // A ceiling rather than a target: a heavy wave cannot let the trail eat the
+        // frame, and dropping the oldest sparkles is invisible at these lifetimes.
+        main.maxParticles = 1200;
+
+        ParticleSystem.EmissionModule emission = system.emission;
+        emission.enabled = false;
+
+        // Positions come from EmitParams, so the shape would only fight them.
+        ParticleSystem.ShapeModule shape = system.shape;
+        shape.enabled = false;
+
+        // Air drag, so a sparkle slips off the bolt and then hangs where it was left.
+        ParticleSystem.LimitVelocityOverLifetimeModule limitVelocity =
+            system.limitVelocityOverLifetime;
+        limitVelocity.enabled = true;
+        limitVelocity.dampen = 0.35f;
+        limitVelocity.limit = new ParticleSystem.MinMaxCurve(1.5f);
+
+        // The twinkle: alpha dips and comes back twice on the way out. Random lifetimes
+        // put every sparkle at a different point in that cycle, so the trail glitters
+        // instead of pulsing as one.
+        ParticleSystem.ColorOverLifetimeModule colorOverLifetime = system.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(color, 0.35f),
+                new GradientColorKey(color, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(0.3f, 0.22f),
+                new GradientAlphaKey(1f, 0.42f),
+                new GradientAlphaKey(0.25f, 0.66f),
+                new GradientAlphaKey(0.9f, 0.84f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOverLifetime.color = gradient;
+
+        // Shrinking to a point as they fade keeps the tail of the trail from reading as
+        // a row of dots that all switch off together.
+        ParticleSystem.SizeOverLifetimeModule sizeOverLifetime = system.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        AnimationCurve sizeCurve = new AnimationCurve(
+            new Keyframe(0f, 0.55f),
+            new Keyframe(0.25f, 1f),
+            new Keyframe(1f, 0f));
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, sizeCurve);
+
+        ParticleSystemRenderer sparkleRenderer =
+            sparkleObject.GetComponent<ParticleSystemRenderer>();
+        sparkleRenderer.renderMode = ParticleSystemRenderMode.Billboard;
+        sparkleRenderer.sortingLayerName = "Foreground";
+        sparkleRenderer.sortingOrder = 9;
+        sparkleRenderer.sharedMaterial = GetSparkleMaterial();
+
+        return system;
+    }
+
+    private static Material GetSparkleMaterial()
+    {
+        if (sparkleMaterial != null)
+        {
+            return sparkleMaterial;
+        }
+
+        Shader spriteShader = Shader.Find("Sprites/Default");
+        if (spriteShader == null)
+        {
+            return null;
+        }
+
+        sparkleMaterial = new Material(spriteShader)
+        {
+            name = "Shared Enemy Bolt Sparkle Material",
+            hideFlags = HideFlags.HideAndDontSave,
+            mainTexture = GetSparkleTexture()
+        };
+
+        // Overbright, so the sparkles cross the bloom threshold and bleed light the way
+        // the bolt does. Untextured they would be flat squares, hence the dot above.
+        sparkleMaterial.SetColor(SpriteColorId, new Color(2.8f, 2.4f, 1.5f, 1f));
+        return sparkleMaterial;
+    }
+
+    /// <summary>
+    /// A soft round dot with a hot centre, built in code so the effect carries no art
+    /// dependency. The falloff is steep enough that the sparkle keeps a defined point
+    /// once bloom has spread a halo around it.
+    /// </summary>
+    private static Texture2D GetSparkleTexture()
+    {
+        if (sparkleTexture != null)
+        {
+            return sparkleTexture;
+        }
+
+        const int size = 32;
+        sparkleTexture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            name = "Enemy Bolt Sparkle Dot",
+            hideFlags = HideFlags.HideAndDontSave,
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear
+        };
+
+        Color32[] pixels = new Color32[size * size];
+        const float center = (size - 1) * 0.5f;
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float distance = Mathf.Sqrt(
+                    (x - center) * (x - center) + (y - center) * (y - center));
+                float falloff = Mathf.Clamp01(1f - distance / center);
+                float alpha = falloff * falloff * falloff;
+                byte a = (byte)Mathf.RoundToInt(alpha * 255f);
+                pixels[y * size + x] = new Color32(255, 255, 255, a);
+            }
+        }
+
+        sparkleTexture.SetPixels32(pixels);
+        sparkleTexture.Apply();
+        return sparkleTexture;
     }
 
     public void Release()

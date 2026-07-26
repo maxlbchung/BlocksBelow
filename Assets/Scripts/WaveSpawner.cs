@@ -99,6 +99,9 @@ public class WaveSpawner : MonoBehaviour
     /// </summary>
     public static bool IsWaveActive => instance == null || instance.gameState == GameState.Wave;
 
+    /// <summary>The spawner in the loaded scene, or null in scenes that field no waves.</summary>
+    internal static WaveSpawner InstanceOrNull => instance;
+
     private readonly List<Enemy> livingEnemies = new List<Enemy>(512);
     private readonly List<GameObject> spawnPool = new List<GameObject>(512);
     private readonly List<GameObject> previewPool = new List<GameObject>(64);
@@ -207,8 +210,11 @@ public class WaveSpawner : MonoBehaviour
     {
         instance = this;
 
-        // Statics survive a scene reload, so the run's counters start over here.
+        // Statics survive a scene reload, so the run's counters start over here. The
+        // same goes for the retry snapshot, which would otherwise point at cages and a
+        // player belonging to the scene that was just unloaded.
         RunStats.ResetRun();
+        RoundSnapshot.Clear();
     }
 
     private void Start()
@@ -327,9 +333,36 @@ public class WaveSpawner : MonoBehaviour
         livingEnemies.Clear();
         SetBuildingToolsEnabled(false);
 
+        // Taken here, at the last moment before anything is spawned, so it records the
+        // board exactly as the player left it in the build phase.
+        RoundSnapshot.Capture();
+
         BuildSpawnPool(waves[currentWaveIndex], spawnPool);
         Shuffle(spawnPool);
         spawnRoutine = StartCoroutine(SpawnWave(waves[currentWaveIndex].targetTime));
+    }
+
+    /// <summary>
+    /// Runs the current round again from the top. The world is put back by
+    /// <see cref="RoundSnapshot"/> first; this only rewinds the spawner itself, which
+    /// then starts the round over as if it had never been begun.
+    /// </summary>
+    internal void RetryCurrentRound()
+    {
+        if (spawnRoutine != null)
+        {
+            // StartNextWave refuses to run while a spawn routine is live, and this one
+            // is part-way through a wave that is being thrown away.
+            StopCoroutine(spawnRoutine);
+            spawnRoutine = null;
+        }
+
+        finishedSpawning = false;
+        livingEnemies.Clear();
+
+        // Stepped back so StartNextWave lands on the same wave rather than the next one.
+        currentWaveIndex--;
+        StartNextWave();
     }
 
     private void PreparePools()
