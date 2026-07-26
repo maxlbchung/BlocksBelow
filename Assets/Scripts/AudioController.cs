@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public sealed class AudioClipDropdownAttribute : PropertyAttribute
 {
@@ -633,4 +635,54 @@ public class AudioController : MonoBehaviour
             StringComparison.OrdinalIgnoreCase) >= 0;
     }
 #endif
+}
+
+/// <summary>
+/// Adds the shared click cue to every scene-authored and runtime-created UI button.
+/// Buttons are discovered continuously because most gameplay UI is built after scene load.
+/// </summary>
+public sealed class GlobalButtonSound : MonoBehaviour
+{
+    private const string ButtonClipName = "Button";
+    private readonly HashSet<Button> hookedButtons = new HashSet<Button>();
+    private readonly WaitForSecondsRealtime scanDelay = new WaitForSecondsRealtime(0.5f);
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void Install()
+    {
+        if (FindFirstObjectByType<GlobalButtonSound>() != null)
+        {
+            return;
+        }
+
+        GameObject soundObject = new GameObject("Global Button Sound");
+        DontDestroyOnLoad(soundObject);
+        soundObject.AddComponent<GlobalButtonSound>();
+    }
+
+    private IEnumerator Start()
+    {
+        while (true)
+        {
+            Button[] buttons = FindObjectsByType<Button>(
+                FindObjectsInactive.Include,
+                FindObjectsSortMode.None);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                Button button = buttons[i];
+                if (button != null && hookedButtons.Add(button))
+                {
+                    button.onClick.AddListener(PlayButtonSound);
+                }
+            }
+
+            hookedButtons.RemoveWhere(button => button == null);
+            yield return scanDelay;
+        }
+    }
+
+    private static void PlayButtonSound()
+    {
+        AudioController.Play(ButtonClipName);
+    }
 }

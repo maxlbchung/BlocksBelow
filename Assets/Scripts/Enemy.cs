@@ -32,7 +32,16 @@ public class Enemy : Entity, IPoolable
     private Vector2 desiredVelocity;
     private Vector2 separationForce;
     private bool deathHandled;
+    private bool deathSoundPlayed;
     private PooledObject poolHandle;
+
+    [Header("Death SFX")]
+    [SerializeField, AudioClipDropdown] private AudioClip deathSfx;
+
+    [Header("Movement SFX")]
+    [SerializeField, AudioClipDropdown] private AudioClip movementLoopSfx;
+    [SerializeField, Range(0f, 1f)] private float movementLoopVolume = 0.25f;
+    private AudioSource movementLoopSource;
 
     internal int SimulationIndex { get; set; } = -1;
     internal int DecisionBucket { get; set; }
@@ -166,10 +175,14 @@ public class Enemy : Entity, IPoolable
     {
         deathHandled = false;
         EnemySimulationManager.Instance.Register(this);
+        movementLoopSource =
+            AudioController.PlayLoop(movementLoopSfx, gameObject, movementLoopVolume);
     }
 
     protected virtual void OnDisable()
     {
+        AudioController.StopLoop(movementLoopSource);
+        movementLoopSource = null;
         // Deactivation kills the flash coroutine mid-blink, so restore the
         // materials here or the enemy respawns from the pool stuck white.
         ResetHitFeedback();
@@ -203,6 +216,7 @@ public class Enemy : Entity, IPoolable
             if (!deathHandled)
             {
                 RunStats.RecordEnemyDefeated();
+                PlayDeathSfxOnce();
             }
 
             ReleaseOrDestroy();
@@ -319,6 +333,7 @@ public class Enemy : Entity, IPoolable
         desiredVelocity = Vector2.zero;
         separationForce = Vector2.zero;
         deathHandled = false;
+        deathSoundPlayed = false;
         ConfigureBody();
         ResetEnemyState();
     }
@@ -338,6 +353,17 @@ public class Enemy : Entity, IPoolable
 
     protected virtual void ResetEnemyState()
     {
+    }
+
+    protected void PlayDeathSfxOnce()
+    {
+        if (deathSoundPlayed)
+        {
+            return;
+        }
+
+        deathSoundPlayed = true;
+        AudioController.Play(deathSfx);
     }
 
     private void ConfigureBody()

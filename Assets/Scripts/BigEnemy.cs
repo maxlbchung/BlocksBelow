@@ -131,6 +131,7 @@ public sealed class BigEnemy : BasicEnemy
     private void BeginDeath()
     {
         isDying = true;
+        PlayDeathSfxOnce();
 
         // Held just above zero so the simulation step does not release the body out from
         // under the sequence. The real zero is written when the blast lands.

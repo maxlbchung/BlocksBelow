@@ -472,7 +472,6 @@ MonoBehaviour:
     price: 5
     unlockRound: 0
   placement: {fileID: 0}
-  player: {fileID: 1877898232}
   cageRepairPrice: 10
   menuScaleX: 1
   menuScaleY: 1
@@ -1013,6 +1012,56 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioController
   audioClips:
+  - clipName: Bomb Ticking
+    clip: {fileID: 8300000, guid: 163e047e3d96d814193d6a45ee815d3d, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Button
+    clip: {fileID: 8300000, guid: eee6ec3c2de394e47844f8c9b719ec70, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Explosion Enemy Self-Destruct
+    clip: {fileID: 8300000, guid: 22729ce66932c0143b7c975ebcd4a161, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Flying wings heavy
+    clip: {fileID: 8300000, guid: 8a42cef6b6eab6641895a2c7e6207664, type: 3}
+    volume: 0.3
+    pitch: 1
+    pitchShift: 0
+  - clipName: Flying wings
+    clip: {fileID: 8300000, guid: 3c206f5f93f58f249838509628b005fd, type: 3}
+    volume: 0.3
+    pitch: 1
+    pitchShift: 0
+  - clipName: Footstep (1)
+    clip: {fileID: 8300000, guid: 1e27bb638db6a6b479904f6e3320bcac, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Hurt
+    clip: {fileID: 8300000, guid: 648da0e26e500254d84cc508ef3bdfb9, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Jump (1)
+    clip: {fileID: 8300000, guid: 6a2f7d6b87917aa448eb75b19bc9fe92, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Land
+    clip: {fileID: 8300000, guid: a34ab5ae070ffd44da54f620c23fde59, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: MonsterDeath
+    clip: {fileID: 8300000, guid: 3fe661cffb9cf55438d61e30bfcd1b0e, type: 3}
+    volume: 0.5
+    pitch: 1
+    pitchShift: 0
   - clipName: MC Jump v2
     clip: {fileID: 8300000, guid: 5dc9b57a38d0aca4f9c1399f5da0b5af, type: 3}
     volume: 1
@@ -1020,6 +1069,11 @@ MonoBehaviour:
     pitchShift: 0
   - clipName: MC Jump
     clip: {fileID: 8300000, guid: ec7b391fa6f637c43b24b85d2ba6fb52, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: PlayerHit
+    clip: {fileID: 8300000, guid: 8068a46faa451ee4baf7194f116bdd37, type: 3}
     volume: 1
     pitch: 1
     pitchShift: 0
@@ -1033,13 +1087,18 @@ MonoBehaviour:
     volume: 1
     pitch: 1
     pitchShift: 0
-  - clipName: Metal Placement
-    clip: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
+  - clipName: Laser Tesla
+    clip: {fileID: 8300000, guid: 246ae2e1dbb030e4790d9038d70130a0, type: 3}
     volume: 1
     pitch: 1
     pitchShift: 0
-  - clipName: Saw Blade ON
-    clip: {fileID: 8300000, guid: 8e5e857fd3be1254d89ea55471871633, type: 3}
+  - clipName: Menu Button
+    clip: {fileID: 8300000, guid: 650b4375ef7a9d6438a88e143db897c7, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Metal Placement
+    clip: {fileID: 8300000, guid: 221643215615b004b877a8c94417c489, type: 3}
     volume: 1
     pitch: 1
     pitchShift: 0
@@ -1055,6 +1114,11 @@ MonoBehaviour:
     pitchShift: 0
   - clipName: Shotgun v2
     clip: {fileID: 8300000, guid: c4bd30de22dc6b04e917a497093819e9, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: Whoosh
+    clip: {fileID: 8300000, guid: fd6dfcadc2760ef47921864c9865c585, type: 3}
     volume: 1
     pitch: 1
     pitchShift: 0
@@ -2062,17 +2126,6 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!114 &1877898232 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 3000397879216909440, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
-  m_PrefabInstance: {fileID: 1463324478}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e5b0105c2986d894b9aad495862227f5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
 --- !u!95 &1877898233 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 464871150817697749, guid: b2c38a79f3d0a464e87ee264e5489423, type: 3}
