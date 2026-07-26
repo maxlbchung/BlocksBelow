@@ -31,7 +31,11 @@ public sealed class CageBreakerEnemy : Enemy
     [SerializeField] private bool takesDamageInBreakingState = true;
     [SerializeField] private Vector2 countdownOffset = new Vector2(0f, 1.2f);
     [SerializeField, Min(1f)] private float countdownFontSize = 10f;
+    [SerializeField, Min(0f)] private float countdownTextScale = 0.1f;
     [SerializeField] private Sprite countdownBackgroundSprite;
+    [SerializeField, Min(0f)] private float countdownSpriteScale = 1f;
+    [SerializeField, Tooltip("Rotation added to the player-to-breaker direction. Use this to match which way the timer artwork points at zero rotation.")]
+    private float countdownSpriteRotationOffset = 90f;
     [SerializeField, Min(0f)] private float countdownScreenEdgeInset = 48f;
     [SerializeField] private TextMeshPro countdownText;
     [SerializeField] private SpriteRenderer countdownBackground;
@@ -929,10 +933,11 @@ public sealed class CageBreakerEnemy : Enemy
             textObject.transform.SetParent(transform, false);
             countdownText = textObject.AddComponent<TextMeshPro>();
             countdownText.rectTransform.sizeDelta = new Vector2(20f, 5f);
-            countdownText.transform.localScale = Vector3.one * 0.1f;
         }
 
         countdownText.transform.localPosition = countdownOffset;
+        countdownText.transform.localScale =
+            Vector3.one * Mathf.Max(0f, countdownTextScale);
         countdownText.alignment = TextAlignmentOptions.Center;
         countdownText.fontSize = Mathf.Max(1f, countdownFontSize);
         countdownText.textWrappingMode = TextWrappingModes.NoWrap;
@@ -977,6 +982,8 @@ public sealed class CageBreakerEnemy : Enemy
         }
 
         countdownBackground.sprite = countdownBackgroundSprite;
+        countdownBackground.transform.localScale =
+            Vector3.one * Mathf.Max(0f, countdownSpriteScale);
         countdownBackground.sortingLayerID = countdownText.sortingLayerID;
         countdownBackground.sortingOrder = countdownText.sortingOrder - 1;
         countdownBackground.gameObject.SetActive(false);
@@ -1008,12 +1015,13 @@ public sealed class CageBreakerEnemy : Enemy
         Vector3 normalWorldPosition = anchorPosition + (Vector3)countdownOffset;
         Vector3 displayWorldPosition = normalWorldPosition;
         Camera worldCamera = Camera.main;
+        bool breakerIsOnScreen = false;
 
         if (worldCamera != null)
         {
             Vector3 breakerViewportPosition =
-                worldCamera.WorldToViewportPoint(anchorPosition);
-            bool breakerIsOnScreen =
+                worldCamera.WorldToViewportPoint(transform.position);
+            breakerIsOnScreen =
                 breakerViewportPosition.z > 0f
                 && breakerViewportPosition.x >= 0f
                 && breakerViewportPosition.x <= 1f
@@ -1063,10 +1071,29 @@ public sealed class CageBreakerEnemy : Enemy
             }
         }
 
+        countdownText.gameObject.SetActive(true);
         countdownText.transform.position = displayWorldPosition;
+        countdownText.transform.rotation = Quaternion.identity;
         if (countdownBackground != null)
         {
+            countdownBackground.gameObject.SetActive(
+                countdownBackgroundSprite != null);
             countdownBackground.transform.position = displayWorldPosition;
+            Transform player = EnemySimulationManager.InstanceOrNull?.Player;
+            Vector2 direction = player != null
+                ? Position - (Vector2)player.position
+                : Vector2.up;
+            if (direction.sqrMagnitude <= 0.000001f)
+            {
+                direction = Vector2.up;
+            }
+
+            float directionAngle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            countdownBackground.transform.rotation =
+                Quaternion.Euler(
+                    0f,
+                    0f,
+                    directionAngle + countdownSpriteRotationOffset);
         }
     }
 

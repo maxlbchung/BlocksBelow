@@ -1,4 +1,3 @@
-using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -61,9 +60,6 @@ public class Bird : Enemy
     [SerializeField, Min(0f)] private float escapeSpeed = 14f;
     [SerializeField, Min(0.01f), Tooltip("Maximum time spent rushing upward before despawning.")]
     private float escapeDuration = 2f;
-    [SerializeField] private Vector2 countdownOffset = new Vector2(0f, 1.2f);
-    [SerializeField, Min(1f)] private float countdownFontSize = 10f;
-    [SerializeField] private TextMeshPro countdownText;
 
     [Header("Timer From Damage")]
     [SerializeField] private bool damageIncreasesTimer = true;
@@ -130,7 +126,6 @@ public class Bird : Enemy
     {
         base.Awake();
         spriteRenderers = GetComponentsInChildren<SpriteRenderer>(true);
-        EnsureCountdownText();
         EnsureStealthPuff();
         ResetBirdState();
     }
@@ -160,7 +155,6 @@ public class Bird : Enemy
         UpdateDiveSpeed(Time.deltaTime);
         countdownRemaining = Mathf.Max(0f, countdownRemaining - Time.deltaTime);
         UpdateCombatState();
-        UpdateCountdownText();
 
         if (countdownRemaining <= 0f)
         {
@@ -187,17 +181,6 @@ public class Bird : Enemy
         }
 
         return false;
-    }
-
-    private void LateUpdate()
-    {
-        if (countdownText == null)
-        {
-            return;
-        }
-
-        countdownText.transform.position = transform.position + (Vector3)countdownOffset;
-        countdownText.transform.rotation = Quaternion.identity;
     }
 
     /// <summary>
@@ -319,7 +302,6 @@ public class Bird : Enemy
             nextDamageThreshold *= damageThresholdMultiplier;
         }
 
-        UpdateCountdownText();
         return true;
     }
 
@@ -350,11 +332,6 @@ public class Bird : Enemy
         pullUpTimeRemaining = 0f;
         escaping = false;
         SetSpriteOpacity(sneakingOpacity);
-        if (countdownText != null)
-        {
-            countdownText.gameObject.SetActive(true);
-        }
-        UpdateCountdownText();
     }
 
     private void BeginEscape()
@@ -362,10 +339,6 @@ public class Bird : Enemy
         escaping = true;
         escapeTimeRemaining = Mathf.Max(0.01f, escapeDuration);
         currentSpeed = 0f;
-        if (countdownText != null)
-        {
-            countdownText.gameObject.SetActive(false);
-        }
     }
 
     private void UpdateCombatState()
@@ -638,34 +611,4 @@ public class Bird : Enemy
         }
     }
 
-    private void EnsureCountdownText()
-    {
-        if (countdownText == null)
-        {
-            countdownText = GetComponentInChildren<TextMeshPro>(true);
-        }
-
-        if (countdownText == null)
-        {
-            GameObject textObject = new GameObject("Bird Countdown");
-            textObject.transform.SetParent(transform, false);
-            countdownText = textObject.AddComponent<TextMeshPro>();
-            countdownText.rectTransform.sizeDelta = new Vector2(20f, 5f);
-            countdownText.transform.localScale = Vector3.one * 0.1f;
-        }
-
-        countdownText.alignment = TextAlignmentOptions.Center;
-        countdownText.fontSize = Mathf.Max(1f, countdownFontSize);
-        countdownText.textWrappingMode = TextWrappingModes.NoWrap;
-        countdownText.sortingOrder = 100;
-        countdownText.gameObject.SetActive(true);
-    }
-
-    private void UpdateCountdownText()
-    {
-        if (countdownText != null)
-        {
-            countdownText.text = Mathf.CeilToInt(countdownRemaining).ToString();
-        }
-    }
 }
