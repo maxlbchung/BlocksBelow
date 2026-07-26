@@ -151,11 +151,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   waves:
-  - enemiesEnabled:
+  - enemies:
     - enemyPrefab: {fileID: 1216375964642885722, guid: 8cee4797f9723414bad4125150b0fb8e, type: 3}
-      spawnCredits: 1
-    tokens: 5
-    targetEnemyCount: 5
+      count: 5
     targetTime: 10
   player: {fileID: 0}
   spawnRadius: 12

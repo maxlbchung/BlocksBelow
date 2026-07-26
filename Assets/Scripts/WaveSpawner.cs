@@ -10,34 +10,26 @@ public class WaveSpawner : MonoBehaviour
     [Serializable]
     public class EnemySpawnData
     {
-        [Tooltip("Enemy prefab that may be spawned during this wave.")]
+        [Tooltip("Enemy prefab spawned during this wave.")]
         public GameObject enemyPrefab;
 
-        [Min(1)]
-        [Tooltip("How many of the wave's spawn credits this enemy costs.")]
-        public int spawnCredits = 1;
+        [Min(0)]
+        [Tooltip("Exact number of this enemy spawned during the wave.")]
+        public int count;
     }
 
     [Serializable]
     public class Wave
     {
-        [Tooltip("The enemy types enabled for this wave and their spawn-credit costs.")]
-        public List<EnemySpawnData> enemiesEnabled = new List<EnemySpawnData>();
+        [Tooltip("Exact number of each regular enemy spawned during this wave.")]
+        public List<EnemySpawnData> enemies = new List<EnemySpawnData>();
 
         [Min(0)]
-        [Tooltip("Total spawn credits available to this wave.")]
-        public int tokens = 10;
-
-        [Min(1)]
-        [Tooltip("The spawner tries to build a pool containing this many enemies.")]
-        public int targetEnemyCount = 5;
-
-        [Min(0)]
-        [Tooltip("Mandatory birds added to this wave. These do not count toward the target enemy count or cost spawn credits.")]
+        [Tooltip("Exact number of birds spawned during this wave.")]
         public int birdCount;
 
         [Min(0)]
-        [Tooltip("Mandatory breakers added to this wave. These do not count toward the target enemy count or cost spawn credits.")]
+        [Tooltip("Exact number of cage breakers spawned during this wave.")]
         public int breakerCount;
 
         [Min(0f)]
@@ -109,7 +101,6 @@ public class WaveSpawner : MonoBehaviour
     private readonly List<Enemy> livingEnemies = new List<Enemy>(512);
     private readonly List<GameObject> spawnPool = new List<GameObject>(512);
     private readonly List<GameObject> previewPool = new List<GameObject>(64);
-    private readonly List<EnemySpawnData> validEnemies = new List<EnemySpawnData>(16);
     private Coroutine spawnRoutine;
     private int currentWaveIndex = -1;
     private bool finishedSpawning;
@@ -346,9 +337,9 @@ public class WaveSpawner : MonoBehaviour
                     continue;
                 }
 
-                for (int enemyIndex = 0; enemyIndex < wave.enemiesEnabled.Count; enemyIndex++)
+                for (int enemyIndex = 0; enemyIndex < wave.enemies.Count; enemyIndex++)
                 {
-                    EnemySpawnData spawnData = wave.enemiesEnabled[enemyIndex];
+                    EnemySpawnData spawnData = wave.enemies[enemyIndex];
                     if (spawnData == null || spawnData.enemyPrefab == null)
                     {
                         continue;
@@ -400,63 +391,13 @@ public class WaveSpawner : MonoBehaviour
     private void BuildSpawnPool(Wave wave, List<GameObject> target)
     {
         target.Clear();
-        validEnemies.Clear();
 
-        for (int i = 0; i < wave.enemiesEnabled.Count; i++)
+        for (int i = 0; i < wave.enemies.Count; i++)
         {
-            EnemySpawnData spawnData = wave.enemiesEnabled[i];
-            if (spawnData != null
-                && spawnData.enemyPrefab != null
-                && spawnData.spawnCredits > 0)
+            EnemySpawnData spawnData = wave.enemies[i];
+            if (spawnData != null)
             {
-                validEnemies.Add(spawnData);
-            }
-        }
-
-        // The list is tiny and this avoids a Comparison delegate allocation.
-        for (int i = 1; i < validEnemies.Count; i++)
-        {
-            EnemySpawnData current = validEnemies[i];
-            int insertAt = i - 1;
-            while (insertAt >= 0
-                && validEnemies[insertAt].spawnCredits < current.spawnCredits)
-            {
-                validEnemies[insertAt + 1] = validEnemies[insertAt];
-                insertAt--;
-            }
-
-            validEnemies[insertAt + 1] = current;
-        }
-
-        if (validEnemies.Count > 0 && wave.tokens > 0)
-        {
-            int creditsRemaining = wave.tokens;
-            EnemySpawnData cheapest = validEnemies[validEnemies.Count - 1];
-
-            for (int slot = 0; slot < wave.targetEnemyCount && creditsRemaining > 0; slot++)
-            {
-                int slotsAfterThis = wave.targetEnemyCount - slot - 1;
-                int spendableCredits = creditsRemaining - slotsAfterThis * cheapest.spawnCredits;
-                EnemySpawnData selected = null;
-
-                for (int i = 0; i < validEnemies.Count; i++)
-                {
-                    if (validEnemies[i].spawnCredits <= spendableCredits)
-                    {
-                        selected = validEnemies[i];
-                        break;
-                    }
-                }
-
-                selected ??= cheapest;
-                target.Add(selected.enemyPrefab);
-                creditsRemaining = Mathf.Max(0, creditsRemaining - selected.spawnCredits);
-            }
-
-            while (creditsRemaining > 0)
-            {
-                target.Add(cheapest.enemyPrefab);
-                creditsRemaining = Mathf.Max(0, creditsRemaining - cheapest.spawnCredits);
+                AddMandatorySpawns(target, spawnData.enemyPrefab, spawnData.count);
             }
         }
 
