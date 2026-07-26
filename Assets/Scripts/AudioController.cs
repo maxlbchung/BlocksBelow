@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -86,8 +87,7 @@ public class AudioController : MonoBehaviour
 
         sfxVolume = PlayerPrefs.GetFloat(SfxVolumePreference, sfxVolume);
         musicVolume = PlayerPrefs.GetFloat(MusicVolumePreference, musicVolume);
-        ApplyMixerVolume(SfxVolumeParameter, sfxVolume);
-        ApplyMixerVolume(MusicVolumeParameter, musicVolume);
+        ApplySavedVolumes();
         VolumesChanged?.Invoke();
 
         BuildEntryLookups();
@@ -191,6 +191,34 @@ public class AudioController : MonoBehaviour
         voice.pitch = pitch;
         voice.outputAudioMixerGroup = sfxMixerGroup;
         voice.Play();
+    }
+
+    /// <summary>
+    /// Puts the saved levels back onto the mixer once the scene is up.
+    ///
+    /// The mixer brings its start snapshot up after Awake has run, and that snapshot carries
+    /// its own values for the exposed volumes - this one has SFX baked in near full - so the
+    /// levels written during Awake are quietly undone. That is what kept turning the sound
+    /// back on at the start of a run however many times it had been set to silent. Asserted
+    /// again a frame later because the snapshot lands on the audio system's own schedule
+    /// rather than ours, and Start is not reliably after it.
+    /// </summary>
+    private void Start()
+    {
+        ApplySavedVolumes();
+        StartCoroutine(ReassertSavedVolumes());
+    }
+
+    private IEnumerator ReassertSavedVolumes()
+    {
+        yield return null;
+        ApplySavedVolumes();
+    }
+
+    private void ApplySavedVolumes()
+    {
+        ApplyMixerVolume(SfxVolumeParameter, sfxVolume);
+        ApplyMixerVolume(MusicVolumeParameter, musicVolume);
     }
 
     private void OnDestroy()

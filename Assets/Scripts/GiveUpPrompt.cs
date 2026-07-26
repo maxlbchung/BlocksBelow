@@ -37,9 +37,19 @@ public class GiveUpPrompt : MonoBehaviour
     private const int BossCount = 10;
     private const int GruntCount = 50;
 
-    private static readonly Color PanelColor = new Color(0.08f, 0.1f, 0.14f, 0.96f);
-    private static readonly Color MessageColor = new Color(0.72f, 0.76f, 0.82f, 1f);
-    private static readonly Color GiveUpColor = new Color(0.55f, 0.16f, 0.16f, 1f);
+    // The main menu's scheme, the same one the pause popup and the game over screen use.
+    private static readonly Color PanelColor = new Color(0.03f, 0.05f, 0.08f, 0.9f);
+    private static readonly Color MessageColor = new Color(1f, 1f, 1f, 0.6f);
+    private static readonly Color OutlineColor = new Color(1f, 1f, 1f, 0.85f);
+
+    /// <summary>
+    /// The one colour here that is not off the menu palette. Giving up ends the run and cannot
+    /// be taken back, so the button keeps a warning of its own rather than reading as one more
+    /// plain choice - desaturated to the same weight as the palette's green so it still belongs.
+    /// </summary>
+    private static readonly Color GiveUpColor = new Color(0.65f, 0.35f, 0.33f, 1f);
+
+    private const float OutlineThickness = 3f;
 
     private static GiveUpPrompt instance;
 
@@ -287,6 +297,7 @@ public class GiveUpPrompt : MonoBehaviour
 
         GameObject panel = CreateUIObject("Panel", root.transform);
         panel.AddComponent<Image>().color = PanelColor;
+        AddOutline(panel);
 
         // Top centre: the shop owns the left edge, and the middle of the screen is
         // where the player is still trying to run away from something.
@@ -295,7 +306,10 @@ public class GiveUpPrompt : MonoBehaviour
         panelRect.anchorMax = new Vector2(0.5f, 1f);
         panelRect.pivot = new Vector2(0.5f, 1f);
         panelRect.anchoredPosition = new Vector2(0f, -40f);
-        panelRect.sizeDelta = new Vector2(560f, 176f);
+        // Wider and taller than the built-in font needed: the menu face is both broader per
+        // character and taller per point, and the message has to stay on one line to keep off
+        // the button below it.
+        panelRect.sizeDelta = new Vector2(620f, 192f);
 
         VerticalLayoutGroup layout = panel.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(28, 28, 22, 22);
@@ -308,30 +322,45 @@ public class GiveUpPrompt : MonoBehaviour
         Text message = CreateText("Message", panel.transform, 26, TextAnchor.MiddleCenter);
         message.text = "No cages are powering your towers.";
         message.color = MessageColor;
-        message.gameObject.AddComponent<LayoutElement>().preferredHeight = 44f;
+        message.gameObject.AddComponent<LayoutElement>().preferredHeight = 56f;
 
         CreateButton(panel.transform, "Give Up?", GiveUpColor, OnGiveUpClicked);
 
         root.SetActive(false);
     }
 
+    /// <summary>
+    /// A button with no fill of its own: it lights up faintly under the pointer and leaves the
+    /// wireframe box and the label to carry it, the way the rest of the menus do.
+    /// </summary>
     private static Button CreateButton(
         Transform parent,
         string label,
-        Color color,
+        Color labelColor,
         UnityEngine.Events.UnityAction onClick)
     {
         GameObject buttonObject = CreateUIObject(label, parent);
         Image background = buttonObject.AddComponent<Image>();
-        background.color = color;
+        background.color = Color.white;
 
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = background;
         button.onClick.AddListener(onClick);
         buttonObject.AddComponent<LayoutElement>().preferredHeight = 64f;
 
+        ColorBlock colors = ColorBlock.defaultColorBlock;
+        colors.normalColor = new Color(1f, 1f, 1f, 0f);
+        colors.highlightedColor = new Color(1f, 1f, 1f, 0.12f);
+        colors.pressedColor = new Color(1f, 1f, 1f, 0.22f);
+        colors.selectedColor = new Color(1f, 1f, 1f, 0f);
+        colors.disabledColor = new Color(1f, 1f, 1f, 0f);
+        button.colors = colors;
+
+        AddOutline(buttonObject, labelColor);
+
         Text buttonLabel = CreateText("Label", buttonObject.transform, 28, TextAnchor.MiddleCenter);
         buttonLabel.text = label;
+        buttonLabel.color = labelColor;
         buttonLabel.fontStyle = FontStyle.Bold;
         RectTransform labelRect = buttonLabel.rectTransform;
         labelRect.anchorMin = Vector2.zero;
@@ -339,6 +368,29 @@ public class GiveUpPrompt : MonoBehaviour
         labelRect.offsetMin = Vector2.zero;
         labelRect.offsetMax = Vector2.zero;
         return button;
+    }
+
+    private static void AddOutline(GameObject target)
+    {
+        AddOutline(target, OutlineColor);
+    }
+
+    /// <summary>Traces a wireframe box around <paramref name="target"/> without joining its layout.</summary>
+    private static void AddOutline(GameObject target, Color color)
+    {
+        GameObject outlineObject = CreateUIObject("Outline", target.transform);
+
+        RectTransform outlineRect = outlineObject.GetComponent<RectTransform>();
+        outlineRect.anchorMin = Vector2.zero;
+        outlineRect.anchorMax = Vector2.one;
+        outlineRect.offsetMin = Vector2.zero;
+        outlineRect.offsetMax = Vector2.zero;
+
+        outlineObject.AddComponent<LayoutElement>().ignoreLayout = true;
+
+        UIWireframeBox outline = outlineObject.AddComponent<UIWireframeBox>();
+        outline.Color = color;
+        outline.Thickness = OutlineThickness;
     }
 
     private static GameObject CreateUIObject(string objectName, Transform parent)
@@ -352,11 +404,15 @@ public class GiveUpPrompt : MonoBehaviour
     {
         GameObject textObject = CreateUIObject(objectName, parent);
         Text text = textObject.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = MenuFont.Regular;
         text.fontSize = fontSize;
         text.alignment = alignment;
         text.color = Color.white;
         text.raycastTarget = false;
+        // Truncate, the default, drops a line whole rather than clipping it, so a label whose
+        // line runs past its box vanishes outright - and the menu font is taller per point
+        // than the built-in one these boxes were first measured against.
+        text.verticalOverflow = VerticalWrapMode.Overflow;
         return text;
     }
 
