@@ -47,7 +47,24 @@ public sealed class CageBreakerEnemy : Enemy
     private float chargeShakeDistance = 0.12f;
     [SerializeField, Min(0f), Tooltip("How much the breaker has swollen by the moment it detonates, "
         + "as a share of its normal size. 0 turns the growth off.")]
-    private float chargeGrowth = 0.4f;
+    private float chargeGrowth = 1f;
+    [SerializeField, Tooltip("Colour the breaker, its halo and the motes it pulls in are driven towards "
+        + "as the countdown runs down.")]
+    private Color chargeGlowColor = new Color(1f, 0.45f, 0.12f, 1f);
+    [SerializeField, Min(1f), Tooltip("Peak brightness the glow colour is driven to at the moment it "
+        + "detonates. The scene's bloom threshold is 0.9, so anything past 1 blooms. 1 turns the glow off.")]
+    private float chargeGlowIntensity = 5f;
+    [SerializeField, Min(0f), Tooltip("How wide the halo behind the breaker opens, in the breaker's own "
+        + "widths, at the moment it detonates. 0 turns the halo off.")]
+    private float chargeHaloSize = 2.2f;
+    [SerializeField, Min(0f), Tooltip("How far out the charge-up pulls its motes in from, in world units. "
+        + "0 turns them off.")]
+    private float chargeInflowRadius = 3.2f;
+    [SerializeField, Min(0), Tooltip("Motes drawn into the breaker per second at the moment it detonates. "
+        + "0 turns them off.")]
+    private int chargeInflowRate = 70;
+    [SerializeField, Min(0.05f), Tooltip("Seconds a mote takes to travel from the rim into the breaker.")]
+    private float chargeInflowTravel = 0.5f;
 
     [Header("Explosion Effect")]
     [SerializeField, Min(0f), Tooltip("How long the white blast takes to swell to the explosion radius and fade. 0 turns it off.")]
@@ -92,12 +109,29 @@ public sealed class CageBreakerEnemy : Enemy
     // overshoot at the end of the approach to still land inside the blast.
     private const float MaximumStandoffShareOfBlast = 0.75f;
 
+    // The halo's heartbeat: it beats slowly while the countdown is long and races by the
+    // end, which is what sells the charge running away with itself.
+    private const float HaloPulseSlowSpeed = 6f;
+    private const float HaloPulseFastSpeed = 26f;
+    private const float HaloPulseDepth = 0.09f;
+    private const float HaloPeakOpacity = 0.55f;
+
+    // Kept off 1 at the start so the halo opens out of the body rather than snapping on
+    // at full width the instant the countdown starts.
+    private const float HaloStartShare = 0.35f;
+
     // One shared blast system for every breaker, the same way HitParticles pools its
     // bursts: the effect has to outlive the breaker, which is released to the pool in
     // the same frame it explodes.
     private static ParticleSystem flashSystem;
     private static ParticleSystem shardSystem;
     private static Material flashMaterial;
+
+    // The soft disc the halo and the motes are both drawn with. Shared, unlike the systems
+    // that use it: the charge-up effects belong to one breaker and die with it.
+    private static Texture2D glowTexture;
+    private static Material glowMaterial;
+    private static Sprite glowSprite;
 
     private readonly List<CageTower> cagesInExplosion = new List<CageTower>(16);
     private SpriteRenderer[] spriteRenderers;
@@ -120,6 +154,15 @@ public sealed class CageBreakerEnemy : Enemy
     private bool baseScaleCaptured;
     private Vector3 countdownTextBaseScale = Vector3.one;
     private Vector3 countdownBackgroundBaseScale = Vector3.one;
+
+    // The charge-up's own visuals. Both hang off the breaker rather than living at the
+    // scene root like the blast does: they are only ever wanted while it is still standing,
+    // so being taken off the field with it is exactly the behaviour wanted.
+    private SpriteRenderer chargeHalo;
+    private ParticleSystem chargeInflow;
+    private SpriteRenderer[] glowRenderers;
+    private Color[] glowBaseColors;
+    private float inflowBacklog;
 
     public BreakerState State => state;
     public CageTower TargetCage => targetCage;
@@ -150,6 +193,7 @@ public sealed class CageBreakerEnemy : Enemy
         animator = GetComponent<Animator>();
         CaptureBaseScale();
         EnsureCountdownText();
+        BuildChargeEffects();
     }
 
     /// <summary>
@@ -217,9 +261,10 @@ public sealed class CageBreakerEnemy : Enemy
     }
 
     /// <summary>
-    /// The wind-up to the blast: the breaker swells and rattles harder the nearer the
-    /// countdown gets to zero. Both run on the transform, so the wing-flapping clip - and
-    /// the explosion clip that takes over for the last stretch - keep playing underneath.
+    /// The wind-up to the blast: the breaker swells, rattles, glows and hauls motes in out
+    /// of the air around it, all harder the nearer the countdown gets to zero. The swell
+    /// and the rattle run on the transform, so the wing-flapping clip - and the explosion
+    /// clip that takes over for the last stretch - keep playing underneath.
     /// </summary>
     private void UpdateChargeUp()
     {
@@ -239,6 +284,379 @@ public sealed class CageBreakerEnemy : Enemy
         // cannot be followed, not a wobble.
         transform.position =
             breakingAnchor + Random.insideUnitCircle * (chargeShakeDistance * charge);
+
+        UpdateChargeEffects(charge);
+    }
+
+    /// <summary>
+    /// The glow, the halo and the inflow, all driven off the same charge. The brightness is
+    /// squared so the breaker sits near its normal colour for most of the countdown and
+    /// only tears open at the end, which is where the camera's bloom takes over.
+    /// </summary>
+    private void UpdateChargeEffects(float charge)
+    {
+        float glow = charge * charge;
+        ApplyChargeGlow(glow);
+        UpdateChargeHalo(charge, glow);
+        UpdateChargeInflow(charge);
+    }
+
+    /// <summary>
+    /// Drives the breaker's own sprites from their normal colour towards the glow colour at
+    /// full intensity. Written as an HDR tint rather than a material swap so the ordinary
+    /// hit flash - which takes the material for a couple of frames - can still play over it.
+    /// Alpha is left alone: the sneak fade owns that.
+    /// </summary>
+    private void ApplyChargeGlow(float glow)
+    {
+        if (glowRenderers == null)
+        {
+            return;
+        }
+
+        Color hot = chargeGlowColor * Mathf.Max(1f, chargeGlowIntensity);
+        for (int i = 0; i < glowRenderers.Length; i++)
+        {
+            SpriteRenderer glowRenderer = glowRenderers[i];
+            if (glowRenderer == null)
+            {
+                continue;
+            }
+
+            Color color = glow > 0f
+                ? Color.LerpUnclamped(glowBaseColors[i], hot, Mathf.Clamp01(glow))
+                : glowBaseColors[i];
+            color.a = glowRenderer.color.a;
+            glowRenderer.color = color;
+        }
+    }
+
+    private void UpdateChargeHalo(float charge, float glow)
+    {
+        if (chargeHalo == null)
+        {
+            return;
+        }
+
+        if (chargeHaloSize <= 0f || chargeGlowIntensity <= 1f || glow <= 0.0001f)
+        {
+            chargeHalo.enabled = false;
+            return;
+        }
+
+        chargeHalo.enabled = true;
+
+        float pulseSpeed = Mathf.Lerp(HaloPulseSlowSpeed, HaloPulseFastSpeed, charge);
+        float pulse = 1f + HaloPulseDepth * Mathf.Sin(Time.time * pulseSpeed);
+        chargeHalo.transform.localScale =
+            Vector3.one * (chargeHaloSize * Mathf.Lerp(HaloStartShare, 1f, charge) * pulse);
+
+        Color color = chargeGlowColor * chargeGlowIntensity;
+        color.a = Mathf.Clamp01(glow) * HaloPeakOpacity;
+        chargeHalo.color = color;
+    }
+
+    /// <summary>
+    /// Meters the motes out over time rather than in bursts, ramped in so the pull starts as
+    /// a trickle and is a stream by the time the countdown runs out.
+    /// </summary>
+    private void UpdateChargeInflow(float charge)
+    {
+        if (chargeInflow == null || chargeInflowRate <= 0 || chargeInflowRadius <= 0f)
+        {
+            return;
+        }
+
+        inflowBacklog += chargeInflowRate * Mathf.Lerp(0.15f, 1f, charge) * Time.deltaTime;
+        int motesThisFrame = Mathf.FloorToInt(inflowBacklog);
+        if (motesThisFrame <= 0)
+        {
+            return;
+        }
+
+        inflowBacklog -= motesThisFrame;
+        EmitInflow(motesThisFrame, charge);
+    }
+
+    /// <summary>
+    /// Each mote is placed on the rim and handed the exact velocity that carries it to the
+    /// breaker as its life runs out, so they land on it instead of sailing through it or
+    /// stopping short. Straight-line and constant-speed: with the shape module bypassed and
+    /// no gravity on the system, nothing else touches them on the way in.
+    /// </summary>
+    private void EmitInflow(int count, float charge)
+    {
+        Vector2 centre = transform.position;
+        float travel = Mathf.Max(0.05f, chargeInflowTravel);
+
+        for (int i = 0; i < count; i++)
+        {
+            float angle = Random.value * Mathf.PI * 2f;
+            Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+            Vector2 start = centre + direction * (chargeInflowRadius * Random.Range(0.7f, 1.15f));
+            float lifetime = travel * Random.Range(0.75f, 1.15f);
+
+            ParticleSystem.EmitParams emitParams = new ParticleSystem.EmitParams
+            {
+                position = start,
+                velocity = (centre - start) / lifetime,
+                startLifetime = lifetime,
+                startSize = Random.Range(0.09f, 0.22f) * Mathf.Lerp(0.7f, 1.3f, charge)
+            };
+            chargeInflow.Emit(emitParams, 1);
+        }
+    }
+
+    private void BuildChargeEffects()
+    {
+        CaptureGlowRenderers();
+        EnsureChargeHalo();
+        EnsureChargeInflow();
+        ApplyChargeGlow(0f);
+    }
+
+    /// <summary>
+    /// The breaker's own sprites, which the glow drives. The countdown backdrop is left out:
+    /// it is a readout hanging off the breaker, and has no business glowing with it.
+    /// </summary>
+    private void CaptureGlowRenderers()
+    {
+        List<SpriteRenderer> renderers = new List<SpriteRenderer>(
+            spriteRenderers != null ? spriteRenderers.Length : 0);
+        for (int i = 0; spriteRenderers != null && i < spriteRenderers.Length; i++)
+        {
+            SpriteRenderer spriteRenderer = spriteRenderers[i];
+            if (spriteRenderer != null && spriteRenderer != countdownBackground)
+            {
+                renderers.Add(spriteRenderer);
+            }
+        }
+
+        glowRenderers = renderers.ToArray();
+        glowBaseColors = new Color[glowRenderers.Length];
+        for (int i = 0; i < glowRenderers.Length; i++)
+        {
+            glowBaseColors[i] = glowRenderers[i].color;
+        }
+    }
+
+    private void EnsureChargeHalo()
+    {
+        if (chargeHalo != null)
+        {
+            return;
+        }
+
+        GameObject haloObject = new GameObject("Charge Halo");
+        haloObject.transform.SetParent(transform, false);
+        chargeHalo = haloObject.AddComponent<SpriteRenderer>();
+        chargeHalo.sprite = GetGlowSprite();
+
+        // Tucked one behind the body on its own sorting layer, so the breaker is still read
+        // as a silhouette against its own glow rather than washed out by it.
+        SpriteRenderer body = ResolveBodyRenderer();
+        if (body != null)
+        {
+            chargeHalo.sortingLayerID = body.sortingLayerID;
+            chargeHalo.sortingOrder = body.sortingOrder - 1;
+        }
+
+        chargeHalo.enabled = false;
+    }
+
+    private void EnsureChargeInflow()
+    {
+        if (chargeInflow != null)
+        {
+            return;
+        }
+
+        GameObject systemObject = new GameObject("Charge Inflow");
+        systemObject.transform.SetParent(transform, false);
+        chargeInflow = systemObject.AddComponent<ParticleSystem>();
+
+        // Left looping with emission off, the same trick the blast systems use: a stopped
+        // system swallows Emit, so it runs forever and simulates only what is pushed in.
+        ParticleSystem.MainModule main = chargeInflow.main;
+        main.loop = true;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        // Shape-only scaling: the system hangs off a breaker that doubles in size across the
+        // countdown, and the motes have no business doubling with it.
+        main.scalingMode = ParticleSystemScalingMode.Shape;
+        main.startSpeed = 0f;
+        main.startLifetime = Mathf.Max(0.05f, chargeInflowTravel);
+        main.startSize = 0.15f;
+        main.startColor = chargeGlowColor * Mathf.Max(1f, chargeGlowIntensity);
+        main.gravityModifier = 0f;
+        main.maxParticles = 500;
+
+        ParticleSystem.EmissionModule emission = chargeInflow.emission;
+        emission.enabled = false;
+
+        // Swells on the way in and pinches out on arrival, so a mote reads as being taken
+        // into the breaker rather than as one that simply stopped being drawn.
+        ParticleSystem.SizeOverLifetimeModule sizeOverLifetime = chargeInflow.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(
+            1f,
+            new AnimationCurve(
+                new Keyframe(0f, 0.3f),
+                new Keyframe(0.8f, 1f),
+                new Keyframe(1f, 0f)));
+
+        ParticleSystem.ColorOverLifetimeModule colorOverLifetime = chargeInflow.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(0f, 0f),
+                new GradientAlphaKey(1f, 0.25f),
+                new GradientAlphaKey(1f, 0.85f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOverLifetime.color = gradient;
+
+        ParticleSystemRenderer particleRenderer =
+            systemObject.GetComponent<ParticleSystemRenderer>();
+        // Stretched along the heading, so the pull reads as a direction rather than as dots
+        // drifting about.
+        particleRenderer.renderMode = ParticleSystemRenderMode.Stretch;
+        particleRenderer.lengthScale = 2f;
+        particleRenderer.velocityScale = 0.02f;
+        particleRenderer.sharedMaterial = GetGlowMaterial();
+
+        SpriteRenderer body = ResolveBodyRenderer();
+        if (body != null)
+        {
+            particleRenderer.sortingLayerID = body.sortingLayerID;
+            // Over the body: the last stretch of a mote's flight is across the breaker.
+            particleRenderer.sortingOrder = body.sortingOrder + 1;
+        }
+    }
+
+    private SpriteRenderer ResolveBodyRenderer()
+    {
+        for (int i = 0; spriteRenderers != null && i < spriteRenderers.Length; i++)
+        {
+            SpriteRenderer spriteRenderer = spriteRenderers[i];
+            if (spriteRenderer != null && spriteRenderer != countdownBackground)
+            {
+                return spriteRenderer;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Puts the breaker back to its normal colour and takes the charge-up's visuals down.
+    /// Run wherever a countdown ends - knocked out, detonated or pooled - so a breaker never
+    /// falls, or comes back out of the pool, still glowing with motes flying at it.
+    /// </summary>
+    private void StopChargeEffects()
+    {
+        inflowBacklog = 0f;
+        ApplyChargeGlow(0f);
+
+        if (chargeHalo != null)
+        {
+            chargeHalo.enabled = false;
+            // Emptied as well as switched off: the pool re-enables every renderer it finds on
+            // the way out, so the halo has to be invisible on its own terms too.
+            chargeHalo.color = Color.clear;
+        }
+
+        if (chargeInflow != null)
+        {
+            // Cleared rather than left to finish: motes still in flight would converge on a
+            // breaker that is no longer standing there.
+            chargeInflow.Clear();
+        }
+    }
+
+    /// <summary>A soft-edged disc with a hot core - the halo, and every mote drawn into it.</summary>
+    private static Texture2D GetGlowTexture()
+    {
+        if (glowTexture != null)
+        {
+            return glowTexture;
+        }
+
+        const int Resolution = 128;
+        glowTexture = new Texture2D(Resolution, Resolution, TextureFormat.RGBA32, false)
+        {
+            name = "Charge Glow Texture",
+            hideFlags = HideFlags.HideAndDontSave,
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear
+        };
+
+        Color32[] pixels = new Color32[Resolution * Resolution];
+        float centre = (Resolution - 1) * 0.5f;
+        for (int y = 0; y < Resolution; y++)
+        {
+            for (int x = 0; x < Resolution; x++)
+            {
+                float distance = new Vector2(x - centre, y - centre).magnitude / centre;
+                // Raised well past the flash disc's falloff, which holds near-solid white to
+                // its rim: a glow wants most of its width spent fading out.
+                float alpha = Mathf.Pow(Mathf.Clamp01(1f - distance), 2.5f);
+                pixels[y * Resolution + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+
+        glowTexture.SetPixels32(pixels);
+        glowTexture.Apply();
+        return glowTexture;
+    }
+
+    private static Sprite GetGlowSprite()
+    {
+        if (glowSprite != null)
+        {
+            return glowSprite;
+        }
+
+        Texture2D texture = GetGlowTexture();
+        // Sized off the texture's own width, so the halo is one world unit across at scale
+        // one and its serialized size reads directly in the breaker's widths.
+        glowSprite = Sprite.Create(
+            texture,
+            new Rect(0f, 0f, texture.width, texture.height),
+            new Vector2(0.5f, 0.5f),
+            texture.width);
+        glowSprite.name = "Charge Glow Sprite";
+        glowSprite.hideFlags = HideFlags.HideAndDontSave;
+        return glowSprite;
+    }
+
+    private static Material GetGlowMaterial()
+    {
+        if (glowMaterial != null)
+        {
+            return glowMaterial;
+        }
+
+        Shader spriteShader = Shader.Find("Sprites/Default");
+        if (spriteShader == null)
+        {
+            return null;
+        }
+
+        glowMaterial = new Material(spriteShader)
+        {
+            name = "Shared Charge Glow Material",
+            mainTexture = GetGlowTexture(),
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        return glowMaterial;
     }
 
     private void LateUpdate()
@@ -357,7 +775,8 @@ public sealed class CageBreakerEnemy : Enemy
 
         // Everything the charge-up and the fall wrote straight onto the transform, put back:
         // a breaker out of the pool starts its normal size, upright and on its body, not
-        // swollen, belly-up and a shake's width off it.
+        // swollen, belly-up and a shake's width off it - and its normal colour, not glowing.
+        StopChargeEffects();
         CaptureBaseScale();
         chargeScale = 1f;
         chargeBaseScale = baseScale;
@@ -534,6 +953,15 @@ public sealed class CageBreakerEnemy : Enemy
         breakingAnchor = Position;
         chargeBaseScale = transform.localScale;
         chargeScale = 1f;
+        inflowBacklog = 0f;
+
+        // A system that is not playing swallows Emit, and being deactivated on the way into
+        // the pool is exactly the sort of thing that stops one.
+        if (chargeInflow != null && !chargeInflow.isPlaying)
+        {
+            chargeInflow.Play();
+        }
+
         SetSpriteOpacity(1f);
         countdownText.gameObject.SetActive(true);
         if (countdownBackground != null)
@@ -561,6 +989,10 @@ public sealed class CageBreakerEnemy : Enemy
     /// </summary>
     private void EnterFallingState()
     {
+        // Ahead of the puff, so the charge-up is off the breaker in the same frame it is
+        // knocked out: a corpse dropping off the screen still glowing, with motes chasing
+        // it down, would read as one still about to go off.
+        StopChargeEffects();
         PlayDefeatEffect();
 
         state = BreakerState.Falling;
@@ -642,6 +1074,9 @@ public sealed class CageBreakerEnemy : Enemy
 
     private void Explode()
     {
+        // The charge collapses into the blast rather than carrying on through it: the blast
+        // is its own effect, and it lives at the scene root so it outlives the body.
+        StopChargeEffects();
         PlayExplosionEffect();
 
         cagesInExplosion.Clear();

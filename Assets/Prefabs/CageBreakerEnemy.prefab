@@ -143,6 +143,12 @@ MonoBehaviour:
   startExplosionAnimationTime: 0.46777
   chargeShakeDistance: 0.12
   chargeGrowth: 0.4
+  chargeGlowColor: {r: 1, g: 1, b: 1, a: 1}
+  chargeGlowIntensity: 3
+  chargeHaloSize: 2.2
+  chargeInflowRadius: 3.2
+  chargeInflowRate: 70
+  chargeInflowTravel: 0.5
   explosionFlashDuration: 0.3
   explosionShardCount: 28
   explosionSparkCount: 32
