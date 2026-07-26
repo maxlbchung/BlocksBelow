@@ -164,6 +164,7 @@ MonoBehaviour:
   muzzleSparkCount: 8
   muzzleOffset: 0.5
   muzzleSparkSpread: 26
+  muzzleColor: {r: 0.42, g: 0.86, b: 1, a: 1}
 --- !u!114 &8266968104124773261
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -198,7 +199,10 @@ MonoBehaviour:
   aimDirection: {x: -1, y: 0}
   supportPiece: 0
   walkThrough: 0
-  description: Single bullet shot + Damage
+  description: 'Single bullet shot + Damage
+
+    Deals 3x damage against the heavy
+    enemy''s shield '
 --- !u!114 &1207467843014007573
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -306,6 +306,8 @@ MonoBehaviour:
       count: 38
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       count: 3
+    - enemyPrefab: {fileID: 7412998300155624011, guid: 3b7c41d8e9f0a2b4c85d61390fa7e2c6, type: 3}
+      count: 1
     birdCount: 6
     breakerCount: 6
     targetTime: 43
@@ -407,7 +409,7 @@ MonoBehaviour:
     - enemyPrefab: {fileID: 1216375964642885722, guid: ea9d59504b1186e4db042d998d1e11a9, type: 3}
       count: 20
     - enemyPrefab: {fileID: 7412998300155624011, guid: 3b7c41d8e9f0a2b4c85d61390fa7e2c6, type: 3}
-      count: 1
+      count: 5
     birdCount: 15
     breakerCount: 15
     targetTime: 50
@@ -1577,6 +1579,30 @@ MonoBehaviour:
   talkingHeadAngleSpeed: 45
   talkingHeadSortingLayer: Default
   talkingHeadSortingOrder: 1
+  enableOpeningMessage: 1
+  openingCardMessage: 'The monsters took everything.
+
+    This island is the final
+    unconquered land,
+
+    the last stand...
+
+
+    Our towers are dead metal without
+    power,
+
+    and the only power left in this world
+
+    is carried on the wings
+    of the birds.'
+  openingButtonLabel: Next
+  openingMessageDelay: 0.5
+  openingMessageLocation: {fileID: 0}
+  openingCardOffset: {x: 0, y: 0, z: 0}
+  openingTalkingHeadSize: 0
+  openingTextSize: 0
+  openingTalkingHeadOffset: {x: -3, y: 0, z: 0}
+  birdSpawnLeadSeconds: 2.5
   enableWaveZeroMessage: 1
   delayedMessageWaveIndex: 0
   delayedMessageSeconds: 3
@@ -1599,9 +1625,27 @@ MonoBehaviour:
   buildingIntroMessageOffset: {x: 0, y: 0, z: 0}
   buildingIntroMessageSeconds: 4
   buildingGhostMessageDelay: 0.15
+  waitForFirstCaptureCinematic: 1
+  buildingIntroCinematicDelay: 0.5
   buildingIntroTalkingHeadSize: 0
   buildingIntroTextSize: 0
   buildingIntroTalkingHeadOffset: {x: -3, y: 1, z: 0}
+  useContinueButton: 1
+  continueButtonLabel: Continue
+  continueButtonSize: {x: 240, y: 62}
+  continueButtonOffset: {x: 0, y: -28}
+  continueButtonFontSize: 28
+  continueButtonOutlineColor: {r: 0.78, g: 0.88, b: 1, a: 0.85}
+  continueButtonTextColor: {r: 0.9, g: 0.94, b: 1, a: 1}
+  continueButtonOutlineThickness: 3
+  enableShopArrows: 1
+  arrowsAfterTowersPlaced: 3
+  arrowsUpcomingWaveIndex: 1
+  arrowWidth: 90
+  arrowGap: 14
+  arrowTravel: 22
+  arrowBobSpeed: 0.9
+  arrowColor: {r: 0.55, g: 1, b: 0.65, a: 1}
   buildingMessage: 'Make a setup like this,
 
     Rotate with R until its facing the
