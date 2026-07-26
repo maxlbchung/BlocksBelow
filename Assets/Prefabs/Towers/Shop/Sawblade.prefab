@@ -144,4 +144,4 @@ MonoBehaviour:
   pushForce: 12
   damage: 1
   spinSpeed: -1080
-  hitSfx: {fileID: 0}
+  hitSfx: {fileID: 8300000, guid: f89e308e3fc13cd43bd1b21012198e8b, type: 3}

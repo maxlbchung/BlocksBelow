@@ -51,6 +51,11 @@ public class PlayerController : Entity
     private float landDustMinFallSpeed = 4f;
     [SerializeField, Min(0)] private int landDustMaxCount = 12;
 
+    [Header("Movement SFX")]
+    [SerializeField, AudioClipDropdown] private AudioClip jumpSfx;
+    [SerializeField, AudioClipDropdown] private AudioClip landSfx;
+    [SerializeField, AudioClipDropdown] private AudioClip footstepSfx;
+
     [Header("Animation")]
     [SerializeField] private Animator animator;
     [SerializeField] private SpriteRenderer spriteRenderer;
@@ -177,6 +182,7 @@ public class PlayerController : Entity
 
         runDustTimer = runDustInterval;
         DustParticles.EmitRun(FeetPosition, Mathf.Sign(currentHorizontalVelocity));
+        AudioController.Play(footstepSfx);
     }
 
     private void UpdateAnimation()
@@ -500,6 +506,7 @@ public class PlayerController : Entity
                     landDustMaxCount,
                     Mathf.InverseLerp(landDustMinFallSpeed, maxFallSpeed, peakFallSpeed)));
                 DustParticles.EmitLand(FeetPosition, count);
+                AudioController.Play(landSfx);
             }
 
             peakFallSpeed = 0f;
@@ -529,11 +536,20 @@ public class PlayerController : Entity
         // Use coyote jump if available
         if (canJump)
         {
+            // Scaffolding can keep canJump true while space is held, causing this branch
+            // to reapply jump force every frame. Only the first application is a new jump:
+            // after that the player is already travelling upward, so repeating the cue
+            // produces an unwanted machine-gun sound.
+            bool isStartingNewJump = rb.linearVelocity.y <= 0f;
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
             coyoteCounter = 0f; // Use up coyote time
             jumpBufferCounter = 0;
             jumpInProgress = true;
             DustParticles.EmitJump(FeetPosition, jumpDustCount);
+            if (isStartingNewJump)
+            {
+                AudioController.Play(jumpSfx);
+            }
         }
         // Otherwise use air jump, but only on an actual press (not a held key)
         else if (hasAirJump && jumpBufferCounter > 0)
@@ -543,6 +559,7 @@ public class PlayerController : Entity
             jumpBufferCounter = 0;
             jumpInProgress = true;
             DustParticles.EmitJump(FeetPosition, jumpDustCount);
+            AudioController.Play(jumpSfx);
         }
     }
 
@@ -899,6 +916,18 @@ public class PlayerController : Entity
         health = Mathf.Min(maxHealth, health + amount);
         UpdateHealthBar();
         return true;
+    }
+
+    /// <summary>Restores all health when the player successfully finishes a round.</summary>
+    public void RestoreFullHealth()
+    {
+        if (!alive)
+        {
+            return;
+        }
+
+        health = maxHealth;
+        UpdateHealthBar();
     }
 
     /// <summary>

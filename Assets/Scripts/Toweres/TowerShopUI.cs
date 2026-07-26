@@ -35,11 +35,6 @@ public class TowerShopUI : MonoBehaviour
     [SerializeField] private List<TowerOffer> towers = new List<TowerOffer>();
     [SerializeField] private SquarePlacement placement;
 
-    [Header("Health Potion")]
-    [SerializeField, Min(1)] private int potionHealAmount = 5;
-    [SerializeField, Min(0)] private int potionPrice = 25;
-    [SerializeField] private PlayerController player;
-
     [Header("Cage Repair")]
     [SerializeField, Min(0)] private int cageRepairPrice = 10;
 
@@ -90,8 +85,6 @@ public class TowerShopUI : MonoBehaviour
         new List<WaveSpawner.WavePreviewEntry>(8);
     private static Sprite aimArrowSprite;
     private Text energyText;
-    private Button potionButton;
-    private Text potionLabel;
     private Button repairButton;
     private Text repairLabel;
     private Text descriptionTitle;
@@ -161,11 +154,6 @@ public class TowerShopUI : MonoBehaviour
         if (placement != null)
         {
             placement.SetTowerShop(this);
-        }
-
-        if (player == null)
-        {
-            player = FindFirstObjectByType<PlayerController>();
         }
 
         // Which pieces the shop may show depends on the round, so the spawner has to be
@@ -265,27 +253,6 @@ public class TowerShopUI : MonoBehaviour
         energy = Mathf.Max(0, energy + amount);
         SyncDisplayedEnergy();
         RefreshUI();
-    }
-
-    public void BuyHealthPotion()
-    {
-        if (player == null)
-        {
-            player = FindFirstObjectByType<PlayerController>();
-        }
-
-        if (player == null || !CanAfford(potionPrice))
-        {
-            return;
-        }
-
-        // Heal first so a full-health player is never charged.
-        if (!player.Heal(potionHealAmount))
-        {
-            return;
-        }
-
-        TrySpend(potionPrice);
     }
 
     public void ToggleRepairMode()
@@ -1021,11 +988,6 @@ public class TowerShopUI : MonoBehaviour
         BuildDescriptionBox(page.transform, out enemyTitle, out enemyBody, out enemyHint);
         ClearEnemyDescription();
 
-        // Under the description rather than up with the preview: reading what is coming
-        // is what decides whether to heal, so the offer sits between that and the button
-        // that starts the round.
-        potionButton = CreatePotionButton(page.transform);
-
         StartRoundButton = CreateStartRoundButton(page.transform);
         return page;
     }
@@ -1327,35 +1289,6 @@ public class TowerShopUI : MonoBehaviour
         return button;
     }
 
-    private Button CreatePotionButton(Transform parent)
-    {
-        Button button = CreateBareButton("Health Potion", parent, 68f);
-        button.onClick.AddListener(BuyHealthPotion);
-
-        potionLabel = CreateText(
-            "Label", button.transform, ScaledFontSize(24), TextAnchor.MiddleCenter);
-        potionLabel.text = PotionLabelText();
-        potionLabel.color = labelColor;
-        StretchLabel(potionLabel, 8f);
-        return button;
-    }
-
-    /// <summary>
-    /// The potion heals a flat amount, but reads as the share of the bar it fills so the
-    /// offer stays meaningful without the player knowing their exact max health.
-    /// </summary>
-    private string PotionLabelText()
-    {
-        if (player == null || player.maxHealth <= 0)
-        {
-            return "Health Potion (+" + potionHealAmount + ")  " + potionPrice;
-        }
-
-        int percent = Mathf.Clamp(
-            Mathf.RoundToInt(100f * potionHealAmount / player.maxHealth), 1, 100);
-        return "Health Potion (+" + percent + "%)  " + potionPrice;
-    }
-
     private Button CreateStartRoundButton(Transform parent)
     {
         Button button = CreateBareButton("Start Round", parent, 68f);
@@ -1444,19 +1377,6 @@ public class TowerShopUI : MonoBehaviour
                 ? highlightColor
                 : (available ? labelColor : DimmedLabelColor);
             towerIcons[i].color = available ? Color.white : new Color(1f, 1f, 1f, 0.35f);
-        }
-
-        if (potionButton != null)
-        {
-            // A potion at full health is a no-op the shop refuses anyway, so the
-            // offer disappears entirely rather than sitting there greyed out.
-            bool healingWouldHelp = player != null && player.CanBeHealed;
-            potionButton.gameObject.SetActive(healingWouldHelp);
-
-            bool affordable = CanAfford(potionPrice);
-            potionButton.interactable = healingWouldHelp && affordable;
-            potionLabel.color = affordable ? labelColor : DimmedLabelColor;
-            potionLabel.text = PotionLabelText();
         }
 
         if (repairButton != null)
@@ -1635,28 +1555,10 @@ public class TowerShopUI : MonoBehaviour
         new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
     }
 
-    /// <summary>
-    /// Keeps the potion offer in step with the player's health. Health is not owned by
-    /// the shop and is initialised after this component's Awake, so the offer is checked
-    /// per frame instead of only when energy changes. Only runs during build phases,
-    /// since the spawner disables this component while a wave is being fought.
-    /// </summary>
     private void Update()
     {
         if (canvasRect != null && canvasRect.rect.size != lastCanvasSize)
         {
-            FitMenuToScreen();
-        }
-
-        if (potionButton == null)
-        {
-            return;
-        }
-
-        bool healingWouldHelp = player != null && player.CanBeHealed;
-        if (healingWouldHelp != potionButton.gameObject.activeSelf)
-        {
-            RefreshUI();
             FitMenuToScreen();
         }
     }

@@ -418,10 +418,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioController
   audioClips: []
-  musicTracks: []
+  musicTracks:
+  - clipName: BuildingTheme
+    clip: {fileID: 8300000, guid: bd5e12d74bab6c04487d53c0f9d4b53e, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: FightingTheme
+    clip: {fileID: 8300000, guid: 58917f786e5fa474d989b910dbc1d9e4, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
   audioMixer: {fileID: 24100000, guid: c06ee77f558d7e7458083183ac3fe289, type: 2}
   sfxVolume: 0.85
   musicVolume: 0.7
+  musicOnStart: BuildingTheme
+  musicCrossfadeDuration: 1.5
   sfxVoiceCount: 24
 --- !u!1 &145116275
 GameObject:
@@ -3411,10 +3423,22 @@ MonoBehaviour:
     volume: 1
     pitch: 1
     pitchShift: 0
-  musicTracks: []
+  musicTracks:
+  - clipName: BuildingTheme
+    clip: {fileID: 8300000, guid: bd5e12d74bab6c04487d53c0f9d4b53e, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
+  - clipName: FightingTheme
+    clip: {fileID: 8300000, guid: 58917f786e5fa474d989b910dbc1d9e4, type: 3}
+    volume: 1
+    pitch: 1
+    pitchShift: 0
   audioMixer: {fileID: 24100000, guid: c06ee77f558d7e7458083183ac3fe289, type: 2}
   sfxVolume: 1
   musicVolume: 1
+  musicOnStart: BuildingTheme
+  musicCrossfadeDuration: 1.5
   sfxVoiceCount: 24
 --- !u!1 &1835723558
 GameObject:

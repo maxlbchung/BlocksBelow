@@ -181,7 +181,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Bird
   health: 1
-  hitSfx: {fileID: 0}
+  hitSfx: {fileID: 8300000, guid: fc9a63098ef406a46bfd5c74fd520b8f, type: 3}
   hitFlashColor: {r: 1, g: 0.84179914, b: 0.2783019, a: 1}
   hitFlashDuration: 0.06
   hitFlashCount: 2

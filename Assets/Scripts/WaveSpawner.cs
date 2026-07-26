@@ -52,6 +52,9 @@ public class WaveSpawner : MonoBehaviour
 
     /// <summary>Loaded by name, because no wave references the big enemy for this to borrow.</summary>
     private const string BigEnemyResourcePath = "BigEnemy";
+    private const string BuildingMusic = "BuildingTheme";
+    private const string FightingMusic = "FightingTheme";
+    private const float MusicCrossfadeSeconds = 1.5f;
 
     private static readonly ProfilerMarker SpawnMarker =
         new ProfilerMarker("EnemySpawning.Spawn");
@@ -249,11 +252,13 @@ public class WaveSpawner : MonoBehaviour
 
         if (startFirstWaveImmediately || gameState == GameState.Wave)
         {
+            AudioController.CrossfadeMusic(FightingMusic, MusicCrossfadeSeconds);
             SetBuildingToolsEnabled(false);
             StartCoroutine(StartFirstWave());
         }
         else
         {
+            AudioController.CrossfadeMusic(BuildingMusic, MusicCrossfadeSeconds);
             SetBuildingToolsEnabled(true);
         }
     }
@@ -335,6 +340,7 @@ public class WaveSpawner : MonoBehaviour
         currentWaveIndex++;
         RunStats.RecordRoundStarted(currentWaveIndex + 1);
         gameState = GameState.Wave;
+        AudioController.CrossfadeMusic(FightingMusic, MusicCrossfadeSeconds);
         finishedSpawning = false;
         livingEnemies.Clear();
         SetBuildingToolsEnabled(false);
@@ -405,6 +411,7 @@ public class WaveSpawner : MonoBehaviour
         // Towers only fire during a wave, and the shop has no business being open while
         // this lands. StartNextWave is deliberately not used: no new round is beginning.
         gameState = GameState.Wave;
+        AudioController.CrossfadeMusic(FightingMusic, MusicCrossfadeSeconds);
         SetBuildingToolsEnabled(false);
 
         // The bosses come in behind the grunts, so the wall arrives before the weight.
@@ -684,13 +691,23 @@ public class WaveSpawner : MonoBehaviour
 
         bool roundJustEnded = gameState == GameState.Wave;
         gameState = GameState.Building;
+        AudioController.CrossfadeMusic(BuildingMusic, MusicCrossfadeSeconds);
         SetBuildingToolsEnabled(true);
 
         // Pay after the shop is re-enabled so the payout effect lands on a visible canvas.
         if (roundJustEnded)
         {
+            RestorePlayerHealth();
             PayOutEnergyTowers();
         }
+    }
+
+    private void RestorePlayerHealth()
+    {
+        PlayerController playerController = player != null
+            ? player.GetComponent<PlayerController>()
+            : FindFirstObjectByType<PlayerController>();
+        playerController?.RestoreFullHealth();
     }
 
     private static void PayOutEnergyTowers()
