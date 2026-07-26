@@ -1333,8 +1333,8 @@ Camera:
   m_GameObject: {fileID: 1254694757}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -1505,7 +1505,7 @@ MonoBehaviour:
   messageFadeSeconds: 0.35
   textSortingLayer: Foreground
   textSortingOrder: 100
-  talkingHeadSprite: {fileID: -7235225426806857176, guid: 488f5a81101cfff4994262923597e150, type: 3}
+  talkingHeadSprite: {fileID: 21300000, guid: 04a9b60e5632d3f4e896639fb780b416, type: 3}
   talkingHeadSize: 1
   talkingHeadDistanceFromText: 0.35
   talkingHeadAdditionalOffset: {x: 0, y: 0, z: 0}
@@ -1540,8 +1540,8 @@ MonoBehaviour:
   buildingIntroTalkingHeadOffset: {x: -3, y: 1, z: 0}
   buildingMessage: 'Make a setup like this,
 
-    Rotate with R until its facing
-    the desired direction.
+    Rotate with R until its facing the
+    desired direction.
 
     Click the "Round" tab when you''re ready.'
   buildingGhostTower: {fileID: 978957326}

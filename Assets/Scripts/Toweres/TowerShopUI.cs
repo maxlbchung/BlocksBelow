@@ -76,7 +76,7 @@ public class TowerShopUI : MonoBehaviour
     /// Width of the menu column in reference pixels, before <see cref="menuScaleX"/> and
     /// the screen fit are applied.
     /// </summary>
-    private const float MenuWidth = 375f;
+    private const float MenuWidth = 400f;
 
     private readonly List<Button> towerButtons = new List<Button>();
     private readonly List<Text> towerLabels = new List<Text>();
@@ -905,7 +905,10 @@ public class TowerShopUI : MonoBehaviour
         outline.Thickness = Mathf.Max(1f, outlineThickness * 0.6f);
 
         VerticalLayoutGroup layout = box.AddComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset(10, 10, 8, 8);
+        // Only enough side padding to clear the outline itself. Every pixel taken off the
+        // sides is a pixel the body text has to wrap in, and a narrow box is what makes
+        // the wrap fall inside a word instead of between two of them.
+        layout.padding = new RectOffset(4, 4, 8, 8);
         layout.spacing = 2f;
         layout.childAlignment = TextAnchor.UpperLeft;
         layout.childControlHeight = true;
@@ -1311,15 +1314,30 @@ public class TowerShopUI : MonoBehaviour
         row.spacing = 10f;
         row.childAlignment = TextAnchor.MiddleLeft;
         row.childControlHeight = true;
-        row.childControlWidth = false;
+        // Widths under the layout's control, so the name label's flexible width below is
+        // honoured and it spans everything the icon leaves rather than keeping the narrow
+        // default box, which is what broke long tower names across lines. Force-expand
+        // stays off so the slack all goes to the label instead of stretching the icon too.
+        row.childControlWidth = true;
+        row.childForceExpandWidth = false;
 
         GameObject iconObject = CreateUIObject("Icon", buttonObject.transform);
         Image icon = iconObject.AddComponent<Image>();
         icon.sprite = GetOfferSprite(offer);
         icon.preserveAspect = true;
         LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
-        iconLayout.preferredWidth = 52f * buttonContentScale;
-        iconLayout.preferredHeight = 52f * buttonContentScale;
+        // The cell is as wide as this sprite needs to fill that height, not a fixed square.
+        // preserveAspect fits the art inside whichever side is tighter, so a square cell
+        // drew every wider-than-tall icon smaller than its height allowed. Sizing the cell
+        // to the sprite draws the art at full height again and leaves the width it does not
+        // use to the name beside it - which is where the extra room for long names comes
+        // from, rather than from taking it off the icon. A minimum as well as a preferred
+        // size, so a long name cannot squeeze the icon back down to make room for itself.
+        float iconHeight = 52f * buttonContentScale;
+        float iconWidth = IconCellWidth(icon.sprite, iconHeight);
+        iconLayout.minWidth = iconWidth;
+        iconLayout.preferredWidth = iconWidth;
+        iconLayout.preferredHeight = iconHeight;
 
         Text label = CreateText(
             "Label", buttonObject.transform, ScaledFontSize(24), TextAnchor.MiddleLeft);
@@ -1340,6 +1358,21 @@ public class TowerShopUI : MonoBehaviour
         towerLabels.Add(label);
         towerIcons.Add(icon);
         return button;
+    }
+
+    /// <summary>
+    /// Width a button's icon cell needs to draw <paramref name="sprite"/> at the full
+    /// <paramref name="height"/> with its aspect kept. Capped at twice the height, so one
+    /// unusually wide piece of art cannot take the row from the name next to it.
+    /// </summary>
+    private static float IconCellWidth(Sprite sprite, float height)
+    {
+        if (sprite == null || sprite.rect.height <= 0f)
+        {
+            return height;
+        }
+
+        return Mathf.Min(height * sprite.rect.width / sprite.rect.height, height * 2f);
     }
 
     private void RefreshUI()

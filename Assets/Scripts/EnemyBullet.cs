@@ -17,8 +17,10 @@ public class EnemyBullet : MonoBehaviour, IPoolable
     [SerializeField, Min(0.01f)] private float boltSize = 0.78f;
 
     [Header("Impact Sparks")]
-    [Tooltip("Sparks thrown off where the bullet hits the player. Zero turns the burst off.")]
-    [SerializeField, Min(0)] private int sparksPerHit = 55;
+    [Tooltip("Sparks thrown off where the bullet hits the player. Kept low on purpose: a "
+        + "few countable streaks read as a burst, where a crowd of them blooms together "
+        + "into a single glow. Zero turns the burst off.")]
+    [SerializeField, Min(0)] private int sparksPerHit = 16;
     [SerializeField] private Color sparkColor = new Color(1f, 0.92f, 0.15f, 1f);
 
     [Header("Sparkle Trail")]
@@ -251,20 +253,35 @@ public class EnemyBullet : MonoBehaviour, IPoolable
         // later Emit() simulate. A one-shot system stops itself and swallows the burst.
         main.loop = true;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.7f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(5f, 14f);
-        main.startSize = new ParticleSystem.MinMaxCurve(0.13f, 0.34f);
+        // Short-lived and quick: the speed is what throws the sparks outwards, the
+        // lifetime is what keeps them from travelling far enough to read as an explosion.
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.1f, 0.24f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(4.5f, 10f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.11f);
         // White at the hot end of the spread, the bolt's own yellow at the other.
         main.startColor = new ParticleSystem.MinMaxGradient(Color.white, color);
-        main.gravityModifier = 0.7f;
+        main.gravityModifier = 0.45f;
 
         // Bursts come only from Emit(); nothing trickles out between hits.
         ParticleSystem.EmissionModule emission = system.emission;
         emission.enabled = false;
 
+        // A circle barely wider than a point: the shape is here for the radial directions
+        // it hands every spark, not to spread the start positions. Filling a disc is what
+        // made the burst read as a blob with sparks in it rather than as sparks leaving a
+        // single impact point.
         ParticleSystem.ShapeModule shape = system.shape;
         shape.shapeType = ParticleSystemShapeType.Circle;
-        shape.radius = 0.24f;
+        shape.radius = 0.03f;
+        shape.radiusThickness = 1f;
+
+        // Drag, so each streak shoots out hard and then stalls where it lands instead of
+        // sailing on across the screen.
+        ParticleSystem.LimitVelocityOverLifetimeModule limitVelocity =
+            system.limitVelocityOverLifetime;
+        limitVelocity.enabled = true;
+        limitVelocity.dampen = 0.4f;
+        limitVelocity.limit = new ParticleSystem.MinMaxCurve(2.5f);
 
         ParticleSystem.ColorOverLifetimeModule colorOverLifetime = system.colorOverLifetime;
         colorOverLifetime.enabled = true;
@@ -284,11 +301,20 @@ public class EnemyBullet : MonoBehaviour, IPoolable
             });
         colorOverLifetime.color = gradient;
 
+        // Thinning as they slow, so a streak tapers off at the end of its flight rather
+        // than switching off at full width.
+        ParticleSystem.SizeOverLifetimeModule sizeOverLifetime = system.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(
+            1f,
+            new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(1f, 0.15f)));
+
         // Stretched along their velocity, the particles read as sparks flying off the
-        // hit rather than as a puff of dots.
+        // hit rather than as a puff of dots. Kept short: a long streak at this spark
+        // count overlaps its neighbours and the burst fuses back into one glow.
         ParticleSystemRenderer sparkRenderer = sparkObject.GetComponent<ParticleSystemRenderer>();
         sparkRenderer.renderMode = ParticleSystemRenderMode.Stretch;
-        sparkRenderer.lengthScale = 4.5f;
+        sparkRenderer.lengthScale = 2.4f;
         sparkRenderer.sortingLayerName = "Foreground";
         sparkRenderer.sortingOrder = 10;
         sparkRenderer.sharedMaterial = GetSparkMaterial();
@@ -314,8 +340,11 @@ public class EnemyBullet : MonoBehaviour, IPoolable
 
             // Tinted past white for the same reason the bolt is: the particle system's
             // own colours are packed to bytes and can never exceed 1, so the overbright
-            // that the bloom threshold wants has to come from the material.
-            sparkMaterial.SetColor(SpriteColorId, new Color(2.4f, 2.1f, 1.3f, 1f));
+            // that the bloom threshold wants has to come from the material. Held just
+            // over the threshold rather than well past it - the further past, the wider
+            // the halo each spark wears, and the halos are what used to close the gaps
+            // between the streaks into a solid glow.
+            sparkMaterial.SetColor(SpriteColorId, new Color(1.5f, 1.32f, 0.85f, 1f));
         }
 
         return sparkMaterial;
